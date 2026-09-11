@@ -984,30 +984,16 @@ with app.app_context():
 
     print()
 
-    if failed == 0:
-
-        try:
-            print('✅ [PASS] SEMUA TEST OTOMATIS BERHASIL')
-        except UnicodeEncodeError:
-            print('[PASS] SEMUA TEST OTOMATIS BERHASIL')
-
-        print(
-            'Sistem siap masuk ke pengujian manual.'
-        )
-
-        sys.exit(0)
-
-    else:
-
-        try:
-            print('❌ [FAIL] MASIH ADA TEST YANG GAGAL')
-        except UnicodeEncodeError:
-            print('[FAIL] MASIH ADA TEST YANG GAGAL')
-
-        print(
-            'Perbaiki bagian yang berstatus [ FAIL ].'
-        )
-
-        sys.exit(1)
+    print()
+    
+    # Memastikan jumlah failed harus 0 agar tes dianggap lulus
+    assert failed == 0, f"Ada {failed} test yang gagal! Perbaiki bagian yang berstatus [ FAIL ]."
+    
+    try:
+        print('[PASS] SEMUA TEST OTOMATIS BERHASIL')
+    except UnicodeEncodeError:
+        print('[PASS] SEMUA TEST OTOMATIS BERHASIL')
+        
+    print('Sistem siap masuk ke pengujian manual.\n')
 
 
