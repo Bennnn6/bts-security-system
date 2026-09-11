@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}
+Audit Trail - Activity Log
+{% endblock %}
+
+{% block content %}
+<div class="app-page">
+    <div class="app-page-header">
+        <div class="app-page-header__copy">
+            <h2 class="fw-bold mb-1">
+                Audit Trail
+            </h2>
+            <p class="text-muted mb-0">
+                Log semua aktivitas admin dan sistem keamanan.
+            </p>
+        </div>
+        <div class="app-page-header__actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-dark">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="card telecom-card">
+        <div class="card-header telecom-card-header">
+            <form class="row g-3" method="GET" action="{{ url_for('activity_log') }}">
+                <div class="col-md-4">
+                    <label class="form-label">Aksi</label>
+                    <input type="text" name="action" class="form-control"
+                           value="{{ action_filter }}"
+                           placeholder="Cari aksi...">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">User</label>
+                    <input type="text" name="username" class="form-control"
+                           value="{{ username_filter }}"
+                           placeholder="Cari user...">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary fw-bold flex-1">
+                        Filter
+                    </button>
+                    <a href="{{ url_for('activity_log') }}" class="btn btn-outline-secondary">
+                        Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr class="table-light">
+                            <th>#</th>
+                            <th>Waktu</th>
+                            <th>User</th>
+                            <th>Aksi</th>
+                            <th>Keterangan</th>
+                            <th>Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.id }}</td>
+                            <td><small>{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else '-' }}</small></td>
+                            <td>{{ log.username or '<system>' }}</td>
+                            <td>{{ log.action or '-' }}</td>
+                            <td>{{ log.description or '-' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'danger' if log.incident_level == 'CRITICAL' else 'warning' if log.incident_level == 'WARNING' else 'success' if log.incident_level == 'NORMAL' else 'secondary' }}">
+                                    {{ log.incident_level or '-' }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                Tidak ada log aktivitas.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if total_pages > 1 %}
+        <div class="card-footer bg-transparent">
+            <nav>
+                <ul class="pagination justify-content-center mb-0">
+                    {% for p in range(1, total_pages + 1) %}
+                    <li class="page-item {{ 'active' if p == page else '' }}">
+                        <a class="page-link" href="?page={{ p }}&action={{ action_filter }}&username={{ username_filter }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="app-page">
+
+    <!-- HEADER -->
+
+    <div class="app-page-header">
+
+        <div class="app-page-header__copy">
+            <h2 class="fw-bold mb-1">
+                Security Alert
+            </h2>
+
+            <p class="text-muted mb-0">
+                Daftar peringatan keamanan yang terdeteksi sistem.
+            </p>
+        </div>
+
+        <div class="app-page-header__actions">
+
+            <a
+                href="{{ url_for('dashboard') }}"
+                class="btn btn-outline-dark"
+            >
+                ← Dashboard
+            </a>
+
+            <a
+                href="{{ url_for('security_incidents') }}"
+                class="btn btn-outline-danger"
+            >
+                Security Incident
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- SUMMARY -->
+
+    {% set total_alerts = alerts|length if alerts else 0 %}
+
+    {% set critical_count = (
+        alerts
+        |selectattr('level', 'equalto', 'CRITICAL')
+        |list
+        |length
+    ) if alerts else 0 %}
+
+    {% set high_count = (
+        alerts
+        |selectattr('level', 'equalto', 'HIGH')
+        |list
+        |length
+    ) if alerts else 0 %}
+
+    {% set warning_count = (
+        alerts
+        |selectattr('level', 'equalto', 'WARNING')
+        |list
+        |length
+    ) if alerts else 0 %}
+
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-6 col-xl-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Total Alert
+                    </div>
+
+                    <div class="fs-2 fw-bold">
+                        {{ total_alerts }}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-xl-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Warning
+                    </div>
+
+                    <div class="fs-2 fw-bold text-warning">
+                        {{ warning_count }}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-xl-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        High
+                    </div>
+
+                    <div class="fs-2 fw-bold text-danger">
+                        {{ high_count }}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-xl-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Critical
+                    </div>
+
+                    <div class="fs-2 fw-bold text-danger">
+                        {{ critical_count }}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ALERT LIST -->
+
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white border-0 pt-3">
+
+            <h5 class="fw-bold mb-1">
+                Peringatan Keamanan
+            </h5>
+
+            <small class="text-muted">
+                Alert berdasarkan aktivitas keamanan hari ini.
+            </small>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            {% if alerts %}
+
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th class="ps-3">
+                                    Waktu
+                                </th>
+
+                                <th>
+                                    Level
+                                </th>
+
+                                <th>
+                                    Site
+                                </th>
+
+                                <th>
+                                    Teknisi
+                                </th>
+
+                                <th>
+                                    Jenis Akses
+                                </th>
+
+                                <th>
+                                    Alasan
+                                </th>
+
+                                <th>
+                                    Keterangan
+                                </th>
+
+                                <th>
+                                    Aksi
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                        {% for alert in alerts %}
+
+                            {% set log = alert.log %}
+
+                            <tr>
+
+                                <!-- WAKTU -->
+
+                                <td class="ps-3">
+
+                                    <div class="fw-semibold small">
+
+                                        {{
+                                            alert.timestamp.strftime(
+                                                '%Y-%m-%d'
+                                            )
+                                            if alert.timestamp
+                                            else '-'
+                                        }}
+
+                                    </div>
+
+                                    <div class="text-muted small">
+
+                                        {{
+                                            alert.timestamp.strftime(
+                                                '%H:%M:%S'
+                                            )
+                                            if alert.timestamp
+                                            else '-'
+                                        }}
+
+                                    </div>
+
+                                </td>
+
+
+                                <!-- LEVEL -->
+
+                                <td>
+
+                                    {% if alert.level == 'CRITICAL' %}
+
+                                        <span class="badge bg-danger">
+                                            🔴 CRITICAL
+                                        </span>
+
+                                    {% elif alert.level == 'HIGH' %}
+
+                                        <span class="badge bg-danger">
+                                            🟠 HIGH
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="badge bg-warning text-dark">
+                                            🟡 WARNING
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- SITE -->
+
+                                <td>
+
+                                    {% if log and log.site %}
+
+                                        <div class="fw-semibold">
+                                            {{ log.site.site_name }}
+                                        </div>
+
+                                        <small class="text-muted">
+                                            {{ log.site.site_id }}
+                                        </small>
+
+                                    {% elif log %}
+
+                                        {{ log.site_id or '-' }}
+
+                                    {% else %}
+
+                                        -
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- TEKNISI -->
+
+                                <td>
+
+                                    {% if log and log.technician %}
+
+                                        <div class="fw-semibold">
+                                            {{ log.technician.name }}
+                                        </div>
+
+                                        <small class="text-muted">
+                                            {{ log.technician.technician_id }}
+                                        </small>
+
+                                    {% else %}
+
+                                        <span class="text-muted">
+                                            Tidak dikenali
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- ACCESS -->
+
+                                <td>
+
+                                    {% if log and log.access_type %}
+
+                                        <span class="badge bg-light text-dark">
+                                            {{ log.access_type }}
+                                        </span>
+
+                                    {% else %}
+
+                                        -
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- REASON -->
+
+                                <td>
+
+                                    {% if log and log.reason_code %}
+
+                                        <code>
+                                            {{ log.reason_code }}
+                                        </code>
+
+                                    {% else %}
+
+                                        -
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <!-- MESSAGE -->
+
+                                <td>
+
+                                    <small>
+                                        {{ alert.message or '-' }}
+                                    </small>
+
+                                </td>
+
+
+                                <!-- ACTION -->
+
+                                <td>
+
+                                    {% if log and log.evidence_image %}
+
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#evidenceModal{{ log.id }}"
+                                        >
+                                            📷 Foto
+                                        </button>
+
+                                    {% endif %}
+
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            {% else %}
+
+                <div class="text-center py-5 text-muted">
+
+                    <div class="fs-1">
+                        OK
+                    </div>
+
+                    <div class="fw-semibold mt-2">
+                        Tidak ada security alert.
+                    </div>
+
+                    <div class="small">
+                        Sistem tidak mendeteksi aktivitas mencurigakan hari ini.
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     FOTO BUKTI
+====================================================== -->
+
+{% if alerts %}
+
+    {% for alert in alerts %}
+
+        {% set log = alert.log %}
+
+        {% if log and log.evidence_image %}
+
+            <div
+                class="modal fade"
+                id="evidenceModal{{ log.id }}"
+                tabindex="-1"
+                aria-hidden="true"
+            >
+
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+
+                            <h5 class="modal-title fw-bold">
+                                📷 Bukti Security Alert
+                            </h5>
+
+                            <button
+                                type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                            ></button>
+
+                        </div>
+
+
+                        <div class="modal-body text-center">
+
+                            <img
+                                src="{{ log.evidence_image }}"
+                                alt="Bukti security alert"
+                                class="img-fluid rounded shadow"
+                                style="max-height: 70vh;"
+                            >
+
+                            <div class="mt-3">
+
+                                {% if log.technician %}
+
+                                    <div>
+                                        <strong>Teknisi:</strong>
+                                        {{ log.technician.name }}
+                                    </div>
+
+                                {% endif %}
+
+                                {% if log.site %}
+
+                                    <div>
+                                        <strong>Site:</strong>
+                                        {{ log.site.site_name }}
+                                    </div>
+
+                                {% endif %}
+
+                                <div>
+                                    <strong>Alasan:</strong>
+                                    {{ log.reason_code or '-' }}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="modal-footer">
+
+                            <button
+                                type="button"
+                                class="btn btn-secondary"
+                                data-bs-dismiss="modal"
+                            >
+                                Tutup
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
+    {% endfor %}
+
+{% endif %}
+
+
+{% endblock %}

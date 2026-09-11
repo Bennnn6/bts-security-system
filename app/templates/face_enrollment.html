@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+
+        <div class="card shadow">
+
+            <!-- HEADER -->
+            <div class="card-header bg-primary text-white text-center">
+                <h4 class="mb-0">
+                    Pendaftaran Wajah Teknisi
+                </h4>
+            </div>
+
+            <div class="card-body text-center">
+
+                <!-- DATA TEKNISI -->
+                <div class="mb-4">
+                    <h5 class="fw-bold">
+                        {{ technician.name }}
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        ID Teknisi:
+                        <strong>
+                            {{ technician.technician_id }}
+                        </strong>
+                    </p>
+                </div>
+
+
+                <!-- PETUNJUK -->
+                <div class="alert alert-info text-start">
+                    <strong>Petunjuk:</strong>
+
+                    <ul class="mb-0 mt-2">
+                        <li>Pastikan wajah berada di tengah kamera.</li>
+                        <li>Pastikan pencahayaan cukup.</li>
+                        <li>Lepaskan masker atau benda yang menutupi wajah.</li>
+                        <li>Pastikan hanya satu wajah yang terlihat.</li>
+                    </ul>
+                </div>
+
+
+                <!-- KAMERA -->
+                <div class="d-flex justify-content-center">
+
+                    <video
+                        id="video"
+                        width="480"
+                        height="360"
+                        autoplay
+                        playsinline
+                        muted
+                        style="
+                            width: 100%;
+                            max-width: 480px;
+                            height: auto;
+                            min-height: 300px;
+                            object-fit: cover;
+                            border: 3px solid #0d6efd;
+                            border-radius: 12px;
+                            background: #000;
+                        ">
+                    </video>
+
+                </div>
+
+
+                <!-- CANVAS -->
+                <canvas
+                    id="canvas"
+                    width="480"
+                    height="360"
+                    style="display: none;">
+                </canvas>
+
+
+                <!-- STATUS -->
+                <div
+                    id="statusBox"
+                    class="alert alert-secondary mt-4">
+
+                    <span id="status">
+                        Menyiapkan kamera...
+                    </span>
+
+                </div>
+
+                <div
+                    id="cameraHelp"
+                    class="alert alert-warning mt-3"
+                    style="display: none;"
+                >
+                    <strong>📱 Kamera Diblokir - Langkah Perbaikan:</strong>
+                    <ol class="mb-0 mt-2">
+                        <li>Tap ikon <strong>🔒 / 📷</strong> di address bar browser</li>
+                        <li>Ubah permission <strong>Camera</strong> menjadi <strong>Allow</strong></li>
+                        <li>Klik tombol <strong>🔄 Coba Lagi</strong> di bawah</li>
+                    </ol>
+                    <p class="mb-0 mt-2 small">
+                        <strong>Catatan:</strong> Jika tidak ada icon di address bar, 
+                        buka <strong>Chrome Settings → Site Settings → Camera</strong>, 
+                        lalu hapus/ubah permission untuk situs ini.
+                    </p>
+                </div>
+
+
+                <!-- BUTTON -->
+                <div class="mt-3">
+
+                    <button
+                        type="button"
+                        id="snap"
+                        class="btn btn-success btn-lg px-4">
+
+                        📷 Ambil & Daftarkan Wajah
+
+                    </button>
+
+                    <button
+                        type="button"
+                        id="retryCamera"
+                        class="btn btn-outline-warning btn-lg px-4"
+                        style="display: none;"
+                        onclick="retryCamera()">
+
+                        🔄 Coba Lagi
+
+                    </button>
+
+                    <a
+                        href="{{ url_for('totp_setup', tech_id=technician.technician_id) }}"
+                        id="nextBtn"
+                        class="btn btn-dark btn-lg px-4 d-none">
+
+                        Lanjut Setup TOTP →
+
+                    </a>
+
+                </div>
+
+
+                <!-- KEMBALI -->
+                <div class="mt-3">
+
+                    <a
+                        href="{{ url_for('dashboard') }}"
+                        class="btn btn-outline-secondary">
+
+                        ← Kembali ke Dashboard
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const snapButton = document.getElementById("snap");
+    const nextButton = document.getElementById("nextBtn");
+    const statusText = document.getElementById("status");
+    const statusBox = document.getElementById("statusBox");
+
+    let cameraStream = null;
+
+    function setStatus(message, type) {
+        statusText.innerText = message;
+        statusBox.className = "alert mt-4 alert-" + type;
+    }
+
+    async function startCamera() {
+        try {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(function (track) { track.stop(); });
+                cameraStream = null;
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
+
+            cameraStream = stream;
+            video.srcObject = stream;
+
+            setStatus(
+                "Kamera aktif. Posisikan wajah di tengah kamera.",
+                "success"
+            );
+
+            snapButton.disabled = false;
+            snapButton.innerText = "📷 Ambil & Daftarkan Wajah";
+
+        } catch (error) {
+            console.error("Camera Error:", error);
+
+            console.log("Camera debug info:", {
+                errorName: error.name,
+                errorMessage: error.message,
+                isSecureContext: window.isSecureContext,
+                hasMediaDevices: !!navigator.mediaDevices,
+                hasGetUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+                url: window.location.href,
+                protocol: window.location.protocol
+            });
+
+            let message = "Tidak dapat mengakses kamera.";
+
+            if (error && error.name === 'NotAllowedError') {
+                message = 'Izin akses kamera ditolak. Tap ikon kamera di address bar, set ke Allow, lalu klik tombol Coba Lagi.';
+            } else if (error && error.name === 'NotFoundError') {
+                message = 'Kamera tidak ditemukan di perangkat ini.';
+            } else if (error && error.name === 'NotReadableError') {
+                message = 'Kamera sedang dipakai aplikasi lain. Tutup aplikasi lain yang menggunakan kamera lalu coba lagi.';
+            } else if (error && error.name === 'SecurityError') {
+                message = 'Akses kamera diblokir karena konteks tidak aman. Gunakan HTTPS atau http://localhost.';
+            } else if (window.isSecureContext === false) {
+                message = 'Browser memerlukan HTTPS atau localhost untuk mengakses kamera.';
+            }
+
+            setStatus(message, "danger");
+            snapButton.disabled = true;
+
+            var retryBtn = document.getElementById('retryCamera');
+            if (retryBtn) {
+                retryBtn.style.display = 'inline-block';
+            }
+            var helpBox = document.getElementById('cameraHelp');
+            if (helpBox) {
+                helpBox.style.display = 'block';
+            }
+        }
+    }
+
+    function retryCamera() {
+        var retryBtn = document.getElementById('retryCamera');
+        if (retryBtn) {
+            retryBtn.style.display = 'none';
+        }
+        var helpBox = document.getElementById('cameraHelp');
+        if (helpBox) {
+            helpBox.style.display = 'none';
+        }
+        startCamera();
+    }
+
+    if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+    ) {
+        setStatus("Browser tidak mendukung akses kamera.", "danger");
+        snapButton.disabled = true;
+    } else if (window.isSecureContext === false) {
+        setStatus("Browser memerlukan HTTPS atau localhost untuk mengakses kamera.", "danger");
+        snapButton.disabled = true;
+        var helpBox = document.getElementById('cameraHelp');
+        if (helpBox) { helpBox.style.display = 'block'; }
+    } else {
+        startCamera();
+    }
+
+    snapButton.addEventListener("click", function () {
+        if (!cameraStream) {
+            setStatus("Kamera belum aktif.", "danger");
+            return;
+        }
+
+        if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
+            setStatus("Kamera belum siap. Tunggu sebentar.", "warning");
+            return;
+        }
+
+        const context = canvas.getContext("2d");
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL("image/jpeg", 0.90);
+
+        setStatus("Mengirim foto dan memproses wajah...", "warning");
+        snapButton.disabled = true;
+        snapButton.innerText = "Memproses...";
+
+        const enrollUrl = "{{ url_for('face_enrollment', tech_id=technician.technician_id) }}";
+
+        fetch(enrollUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: imageData })
+        })
+        .then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, status: response.status, data: data };
+            });
+        })
+        .then(function (result) {
+            const data = result.data;
+
+            if (result.ok && data.status === "success") {
+                setStatus(data.message || "Wajah berhasil didaftarkan.", "success");
+                nextButton.classList.remove("d-none");
+                snapButton.disabled = true;
+                snapButton.innerText = "Wajah Berhasil Didaftarkan";
+                snapButton.classList.remove("btn-success");
+                snapButton.classList.add("btn-secondary");
+
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(function (track) { track.stop(); });
+                    cameraStream = null;
+                }
+            } else {
+                setStatus(data.message || "Gagal mendaftarkan wajah.", "danger");
+                snapButton.disabled = false;
+                snapButton.innerText = "📷 Ambil & Daftarkan Wajah";
+            }
+        })
+        .catch(function (error) {
+            console.error("Enrollment Error:", error);
+            setStatus("Terjadi kesalahan saat menghubungi server.", "danger");
+            snapButton.disabled = false;
+            snapButton.innerText = "📷 Ambil & Daftarkan Wajah";
+        });
+    });
+
+    window.addEventListener("beforeunload", function () {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(function (track) { track.stop(); });
+        }
+    });
+
+});
+
+</script>
+
+{% endblock %}

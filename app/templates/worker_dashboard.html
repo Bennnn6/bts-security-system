@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="app-page">
+
+    <!-- ========================================================= -->
+    <!-- HEADER PORTAL TEKNISI -->
+    <!-- ========================================================= -->
+    <div class="app-page-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div class="app-page-header__copy">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary text-uppercase px-2 py-1">Portal Teknisi Lapangan</span>
+                <span class="badge bg-dark px-2 py-1">{{ technician.technician_id if technician else session.get('worker_id') }}</span>
+            </div>
+            <h2 class="mb-1">Selamat datang, {{ technician.name if technician else worker_name }}</h2>
+            <p class="text-muted mb-0">Kelola penugasan work order, verifikasi biometrik gerbang, dan pantau status menara BTS.</p>
+        </div>
+        <div class="app-page-header__actions d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('access_simulation') }}" class="btn btn-success fw-bold d-flex align-items-center gap-2">
+                <span>🚪</span> Simulasi Akses Gerbang
+            </a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-danger fw-bold d-flex align-items-center gap-2">
+                <span>🚪</span> Keluar
+            </a>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- KARTU IDENTITAS DIGITAL & KEBERADAAN REAL-TIME TEKNISI -->
+    <!-- ========================================================= -->
+    <div class="card shadow-sm border-0 mb-4 bg-white">
+        <div class="card-body p-4">
+            <div class="row align-items-center g-4">
+                <!-- Kolom 1: Profil & Identitas -->
+                <div class="col-lg-4 col-md-6 border-end-lg">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 64px; height: 64px; font-size: 1.8rem; font-weight: bold; flex-shrink: 0;">
+                            {{ (technician.name[0] if technician and technician.name else (worker_name[0] if worker_name else 'T'))|upper }}
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-bold">{{ technician.name if technician else worker_name }}</h5>
+                            <span class="text-muted small d-block mb-1">{{ technician.position if technician else 'Teknisi Telekomunikasi' }}</span>
+                            <div class="small text-secondary">
+                                <div><strong>ID:</strong> <code>{{ technician.technician_id if technician else session.get('worker_id') }}</code></div>
+                                <div><strong>No. HP:</strong> {{ technician.phone if technician else '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kolom 2: Status Keamanan & Biometrik -->
+                <div class="col-lg-4 col-md-6 border-end-lg">
+                    <h6 class="text-uppercase text-muted small fw-bold mb-2">Status Kredensial Keamanan</h6>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small">Face Recognition:</span>
+                            {% if technician and technician.face_encoding %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">✓ Terdaftar & Siap</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-semibold">⚠ Belum Terdaftar</span>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small">Autentikasi 2FA TOTP:</span>
+                            {% if technician and technician.totp_secret %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">✓ Aktif</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-semibold">⚠ Belum Aktif</span>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small">Status Akun Teknisi:</span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold">{{ technician.status if technician else 'Active' }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kolom 3: Status Keberadaan & Aksi Gerbang Cepat -->
+                <div class="col-lg-4 col-md-12">
+                    <div class="p-3 rounded bg-light border">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-uppercase small fw-bold text-muted">Status Keberadaan</span>
+                            {% if presence and presence.inside %}
+                                <span class="badge bg-danger text-white">
+                                    <span class="spinner-grow spinner-grow-sm me-1" role="status"></span>DI DALAM SHELTER
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success text-white">
+                                    🟢 DI LUAR SHELTER (STANDBY)
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        {% if presence and presence.inside %}
+                            <div class="mb-3">
+                                <div class="small text-muted">Lokasi Saat Ini:</div>
+                                <div class="fw-bold text-dark">{{ presence.site_name or presence.site_id }}</div>
+                                <small class="text-muted">ID: {{ presence.site_id }}</small>
+                            </div>
+                            <a href="{{ url_for('access_simulation', site_id=presence.site_id, access_type='KELUAR') }}" class="btn btn-danger btn-sm w-100 fw-bold py-2">
+                                🔴 Verifikasi KELUAR Gerbang
+                            </a>
+                        {% else %}
+                            <div class="mb-3">
+                                <div class="small text-muted">Posisi Terakhir:</div>
+                                <div class="fw-semibold text-secondary">Di luar perimeter menara BTS</div>
+                            </div>
+                            <a href="{{ url_for('access_simulation', access_type='MASUK') }}" class="btn btn-primary btn-sm w-100 fw-bold py-2">
+                                🟢 Buka Akses MASUK Gerbang
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MINI KPI STATISTIK PEKERJAAN -->
+    <!-- ========================================================= -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Tugas Aktif</div>
+                    <div class="fs-2 fw-bold text-dark my-1">{{ active_work_orders|length }}</div>
+                    <div class="small text-warning fw-semibold">Tiket menunggu / berjalan</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Tugas Selesai</div>
+                    <div class="fs-2 fw-bold text-dark my-1">{{ (my_work_orders|selectattr('status', 'equalto', 'COMPLETED')|list)|length }}</div>
+                    <div class="small text-success fw-semibold">Work order tuntas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-info">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Riwayat Akses</div>
+                    <div class="fs-2 fw-bold text-dark my-1">{{ my_access_logs|length }}</div>
+                    <div class="small text-info fw-semibold">Verifikasi gerbang tercatat</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Total Site BTS</div>
+                    <div class="fs-2 fw-bold text-dark my-1">{{ total_sites }}</div>
+                    <div class="small text-primary fw-semibold">Menara dalam pemantauan</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- NOTIFIKASI TUGAS BARU (POLLING SYSTEM) -->
+    <!-- ========================================================= -->
+    {% if active_work_orders %}
+        <section id="workerNotification" class="worker-notification mb-4" aria-labelledby="workerNotificationTitle" data-active-count="{{ active_work_orders|length }}">
+            <div class="worker-notification__marker" aria-hidden="true">!</div>
+            <div class="worker-notification__body">
+                <div class="eyebrow">PENUGASAN AKTIF</div>
+                <h3 id="workerNotificationTitle">Ada {{ active_work_orders|length }} tugas yang perlu ditangani</h3>
+                <p class="mb-0">Periksa site tujuan, jadwal, dan catatan pekerjaan sebelum menuju lokasi shelter.</p>
+            </div>
+            <a href="#workerAssignmentsTitle" class="btn btn-primary btn-sm">Lihat tugas</a>
+            <button id="enableWorkerNotifications" type="button" class="btn btn-outline-primary btn-sm">Aktifkan notifikasi browser</button>
+        </section>
+    {% endif %}
+
+    <!-- ========================================================= -->
+    <!-- DAFTAR PENUGASAN / WORK ORDERS -->
+    <!-- ========================================================= -->
+    <section class="worker-assignments mb-4" aria-labelledby="workerAssignmentsTitle">
+        <div class="worker-assignments__header">
+            <div>
+                <div class="eyebrow">ASSIGNED WORK</div>
+                <h3 id="workerAssignmentsTitle" class="mb-1">Tugas & Work Order Anda</h3>
+                <p class="text-muted mb-0">Daftar perintah kerja pemeliharaan dan inspeksi BTS yang ditugaskan kepada Anda.</p>
+            </div>
+            <span class="worker-assignments__count">{{ my_work_orders|length }} tiket</span>
+        </div>
+
+        {% if my_work_orders %}
+            <div class="worker-assignments__list">
+                {% for wo in my_work_orders %}
+                    <article class="worker-assignment">
+                        <div class="worker-assignment__ticket">{{ wo.ticket_number }}</div>
+                        <div class="worker-assignment__main">
+                            <strong>{{ wo.purpose }}</strong>
+                            <span>{{ wo.site_name }} <small class="text-muted">({{ wo.site_id }})</small></span>
+                        </div>
+                        <div class="worker-assignment__date">
+                            <small>Jadwal Pelaksanaan</small>
+                            <strong>{{ wo.scheduled_date.strftime('%d/%m/%Y') if wo.scheduled_date else '-' }}</strong>
+                        </div>
+                        <div class="worker-assignment__actions">
+                            <span class="worker-assignment__status worker-assignment__status--{{ wo.status|lower }}">{{ wo.status }}</span>
+                            {% if wo.status in ('APPROVED', 'PENDING') %}
+                                <form method="POST" action="{{ url_for('start_worker_work_order', wo_id=wo.id) }}" class="worker-start-form">
+                                    <input type="hidden" name="start_latitude" data-gps-latitude>
+                                    <input type="hidden" name="start_longitude" data-gps-longitude>
+                                    <button type="submit" class="btn btn-sm btn-primary fw-bold">Mulai Tugas</button>
+                                </form>
+                            {% elif wo.status == 'IN_PROGRESS' %}
+                                <button type="button" class="btn btn-sm btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#completeWorkOrder{{ wo.id }}">Selesaikan</button>
+                            {% endif %}
+                        </div>
+                    </article>
+
+                    {% if wo.status in ('APPROVED', 'PENDING', 'IN_PROGRESS') %}
+                        <div class="modal fade" id="completeWorkOrder{{ wo.id }}" tabindex="-1" aria-labelledby="completeWorkOrderLabel{{ wo.id }}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header bg-dark text-white">
+                                        <h5 class="modal-title" id="completeWorkOrderLabel{{ wo.id }}">Selesaikan {{ wo.ticket_number }}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                                    </div>
+                                    <form method="POST" enctype="multipart/form-data" data-gps-form action="{{ url_for('complete_worker_work_order', wo_id=wo.id) }}">
+                                        <div class="modal-body">
+                                            <div class="alert alert-info py-2 small mb-3">
+                                                Koordinat GPS otomatis dicatat sebagai bukti kehadiran fisik di lokasi site BTS.
+                                            </div>
+                                            <label class="form-label fw-bold" for="completionNote{{ wo.id }}">Ringkasan Pekerjaan Selesai</label>
+                                            <textarea id="completionNote{{ wo.id }}" name="completion_note" class="form-control" rows="3" required placeholder="Contoh: Modul rectifier telah diganti, tegangan output normal 53.5V, kebersihan shelter terjaga."></textarea>
+                                            
+                                            <label class="form-label fw-bold mt-3" for="evidenceImage{{ wo.id }}">Foto Bukti Pekerjaan <span class="text-muted fw-normal">(opsional, maks 2 MB)</span></label>
+                                            <input id="evidenceImage{{ wo.id }}" name="evidence_image" class="form-control" type="file" accept="image/jpeg,image/png,image/webp">
+                                            
+                                            <input type="hidden" name="completion_latitude" data-gps-latitude>
+                                            <input type="hidden" name="completion_longitude" data-gps-longitude>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                                            <button type="submit" class="btn btn-success fw-bold">Kirim untuk Verifikasi</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="worker-assignments__empty p-4 text-center bg-white rounded shadow-sm text-muted">
+                Belum ada work order yang ditugaskan ke akun teknisi Anda saat ini.
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- RIWAYAT AKSES GERBANG SAYA (PERSONAL ACCESS LOGS) -->
+    <!-- ========================================================= -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0 fw-bold">Riwayat Akses Gerbang Saya</h5>
+                <small class="text-muted">Catatan verifikasi pembukaan gerbang otomatis oleh akun Anda</small>
+            </div>
+            <a href="{{ url_for('access_simulation') }}" class="btn btn-sm btn-outline-primary fw-bold">Simulasi Akses Baru</a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Waktu</th>
+                            <th>Site BTS</th>
+                            <th>Jenis Akses</th>
+                            <th>Verifikasi Wajah</th>
+                            <th>OTP 2FA</th>
+                            <th>Status Akses</th>
+                            <th class="pe-3">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in my_access_logs %}
+                        <tr>
+                            <td class="ps-3"><small class="text-muted">{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</small></td>
+                            <td>
+                                <strong>{{ log.site.site_name if log.site else (log.site_id or '-') }}</strong>
+                                <small class="text-muted d-block">{{ log.site_id }}</small>
+                            </td>
+                            <td>
+                                {% if log.access_type == 'MASUK' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">MASUK</span>
+                                {% elif log.access_type == 'KELUAR' %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">KELUAR</span>
+                                {% else %}
+                                    <span class="badge bg-secondary px-2 py-1">{{ log.access_type or '-' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.face_result == 'SUCCESS' %}
+                                    <span class="text-success small fw-semibold">✓ Cocok ({{ '%.2f'|format(log.face_distance) if log.face_distance is not none else '0.00' }})</span>
+                                {% elif log.face_result == 'FAILED' %}
+                                    <span class="text-danger small fw-semibold">✗ Gagal</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.otp_result == 'SUCCESS' %}
+                                    <span class="text-success small fw-semibold">✓ Valid</span>
+                                {% elif log.otp_result == 'FAILED' %}
+                                    <span class="text-danger small fw-semibold">✗ Salah</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.access_result == 'GRANTED' %}
+                                    <span class="badge bg-success">GRANTED</span>
+                                {% elif log.access_result == 'DENIED' %}
+                                    <span class="badge bg-danger">DENIED</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ log.access_result or '-' }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-3">
+                                <small class="text-muted">{{ log.reason_code or log.description or '-' }}</small>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">Belum ada riwayat akses gerbang yang tercatat untuk akun Anda.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- PANDUAN KESELAMATAN & SOP K3 LAPANGAN -->
+    <!-- ========================================================= -->
+    <div class="card shadow-sm border-0 mb-4 bg-light">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                <span>🛡️</span> Standar Operasional Prosedur (SOP) & K3 Lapangan
+            </h5>
+            <div class="row g-3">
+                <div class="col-md-3 col-sm-6">
+                    <div class="p-3 bg-white rounded shadow-sm h-100">
+                        <div class="fw-bold text-primary mb-1">⛑️ APD Wajib</div>
+                        <p class="small text-muted mb-0">Gunakan helm keselamatan bersertifikasi, rompi high-visibility, dan sepatu safety isolator listrik di seluruh perimeter shelter.</p>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="p-3 bg-white rounded shadow-sm h-100">
+                        <div class="fw-bold text-success mb-1">🔐 Prosedur Gerbang</div>
+                        <p class="small text-muted mb-0">Lakukan verifikasi wajah & OTP dua faktor sebelum membuka gerbang. Jangan menahan pintu terbuka lebih dari batas waktu sistem.</p>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="p-3 bg-white rounded shadow-sm h-100">
+                        <div class="fw-bold text-warning mb-1">⚡ Kelistrikan & Grounding</div>
+                        <p class="small text-muted mb-0">Periksa grounding busbar dan tegangan baterai rectifier sebelum menangani kabel. Dilarang bekerja saat terjadi badai petir.</p>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="p-3 bg-white rounded shadow-sm h-100">
+                        <div class="fw-bold text-danger mb-1">🚨 Protokol Darurat</div>
+                        <p class="small text-muted mb-0">Jika alarm sabotase atau kebakaran berbunyi, segera evakuasi ke titik aman dan hubungi NOC / Pengawas Keamanan.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- PENCARIAN & DAFTAR SITE BTS TERSEDIA -->
+    <!-- ========================================================= -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <form method="GET" action="{{ url_for('worker_dashboard') }}" class="input-group shadow-sm">
+                <input type="text" name="q" class="form-control form-control-lg" placeholder="Cari berdasarkan Nama Site, Lokasi, atau ID Site..." value="{{ search_query }}">
+                <button class="btn btn-primary px-4 fw-bold" type="submit">Cari Site</button>
+                {% if search_query %}
+                    <a href="{{ url_for('worker_dashboard') }}" class="btn btn-outline-secondary px-3">Reset</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Daftar Menara / Site BTS Terpantau</h5>
+            <span class="badge bg-secondary">{{ sites|length }} Site Ditampilkan</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">ID Site</th>
+                            <th>Nama Site</th>
+                            <th>Status Operasional</th>
+                            <th>Lokasi & Alamat</th>
+                            <th>Koordinat</th>
+                            <th class="pe-3 text-end">Aksi Teknisi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for site in sites %}
+                        <tr>
+                            <td class="ps-3"><strong>{{ site.site_id }}</strong></td>
+                            <td>
+                                <div class="fw-bold text-dark">{{ site.site_name }}</div>
+                                <small class="text-muted">{{ site.description or 'Shelter BTS Standar' }}</small>
+                            </td>
+                            <td>
+                                {% if 'down' in (site.status or '')|lower %}
+                                    <span class="badge bg-danger">{{ site.status }}</span>
+                                {% elif 'maint' in (site.status or '')|lower %}
+                                    <span class="badge bg-warning text-dark">{{ site.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-success">{{ site.status or 'Normal (Up)' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="small">{{ site.location }}</span>
+                            </td>
+                            <td>
+                                <code>{{ site.latitude }}, {{ site.longitude }}</code>
+                            </td>
+                            <td class="pe-3 text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination={{ site.latitude }},{{ site.longitude }}" target="_blank" class="btn btn-outline-primary" title="Buka Rute di Google Maps">
+                                        🗺️ Navigasi
+                                    </a>
+                                    <a href="{{ url_for('access_simulation', site_id=site.site_id) }}" class="btn btn-primary fw-bold" title="Akses Gerbang Site Ini">
+                                        🚪 Akses Gerbang
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">Belum ada data site BTS yang cocok dengan pencarian Anda.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- JAVASCRIPT GEOLOKASI & NOTIFIKASI REAL-TIME -->
+<!-- ========================================================= -->
+<script>
+(function () {
+    const notificationPanel = document.getElementById('workerNotification');
+    const enableButton = document.getElementById('enableWorkerNotifications');
+    const initialCount = Number(notificationPanel?.dataset.activeCount || 0);
+    let knownCount = initialCount;
+
+    async function refreshWorkOrderNotice() {
+        try {
+            const response = await fetch('{{ url_for("worker_work_order_summary") }}', {
+                credentials: 'same-origin',
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                cache: 'no-store'
+            });
+            if (!response.ok) return;
+            const result = await response.json();
+            const activeCount = Number(result.active_count || 0);
+            const title = document.getElementById('workerNotificationTitle');
+
+            if (activeCount > 0 && title) {
+                title.textContent = 'Ada ' + activeCount + ' tugas yang perlu ditangani';
+            }
+
+            if (activeCount > knownCount && knownCount >= 0 && 'Notification' in window && Notification.permission === 'granted') {
+                const latest = result.latest || {};
+                new Notification('Work order baru', {
+                    body: (latest.ticket_number || 'Tugas baru') + ' - ' + (latest.purpose || 'Periksa dashboard worker.')
+                });
+            }
+
+            knownCount = activeCount;
+        } catch (error) {
+            console.debug('Work order notification polling unavailable.', error);
+        }
+    }
+
+    enableButton?.addEventListener('click', async function () {
+        if (!('Notification' in window)) {
+            this.textContent = 'Notifikasi tidak didukung';
+            return;
+        }
+        const permission = await Notification.requestPermission();
+        this.textContent = permission === 'granted' ? 'Notifikasi aktif' : 'Izin belum diberikan';
+        this.disabled = permission === 'granted';
+    });
+
+    document.querySelectorAll('form[data-gps-form], .worker-start-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var latInputs = form.querySelectorAll('[data-gps-latitude]');
+            var lngInputs = form.querySelectorAll('[data-gps-longitude]');
+            var submitted = false;
+
+            function doSubmit() {
+                if (submitted) return;
+                submitted = true;
+                form.submit();
+            }
+
+            if (!navigator.geolocation) {
+                doSubmit();
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    latInputs.forEach(function (input) { input.value = position.coords.latitude; });
+                    lngInputs.forEach(function (input) { input.value = position.coords.longitude; });
+                    doSubmit();
+                },
+                function () { doSubmit(); },
+                { enableHighAccuracy: true, timeout: 1500, maximumAge: 10000 }
+            );
+        });
+    });
+
+    setInterval(refreshWorkOrderNotice, 20000);
+})();
+</script>
+{% endblock %}

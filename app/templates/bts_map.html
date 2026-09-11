@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="app-page">
+
+    <div class="app-page-header">
+        <div class="app-page-header__copy">
+            <h2 class="fw-bold mb-1">🗺️ BTS Site Security Map</h2>
+            <p class="text-muted mb-0">
+                Peta lokasi Site BTS, status operasional, dan status keamanan berdasarkan Access Log.
+            </p>
+        </div>
+        <div class="app-page-header__actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-dark">⬅️ Dashboard</a>
+            <a href="{{ url_for('bts_sites') }}" class="btn btn-outline-primary">Direktori Site</a>
+            <button type="button" class="btn btn-outline-success" onclick="fitAllSites()">🎯 Lihat Semua</button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Total Site</div>
+                    <div class="fs-2 fw-bold">{{ total_sites }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Site Terpetakan</div>
+                    <div class="fs-2 fw-bold text-success">{{ mapped_sites }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Tidak Memiliki Koordinat Valid</div>
+                    <div class="fs-2 fw-bold text-danger">{{ total_sites - mapped_sites }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label for="searchSite" class="form-label fw-bold small">Cari Site</label>
+                    <input id="searchSite" type="text" class="form-control" placeholder="ID site / nama / lokasi..." autocomplete="off">
+                </div>
+                <div class="col-md-3">
+                    <label for="securityFilter" class="form-label fw-bold small">Keamanan</label>
+                    <select id="securityFilter" class="form-select">
+                        <option value="ALL">Semua</option>
+                        <option value="NORMAL">NORMAL</option>
+                        <option value="WARNING">WARNING</option>
+                        <option value="HIGH">HIGH</option>
+                        <option value="CRITICAL">CRITICAL</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="statusFilter" class="form-label fw-bold small">Operasional</label>
+                    <select id="statusFilter" class="form-select">
+                        <option value="ALL">Semua</option>
+                        <option value="Normal (Up)">Normal (Up)</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Down">Down</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()">↺ Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-0 fw-bold">🛰️ Monitoring Peta</h5>
+                <small class="text-white-50">Marker menampilkan kondisi operasional dan keamanan site.</small>
+            </div>
+            <div id="visibleCount" class="badge text-bg-light">0 site</div>
+        </div>
+        <div class="card-body p-0">
+            <div id="btsMap" style="height: 620px; width: 100%;"></div>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Legenda Keamanan</h6>
+                    <div class="d-flex flex-wrap gap-3">
+                        <span>NORMAL</span>
+                        <span>🟡 WARNING</span>
+                        <span>🟠 HIGH</span>
+                        <span>🔴 CRITICAL</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-2">Catatan</h6>
+                    <p class="text-muted small mb-0">
+                        Status keamanan dihitung dari aktivitas Access Log hari ini. Site dengan Access Log ditolak
+                        atau incident lebih tinggi akan memperoleh tingkat risiko yang lebih tinggi.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{# Data JSON dipisahkan dari JavaScript agar tidak menimbulkan false-positive syntax error di editor. #}
+<script type="application/json" id="btsSiteData">{{ map_sites|tojson }}</script>
+
+<link rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIINfQ3Qk0QfM6QWJYy5QYjC7j8kG2yP0TQ="
+      crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-o9N1jGDZ5Pu/E2O2cRZ7VwYh2nqZpJpJqWZP0k5Y7vU="
+        crossorigin=""></script>
+
+<style>
+    .site-popup h6 { margin-bottom: 6px; font-weight: 700; }
+    .site-popup .small-row { margin-bottom: 3px; }
+    .site-marker { background: transparent; border: 0; }
+    .marker-dot {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 7px rgba(0,0,0,.35);
+    }
+    .marker-normal { background: #198754; }
+    .marker-warning { background: #ffc107; }
+    .marker-high { background: #fd7e14; }
+    .marker-critical { background: #dc3545; }
+    .marker-maintenance { background: #6c757d; }
+    .marker-down { background: #000; }
+    @media (max-width: 768px) {
+        #btsMap { height: 500px !important; }
+    }
+</style>
+
+<script>
+(function () {
+    'use strict';
+
+    const raw = document.getElementById('btsSiteData');
+    const sites = raw ? JSON.parse(raw.textContent || '[]') : [];
+    const map = L.map('btsMap', { zoomControl: true });
+    const markerLayer = L.layerGroup().addTo(map);
+    const markerRefs = [];
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function normalize(value) {
+        return String(value ?? '').trim().toUpperCase();
+    }
+
+    function markerClass(site) {
+        const status = normalize(site.status);
+        const security = normalize(site.security_status);
+        if (status === 'DOWN') return 'marker-down';
+        if (status === 'MAINTENANCE') return 'marker-maintenance';
+        if (security === 'CRITICAL') return 'marker-critical';
+        if (security === 'HIGH') return 'marker-high';
+        if (security === 'WARNING') return 'marker-warning';
+        return 'marker-normal';
+    }
+
+    function makeIcon(site) {
+        return L.divIcon({
+            className: 'site-marker',
+            html: '<div class="marker-dot ' + markerClass(site) + '"></div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12]
+        });
+    }
+
+    function popupHtml(site) {
+        const security = escapeHtml(site.security_status || 'NORMAL');
+        const status = escapeHtml(site.status || '-');
+        const accessType = escapeHtml(site.last_access_type || '-');
+        const lastAccess = escapeHtml(site.last_access || '-');
+
+        return `
+            <div class="site-popup">
+                <h6>${escapeHtml(site.site_name)}</h6>
+                <div class="small-row"><strong>ID:</strong> ${escapeHtml(site.site_id)}</div>
+                <div class="small-row"><strong>Lokasi:</strong> ${escapeHtml(site.location)}</div>
+                <hr class="my-2">
+                <div class="small-row"><strong>Operasional:</strong> ${status}</div>
+                <div class="small-row"><strong>Keamanan:</strong> ${security}</div>
+                <div class="small-row"><strong>Akses hari ini:</strong> ${Number(site.access_today || 0)}</div>
+                <div class="small-row"><strong>Granted:</strong> ${Number(site.granted_today || 0)}</div>
+                <div class="small-row"><strong>Denied:</strong> ${Number(site.denied_today || 0)}</div>
+                <div class="small-row"><strong>Incident:</strong> ${Number(site.incident_count || 0)}</div>
+                <div class="small-row"><strong>Teknisi di site:</strong> ${Number(site.inside_count || 0)}</div>
+                <div class="small-row"><strong>Temperatur:</strong> ${escapeHtml(site.temperature)}</div>
+                <div class="small-row"><strong>Daya:</strong> ${escapeHtml(site.power_output)}</div>
+                <div class="small-row"><strong>Akses terakhir:</strong> ${lastAccess}</div>
+                <div class="small-row"><strong>Tipe terakhir:</strong> ${accessType}</div>
+            </div>
+        `;
+    }
+
+    function getFilters() {
+        return {
+            search: normalize(document.getElementById('searchSite').value),
+            security: normalize(document.getElementById('securityFilter').value),
+            status: normalize(document.getElementById('statusFilter').value)
+        };
+    }
+
+    function matches(site, filters) {
+        const haystack = [site.site_id, site.site_name, site.location]
+            .map(normalize)
+            .join(' ');
+
+        const searchOk = !filters.search || haystack.includes(filters.search);
+        const securityOk = filters.security === 'ALL' || normalize(site.security_status) === filters.security;
+        const statusOk = filters.status === 'ALL' || normalize(site.status) === filters.status;
+
+        return searchOk && securityOk && statusOk;
+    }
+
+    function renderMarkers() {
+        markerLayer.clearLayers();
+        markerRefs.length = 0;
+
+        const filters = getFilters();
+        const visible = sites.filter(site => matches(site, filters));
+
+        visible.forEach(site => {
+            const marker = L.marker([site.latitude, site.longitude], {
+                icon: makeIcon(site),
+                title: site.site_name
+            });
+            marker.bindPopup(popupHtml(site), { maxWidth: 360 });
+            marker.addTo(markerLayer);
+            markerRefs.push({ site, marker });
+        });
+
+        document.getElementById('visibleCount').textContent = visible.length + ' site';
+
+        if (visible.length === 1) {
+            map.setView([visible[0].latitude, visible[0].longitude], 15);
+        } else if (visible.length > 1) {
+            const bounds = L.latLngBounds(visible.map(site => [site.latitude, site.longitude]));
+            map.fitBounds(bounds.pad(0.12));
+        }
+    }
+
+    window.fitAllSites = function () {
+        if (!sites.length) return;
+        const bounds = L.latLngBounds(sites.map(site => [site.latitude, site.longitude]));
+        map.fitBounds(bounds.pad(0.12));
+    };
+
+    window.resetFilters = function () {
+        document.getElementById('searchSite').value = '';
+        document.getElementById('securityFilter').value = 'ALL';
+        document.getElementById('statusFilter').value = 'ALL';
+        renderMarkers();
+    };
+
+    document.getElementById('searchSite').addEventListener('input', renderMarkers);
+    document.getElementById('securityFilter').addEventListener('change', renderMarkers);
+    document.getElementById('statusFilter').addEventListener('change', renderMarkers);
+
+    if (sites.length === 0) {
+        map.setView([-2.5489, 118.0149], 5);
+    } else {
+        renderMarkers();
+    }
+
+    setTimeout(() => map.invalidateSize(), 250);
+})();
+</script>
+
+{% endblock %}

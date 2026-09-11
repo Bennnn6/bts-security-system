@@ -1,0 +1,2686 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Simulasi Akses Gerbang - BTS Security</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+
+        body {
+            background: #f4f6f9;
+        }
+
+        .page-wrapper {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 15px;
+        }
+
+        .main-card {
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .header-section {
+            background: #212529;
+            color: white;
+            padding: 25px 30px;
+        }
+
+        .camera-wrapper {
+            background: #111;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            min-height: 350px;
+        }
+
+        #video {
+            width: 100%;
+            display: block;
+            background: #111;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .camera-placeholder {
+            min-height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .access-type-btn {
+            min-width: 150px;
+            padding: 14px 20px;
+            font-weight: 700;
+        }
+
+        .access-type-btn.active {
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.20);
+        }
+
+        .status-card {
+            border-radius: 14px;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            background: #fafafa;
+        }
+
+        .gate-indicator {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #6c757d;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .gate-open {
+            background: #198754;
+        }
+
+        .gate-closed {
+            background: #dc3545;
+        }
+
+        .countdown {
+            font-size: 38px;
+            font-weight: 800;
+        }
+
+        .face-result,
+        .otp-section,
+        .gate-section {
+            display: none;
+        }
+
+        .info-box {
+            border-left: 4px solid #0d6efd;
+            background: #f8f9fa;
+            padding: 14px;
+            border-radius: 8px;
+        }
+
+        .danger-box {
+            border-left: 4px solid #dc3545;
+            background: #fff5f5;
+            padding: 14px;
+            border-radius: 8px;
+        }
+
+        .success-box {
+            border-left: 4px solid #198754;
+            background: #f1fff7;
+            padding: 14px;
+            border-radius: 8px;
+        }
+
+        .warning-box {
+            border-left: 4px solid #ffc107;
+            background: #fffbea;
+            padding: 14px;
+            border-radius: 8px;
+        }
+
+        .tech-info {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        #loadingOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-box {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            min-width: 280px;
+        }
+
+        .csrf-status {
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+    </style>
+
+</head>
+
+
+<body class="app-body access-simulation-page">
+
+
+<div id="loadingOverlay">
+
+    <div class="loading-box">
+
+        <div
+            class="spinner-border text-primary mb-3"
+            role="status"
+        ></div>
+
+        <div
+            id="loadingText"
+            class="fw-semibold"
+        >
+            Memproses...
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<div class="page-wrapper">
+
+    <div class="main-card">
+
+
+        <!-- ================================================= -->
+        <!-- HEADER -->
+        <!-- ================================================= -->
+
+        <div class="header-section">
+
+            <div
+                class="d-flex justify-content-between align-items-center flex-wrap gap-2"
+            >
+
+                <div>
+
+                    <h2 class="mb-1">
+                        Simulasi Akses Gerbang
+                    </h2>
+
+                    <div class="opacity-75">
+                        BTS Security System
+                    </div>
+
+                </div>
+
+
+                <a
+                    href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('worker_dashboard') }}"
+                    class="btn btn-outline-light"
+                >
+                    ← Kembali
+                </a>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="p-4">
+
+
+            <!-- ================================================= -->
+            <!-- SITE -->
+            <!-- ================================================= -->
+
+            <div class="mb-4">
+
+                <label
+                    for="siteSelect"
+                    class="form-label fw-bold"
+                >
+                    Site BTS
+                </label>
+
+
+                <select
+                    id="siteSelect"
+                    class="form-select form-select-lg"
+                >
+
+                    <option value="">
+                        -- Pilih Site BTS --
+                    </option>
+
+
+                    {% for site in sites %}
+
+                    <option
+                        value="{{ site.site_id }}"
+                        data-status="{{ site.status }}"
+                    >
+
+                        {{ site.site_id }} -
+                        {{ site.site_name }}
+
+                        {% if site.status %}
+                            ({{ site.status }})
+                        {% endif %}
+
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+
+                <div
+                    id="siteStatusInfo"
+                    class="mt-2 tech-info"
+                >
+                    Silakan pilih Site BTS terlebih dahulu.
+                </div>
+
+            </div>
+
+
+
+            <!-- ================================================= -->
+            <!-- ACCESS TYPE -->
+            <!-- ================================================= -->
+
+            <div class="mb-4">
+
+                <label class="form-label fw-bold">
+                    Jenis Akses
+                </label>
+
+
+                <div class="d-flex gap-3 flex-wrap">
+
+                    <button
+                        type="button"
+                        id="btnMasuk"
+                        class="btn btn-primary access-type-btn"
+                        onclick="selectAccessType('MASUK')"
+                    >
+                        MASUK
+                    </button>
+
+
+                    <button
+                        type="button"
+                        id="btnKeluar"
+                        class="btn btn-outline-secondary access-type-btn"
+                        onclick="selectAccessType('KELUAR')"
+                    >
+                        🔴 KELUAR
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="accessTypeInfo"
+                    class="mt-2 tech-info"
+                >
+                    Pilih jenis akses MASUK atau KELUAR.
+                </div>
+
+            </div>
+
+
+
+            <div class="row g-4">
+
+
+                <!-- ================================================= -->
+                <!-- CAMERA -->
+                <!-- ================================================= -->
+
+                <div class="col-lg-7">
+
+                    <div class="camera-wrapper">
+
+
+                        <video
+                            id="video"
+                            autoplay
+                            playsinline
+                            muted
+                        ></video>
+
+
+                        <canvas
+                            id="canvas"
+                        ></canvas>
+
+
+                        <div
+                            id="cameraPlaceholder"
+                            class="camera-placeholder"
+                        >
+
+                            <div>
+
+                                <div class="fs-1 mb-2">
+                                    📷
+                                </div>
+
+                                <div>
+                                    Kamera belum dinyalakan.
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="cameraHelp"
+                        class="alert alert-warning mt-3"
+                        style="display: none;"
+                    >
+                        <strong>📱 Kamera Diblokir - Langkah Perbaikan:</strong>
+                        <ol class="mb-0 mt-2">
+                            <li>Tap ikon <strong>🔒 / 📷</strong> di address bar browser</li>
+                            <li>Ubah permission <strong>Camera</strong> menjadi <strong>Allow</strong></li>
+                            <li>Klik tombol <strong>🔄 Coba Lagi</strong> di bawah</li>
+                        </ol>
+                        <p class="mb-0 mt-2 small">
+                            <strong>Catatan:</strong> Jika tidak ada icon di address bar, 
+                            buka <strong>Chrome Settings → Site Settings → Camera</strong>, 
+                            lalu hapus/ubah permission untuk situs ini.
+                        </p>
+                    </div>
+
+                     <div
+                         class="d-flex gap-2 mt-3 flex-wrap"
+                     >
+
+                          <button
+                              type="button"
+                              id="btnCamera"
+                              class="btn btn-dark"
+                              onclick="toggleCamera()"
+                          >
+                              📷 Nyalakan Kamera
+                          </button>
+
+
+                          <button
+                              type="button"
+                              id="btnRetryCamera"
+                              class="btn btn-outline-warning"
+                              style="display: none;"
+                              onclick="retryCamera()"
+                          >
+                              🔄 Coba Lagi
+                          </button>
+
+
+                          <button
+                              type="button"
+                              id="btnVerifyFace"
+                              class="btn btn-primary"
+                              onclick="verifyFace()"
+                              disabled
+                          >
+                              Verifikasi Wajah
+                          </button>
+
+
+                          <button
+                              type="button"
+                              id="btnUploadPhoto"
+                              class="btn btn-outline-secondary"
+                              onclick="document.getElementById('photoUploadInput').click()"
+                          >
+                              📁 Upload Foto
+                          </button>
+
+                          <input
+                              type="file"
+                              id="photoUploadInput"
+                              accept="image/*"
+                              capture="environment"
+                              style="display: none;"
+                              onchange="handlePhotoUpload(event)"
+                          >
+
+                     </div>
+
+
+
+                    <div
+                        id="csrfStatus"
+                        class="csrf-status text-secondary"
+                    >
+                        Menyiapkan keamanan sesi...
+                    </div>
+
+                </div>
+
+
+
+                <!-- ================================================= -->
+                <!-- STATUS -->
+                <!-- ================================================= -->
+
+                <div class="col-lg-5">
+
+
+                    <div class="status-card mb-3">
+
+                        <h5 class="mb-3">
+                            Status Proses
+                        </h5>
+
+
+                        <div
+                            id="processStatus"
+                            class="info-box"
+                        >
+                            Pilih Site dan jenis akses,
+                            kemudian nyalakan kamera.
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- ================================================= -->
+                    <!-- FACE RESULT -->
+                    <!-- ================================================= -->
+
+                    <div
+                        id="faceResult"
+                        class="face-result status-card mb-3"
+                    >
+
+                        <h5>
+                            Face Recognition
+                        </h5>
+
+                        <hr>
+
+
+                        <div class="mb-1">
+
+                            <strong>
+                                Teknisi:
+                            </strong>
+
+                            <span id="techName">
+                                -
+                            </span>
+
+                        </div>
+
+
+                        <div class="mb-1">
+
+                            <strong>
+                                ID:
+                            </strong>
+
+                            <span id="techId">
+                                -
+                            </span>
+
+                        </div>
+
+
+                        <div>
+
+                            <strong>
+                                Face Distance:
+                            </strong>
+
+                            <span id="faceDistance">
+                                -
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- ================================================= -->
+                    <!-- OTP -->
+                    <!-- ================================================= -->
+
+                    <div
+                        id="otpSection"
+                        class="otp-section status-card mb-3"
+                    >
+
+                        <h5>
+                            🔢 Verifikasi OTP
+                        </h5>
+
+
+                        <p class="tech-info">
+
+                            Masukkan kode 6 digit dari
+                            aplikasi authenticator teknisi.
+
+                        </p>
+
+
+                        <input
+                            type="text"
+                            id="otpInput"
+                            class="form-control form-control-lg text-center"
+                            placeholder="000000"
+                            maxlength="6"
+                            inputmode="numeric"
+                            autocomplete="one-time-code"
+                        >
+
+
+                        <button
+                            type="button"
+                            id="btnVerifyOtp"
+                            class="btn btn-success w-100 mt-3"
+                            onclick="verifyOtp()"
+                        >
+                            Verifikasi OTP
+                        </button>
+
+
+                        <div
+                            id="otpInfo"
+                            class="mt-3 tech-info"
+                        ></div>
+
+                    </div>
+
+
+
+                    <!-- ================================================= -->
+                    <!-- GATE -->
+                    <!-- ================================================= -->
+
+                    <div
+                        id="gateSection"
+                        class="gate-section status-card"
+                    >
+
+                        <h5>
+                            Status Gerbang
+                        </h5>
+
+                        <hr>
+
+
+                        <div class="mb-3">
+
+                            <span
+                                id="gateIndicator"
+                                class="gate-indicator gate-closed"
+                            ></span>
+
+
+                            <strong id="gateStatusText">
+                                CLOSED
+                            </strong>
+
+                            <span
+                                id="gateHealthBadge"
+                                class="badge text-bg-success ms-2"
+                            >
+                                NORMAL
+                            </span>
+
+                        </div>
+
+
+                        <div
+                            id="countdownArea"
+                            class="text-center"
+                        >
+
+                            <div class="tech-info">
+                                Gerbang akan otomatis ditutup dalam
+                            </div>
+
+
+                            <div
+                                id="countdown"
+                                class="countdown"
+                            >
+                                0</div>
+
+
+                            <div class="tech-info">
+                                detik
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            type="button"
+                            id="btnCloseGate"
+                            class="btn btn-outline-danger w-100 mt-3"
+                            onclick="closeGateManually()"
+                            style="display: none;"
+                        >
+                            🔒 Tutup Gerbang Sekarang
+                        </button>
+
+                    </div>
+
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ================================================= -->
+            <!-- INSTRUCTION -->
+            <!-- ================================================= -->
+
+            <div class="mt-4">
+
+                <div class="info-box">
+
+                    <strong>
+                        ℹ️ Alur Sistem
+                    </strong>
+
+
+                    <div class="mt-2">
+
+                        Pilih Site →
+                        pilih MASUK/KELUAR →
+                        nyalakan kamera →
+                        verifikasi wajah →
+                        masukkan OTP →
+                        gerbang terbuka →
+                        gerbang otomatis tertutup.
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+
+// =========================================================
+// STATE
+// =========================================================
+
+let stream = null;
+
+let cameraActive = false;
+
+let selectedAccessType = '';
+
+let activeTechId = null;
+
+let selectedSiteId = null;
+
+let selectedSiteName = null;
+
+let pendingLogId = null;
+
+let countdownTimer = null;
+
+let countdownValue = 0;
+
+let csrfToken = '';
+
+
+
+// =========================================================
+// ELEMENT
+// =========================================================
+
+const video = document.getElementById(
+    'video'
+);
+
+const canvas = document.getElementById(
+    'canvas'
+);
+
+const siteSelect = document.getElementById(
+    'siteSelect'
+);
+
+const btnVerifyFace = document.getElementById(
+    'btnVerifyFace'
+);
+
+const cameraPlaceholder =
+    document.getElementById(
+        'cameraPlaceholder'
+    );
+
+const processStatus =
+    document.getElementById(
+        'processStatus'
+    );
+
+const faceResult =
+    document.getElementById(
+        'faceResult'
+    );
+
+const otpSection =
+    document.getElementById(
+        'otpSection'
+    );
+
+const gateSection =
+    document.getElementById(
+        'gateSection'
+    );
+
+const gateHealthBadge =
+    document.getElementById(
+        'gateHealthBadge'
+    );
+
+const csrfStatus =
+    document.getElementById(
+        'csrfStatus'
+    );
+
+function updateGateHealthUI(
+    health,
+    lastError = null
+) {
+    if (!gateHealthBadge) {
+        return;
+    }
+
+    const normalizedHealth = String(
+        health || 'NORMAL'
+    ).toUpperCase();
+
+    gateHealthBadge.textContent = normalizedHealth;
+    gateHealthBadge.className =
+        'badge ms-2 text-bg-' +
+        (['NORMAL', 'HEALTHY', 'ONLINE'].includes(normalizedHealth)
+            ? 'success'
+            : ['WARNING', 'DEGRADED'].includes(normalizedHealth)
+                ? 'warning'
+                : 'danger');
+
+    if (lastError) {
+        gateHealthBadge.title = String(lastError);
+    } else {
+        gateHealthBadge.removeAttribute('title');
+    }
+}
+
+
+// Pastikan tombol ikut aktif ketika browser benar-benar menerima frame video.
+video.addEventListener('loadeddata', updateVerifyButton);
+video.addEventListener('canplay', updateVerifyButton);
+video.addEventListener('playing', updateVerifyButton);
+
+
+// =========================================================
+// API REQUEST HELPER
+// =========================================================
+
+async function apiFetch(
+    url,
+    options = {}
+) {
+
+    const headers = {
+        ...(options.headers || {})
+    };
+
+
+    if (
+        options.method &&
+        options.method.toUpperCase() !== 'GET'
+    ) {
+
+        headers['X-CSRFToken'] =
+            csrfToken;
+
+    }
+
+
+    headers['X-Requested-With'] =
+        'XMLHttpRequest';
+
+
+    return fetch(
+        url,
+        {
+            ...options,
+            headers,
+            credentials: 'same-origin'
+        }
+    );
+
+}
+
+
+// =========================================================
+// LOAD CSRF TOKEN
+// =========================================================
+
+async function loadCSRFToken() {
+
+    try {
+
+        csrfStatus.textContent =
+            'Mengambil token keamanan...';
+
+        csrfStatus.className =
+            'csrf-status text-secondary';
+
+
+        const response =
+            await fetch(
+                '/api/csrf-token',
+                {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            result.status !== 'success' ||
+            !result.csrf_token
+        ) {
+
+            throw new Error(
+                result.message ||
+                'CSRF token tidak tersedia.'
+            );
+
+        }
+
+
+        csrfToken =
+            result.csrf_token;
+
+
+        csrfStatus.textContent =
+            '🔒 Keamanan sesi aktif.';
+
+        csrfStatus.className =
+            'csrf-status text-success';
+
+
+        return true;
+
+
+    } catch (error) {
+
+        console.error(
+            'CSRF ERROR:',
+            error
+        );
+
+
+        csrfStatus.textContent =
+            'Token keamanan gagal dimuat.';
+
+        csrfStatus.className =
+            'csrf-status text-danger';
+
+
+        return false;
+
+    }
+
+}
+
+
+// =========================================================
+// LOADING
+// =========================================================
+
+function showLoading(
+    message = 'Memproses...'
+) {
+
+    document.getElementById(
+        'loadingText'
+    ).textContent = message;
+
+
+    document.getElementById(
+        'loadingOverlay'
+    ).style.display = 'flex';
+
+}
+
+
+function hideLoading() {
+
+    document.getElementById(
+        'loadingOverlay'
+    ).style.display = 'none';
+
+}
+
+
+// =========================================================
+// STATUS
+// =========================================================
+
+function setStatus(
+    message,
+    type = 'info'
+) {
+
+    let className =
+        'info-box';
+
+
+    if (type === 'success') {
+        className = 'success-box';
+    }
+
+
+    if (type === 'danger') {
+        className = 'danger-box';
+    }
+
+
+    if (type === 'warning') {
+        className = 'warning-box';
+    }
+
+
+    processStatus.className =
+        className;
+
+
+    processStatus.textContent =
+        message;
+
+}
+
+
+// =========================================================
+// SITE SELECT
+// =========================================================
+
+siteSelect.addEventListener(
+    'change',
+    function () {
+
+        const selected =
+            siteSelect.options[
+                siteSelect.selectedIndex
+            ];
+
+
+        selectedSiteId =
+            siteSelect.value || null;
+
+
+        selectedSiteName =
+            selected &&
+            selected.value
+                ? selected.textContent.trim()
+                : null;
+
+
+        const siteStatus =
+            selected
+                ? selected.dataset.status || ''
+                : '';
+
+
+        const info =
+            document.getElementById(
+                'siteStatusInfo'
+            );
+
+
+        if (!selectedSiteId) {
+
+            info.className =
+                'mt-2 tech-info';
+
+            info.textContent =
+                'Silakan pilih Site BTS terlebih dahulu.';
+
+
+            setStatus(
+                'Pilih Site BTS terlebih dahulu.',
+                'info'
+            );
+
+
+            resetVerification();
+
+            updateVerifyButton();
+
+            return;
+
+        }
+
+
+        info.textContent =
+            `Site dipilih: ${selectedSiteName}`;
+
+
+        if (
+            siteStatus.toLowerCase()
+                .includes('down')
+        ) {
+
+            info.className =
+                'mt-2 text-danger fw-semibold';
+
+
+            setStatus(
+                'Site sedang DOWN. Akses tidak dapat dilakukan.',
+                'danger'
+            );
+
+        } else {
+
+            info.className =
+                'mt-2 text-success fw-semibold';
+
+
+            setStatus(
+                `Site ${selectedSiteName} siap digunakan.`,
+                'success'
+            );
+
+        }
+
+
+        resetVerification();
+
+        updateVerifyButton();
+
+    }
+);
+
+
+// =========================================================
+// ACCESS TYPE
+// =========================================================
+
+function selectAccessType(
+    accessType
+) {
+
+    selectedAccessType =
+        accessType;
+
+
+    const btnMasuk =
+        document.getElementById(
+            'btnMasuk'
+        );
+
+
+    const btnKeluar =
+        document.getElementById(
+            'btnKeluar'
+        );
+
+
+    if (accessType === 'MASUK') {
+
+        btnMasuk.className =
+            'btn btn-primary access-type-btn active';
+
+
+        btnKeluar.className =
+            'btn btn-outline-secondary access-type-btn';
+
+
+        document.getElementById(
+            'accessTypeInfo'
+        ).textContent =
+            'Mode MASUK dipilih.';
+
+    } else {
+
+        btnMasuk.className =
+            'btn btn-outline-success access-type-btn';
+
+
+        btnKeluar.className =
+            'btn btn-danger access-type-btn active';
+
+
+        document.getElementById(
+            'accessTypeInfo'
+        ).textContent =
+            'Mode KELUAR dipilih.';
+
+    }
+
+
+    resetVerification();
+
+    updateVerifyButton();
+
+}
+
+
+// =========================================================
+// VERIFY BUTTON
+// =========================================================
+
+function updateVerifyButton() {
+
+    // Jangan membuat tombol bergantung pada CSRF token.
+    // Token diambil otomatis saat proses verifikasi dijalankan.
+     const cameraReady = (
+        cameraActive &&
+        video &&
+        video.readyState >= 2 &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0
+    );
+
+    btnVerifyFace.disabled = !(
+        cameraReady &&
+        Boolean(selectedSiteId) &&
+        Boolean(selectedAccessType)
+    );
+
+    btnVerifyFace.title = btnVerifyFace.disabled
+        ? 'Pilih Site, pilih MASUK/KELUAR, lalu nyalakan kamera.'
+        : 'Klik untuk memverifikasi wajah.';
+}
+
+
+// =========================================================
+// CAMERA
+// =========================================================
+
+async function toggleCamera() {
+
+    document.getElementById('btnRetryCamera').style.display = 'none';
+    document.getElementById('cameraHelp').style.display = 'none';
+
+    if (cameraActive) {
+
+        stopCamera();
+
+        return;
+
+    }
+
+
+    await startCamera();
+
+}
+
+async function retryCamera() {
+    document.getElementById('btnRetryCamera').style.display = 'none';
+    document.getElementById('cameraHelp').style.display = 'none';
+    await startCamera();
+}
+
+
+async function startCamera() {
+
+    try {
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+
+            throw new Error(
+                'Kamera tidak tersedia. Pastikan membuka alamat HTTPS lokal dan izinkan akses kamera.'
+            );
+
+        }
+
+        if (cameraActive && stream) {
+            stopCamera();
+        }
+
+        stream =
+            await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
+
+        video.srcObject = stream;
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.style.display = 'block';
+
+        await new Promise((resolve, reject) => {
+            let finished = false;
+
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+                clearTimeout(timer);
+                video.removeEventListener('loadedmetadata', onReady);
+                video.removeEventListener('canplay', onReady);
+                resolve();
+            };
+
+            const onReady = () => {
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    finish();
+                }
+            };
+
+            const timer = setTimeout(() => {
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    finish();
+                } else if (!finished) {
+                    finished = true;
+                    video.removeEventListener('loadedmetadata', onReady);
+                    video.removeEventListener('canplay', onReady);
+                    reject(new Error(
+                        'Kamera aktif, tetapi gambar video belum tersedia.'
+                    ));
+                }
+            }, 5000);
+
+            video.addEventListener('loadedmetadata', onReady);
+            video.addEventListener('canplay', onReady);
+            onReady();
+        });
+
+        try {
+            await video.play();
+        } catch (playError) {
+            console.warn('VIDEO PLAY ERROR:', playError);
+        }
+
+        cameraActive = true;
+        cameraPlaceholder.style.display = 'none';
+        document.getElementById('btnCamera').textContent =
+            '⏹ Matikan Kamera';
+
+        setStatus(
+            'Kamera aktif. Gambar sudah diterima. Posisikan satu wajah di tengah kamera lalu klik Verifikasi Wajah.',
+            'success'
+        );
+
+        updateVerifyButton();
+
+
+    } catch (error) {
+
+        console.error(
+            'CAMERA ERROR:',
+            error
+        );
+
+        console.log('Camera debug info:', {
+            errorName: error.name,
+            errorMessage: error.message,
+            isSecureContext: window.isSecureContext,
+            hasMediaDevices: !!navigator.mediaDevices,
+            hasGetUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+            url: window.location.href,
+            protocol: window.location.protocol
+        });
+
+
+        let message =
+            'Kamera tidak dapat diakses.';
+
+        if (error && error.name === 'NotAllowedError') {
+
+            message =
+                'Izin akses kamera ditolak. Tap ikon kamera di address bar, set ke Allow, lalu refresh halaman.';
+
+        } else if (error && error.name === 'NotFoundError') {
+
+            message =
+                'Kamera tidak ditemukan di perangkat ini.';
+
+        } else if (error && error.name === 'NotReadableError') {
+
+            message =
+                'Kamera sedang dipakai aplikasi lain. Tutup aplikasi lain yang menggunakan kamera lalu coba lagi.';
+
+        } else if (error && error.name === 'OverconstrainedError') {
+
+            message =
+                'Kamera tidak mendukung resolusi yang diminta. Coba perangkat lain.';
+
+        } else if (error && error.name === 'SecurityError') {
+
+            message =
+                'Akses kamera diblokir karena konteks tidak aman. Gunakan HTTPS atau http://localhost.';
+
+        } else if (
+            window.isSecureContext === false
+        ) {
+
+            message =
+                'Browser memerlukan HTTPS atau localhost untuk mengakses kamera.';
+
+        }
+
+
+        setStatus(
+            message,
+            'danger'
+        );
+
+        document.getElementById('btnRetryCamera').style.display = 'inline-block';
+        document.getElementById('cameraHelp').style.display = 'block';
+
+    }
+
+}
+
+
+function stopCamera() {
+
+    if (stream) {
+
+        stream.getTracks().forEach(
+            track => track.stop()
+        );
+
+        stream = null;
+
+    }
+
+
+    video.srcObject =
+        null;
+
+
+    cameraActive =
+        false;
+
+
+    video.style.display =
+        'none';
+
+
+    cameraPlaceholder.style.display =
+        'flex';
+
+
+    document.getElementById(
+        'btnCamera'
+    ).textContent =
+        '📷 Nyalakan Kamera';
+
+
+    updateVerifyButton();
+
+}
+
+
+// =========================================================
+// CAPTURE IMAGE
+// =========================================================
+
+function captureImage() {
+
+    if (!cameraActive) {
+
+        throw new Error(
+            'Kamera belum aktif.'
+        );
+
+    }
+
+
+    const width =
+        video.videoWidth;
+
+
+    const height =
+        video.videoHeight;
+
+
+    if (!width || !height) {
+
+        throw new Error(
+            'Kamera belum siap.'
+        );
+
+    }
+
+
+    canvas.width =
+        width;
+
+
+    canvas.height =
+        height;
+
+
+    const context =
+        canvas.getContext(
+            '2d'
+        );
+
+
+    context.drawImage(
+        video,
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    return canvas.toDataURL(
+        'image/jpeg',
+        0.85
+    );
+
+}
+
+
+// =========================================================
+// PHOTO UPLOAD FALLBACK
+// =========================================================
+
+let uploadDataUrl = null;
+
+function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        setStatus('File bukan gambar. Pilih foto JPEG/PNG.', 'danger');
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        setStatus('Foto terlalu besar (max 5MB).', 'danger');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        uploadDataUrl = e.target.result;
+        setStatus('Foto berhasil dimuat. Klik "Verifikasi Wajah" untuk lanjut.', 'success');
+        btnVerifyFace.disabled = false;
+        btnVerifyFace.textContent = 'Verifikasi Wajah (via Upload)';
+    };
+    reader.readAsDataURL(file);
+}
+
+
+// =========================================================
+// VERIFY FACE
+// =========================================================
+
+async function verifyFace() {
+
+    if (!csrfToken) {
+
+        const loaded =
+            await loadCSRFToken();
+
+
+        if (!loaded) {
+
+            setStatus(
+                'Token keamanan tidak tersedia. Refresh halaman.',
+                'danger'
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    if (!selectedSiteId) {
+
+        alert(
+            'Pilih Site BTS terlebih dahulu.'
+        );
+
+        return;
+
+    }
+
+
+    if (!selectedAccessType) {
+
+        alert(
+            'Pilih MASUK atau KELUAR terlebih dahulu.'
+        );
+
+        return;
+
+    }
+
+
+    const cameraReady = (
+        cameraActive &&
+        video &&
+        video.readyState >= 2 &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0
+    );
+
+    // Gunakan upload foto jika kamera tidak tersedia
+    if (!cameraReady && !uploadDataUrl) {
+
+        setStatus(
+            'Kamera belum siap. Klik "📁 Upload Foto" untuk upload manual, atau tunggu preview kamera tampil.',
+            'warning'
+        );
+
+        updateVerifyButton();
+        return;
+
+    }
+
+
+    let image;
+
+
+    try {
+
+        if (uploadDataUrl) {
+            image = uploadDataUrl;
+        } else {
+            image = captureImage();
+        }
+
+    } catch (error) {
+
+        setStatus(
+            error.message,
+            'danger'
+        );
+
+        return;
+
+    }
+
+
+    showLoading(
+        'Mempersiapkan verifikasi keamanan...'
+    );
+
+
+    btnVerifyFace.disabled =
+        true;
+
+
+    try {
+
+        showLoading(
+            'Memverifikasi wajah...'
+        );
+
+
+        const response =
+            await apiFetch(
+                '/api/verify-face',
+                {
+
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type':
+                            'application/json'
+                    },
+
+                    body: JSON.stringify({
+
+                        image: image,
+
+                        site_id:
+                            selectedSiteId,
+
+                        access_type:
+                            selectedAccessType
+
+                    })
+
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.message ||
+                'Verifikasi wajah gagal.'
+            );
+
+        }
+
+
+        // =====================================================
+        // DATA TEKNISI
+        // =====================================================
+
+        activeTechId =
+            result.tech_id;
+
+
+        pendingLogId =
+            result.pending_log_id ||
+            null;
+
+
+        document.getElementById(
+            'techName'
+        ).textContent =
+            result.technician_name ||
+            result.name ||
+            '-';
+
+
+        document.getElementById(
+            'techId'
+        ).textContent =
+            result.tech_id ||
+            '-';
+
+
+        document.getElementById(
+            'faceDistance'
+        ).textContent =
+            result.face_distance !== undefined
+                ? Number(
+                    result.face_distance
+                ).toFixed(4)
+                : '-';
+
+
+        // =====================================================
+        // SHOW FACE
+        // =====================================================
+
+        faceResult.style.display =
+            'block';
+
+
+        otpSection.style.display =
+            'block';
+
+
+        document.getElementById(
+            'otpInput'
+        ).value =
+            '';
+
+
+        document.getElementById(
+            'otpInput'
+        ).focus();
+
+
+        document.getElementById(
+            'otpInfo'
+        ).textContent =
+            'Masukkan OTP untuk melanjutkan.';
+
+
+        document.getElementById(
+            'otpInfo'
+        ).className =
+            'mt-3 tech-info';
+
+
+        setStatus(
+            result.message ||
+            'Wajah berhasil dikenali. Silakan masukkan OTP.',
+            'success'
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            'VERIFY FACE ERROR:',
+            error
+        );
+
+
+        setStatus(
+            error.message ||
+            'Verifikasi wajah gagal.',
+            'danger'
+        );
+
+
+    } finally {
+
+        hideLoading();
+
+        updateVerifyButton();
+
+    }
+
+}
+
+
+// =========================================================
+// VERIFY OTP
+// =========================================================
+
+async function verifyOtp() {
+
+    if (!activeTechId) {
+
+        alert(
+            'Verifikasi wajah terlebih dahulu.'
+        );
+
+        return;
+
+    }
+
+
+    if (!csrfToken) {
+
+        const loaded =
+            await loadCSRFToken();
+
+
+        if (!loaded) {
+
+            return;
+
+        }
+
+    }
+
+
+    const otp =
+        document.getElementById(
+            'otpInput'
+        ).value.trim();
+
+
+    if (!/^\d{6}$/.test(otp)) {
+
+        document.getElementById(
+            'otpInfo'
+        ).textContent =
+            'OTP harus terdiri dari 6 digit angka.';
+
+
+        document.getElementById(
+            'otpInfo'
+        ).className =
+            'mt-3 text-danger fw-semibold';
+
+
+        return;
+
+    }
+
+
+    showLoading(
+        'Memverifikasi OTP...'
+    );
+
+
+    document.getElementById(
+        'btnVerifyOtp'
+    ).disabled =
+        true;
+
+
+    try {
+
+        const response =
+            await apiFetch(
+                '/api/verify-otp',
+                {
+
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type':
+                            'application/json'
+                    },
+
+                    body: JSON.stringify({
+
+                        tech_id:
+                            activeTechId,
+
+                        otp:
+                            otp,
+
+                        site_id:
+                            selectedSiteId,
+
+                        access_type:
+                            selectedAccessType,
+
+                        pending_log_id:
+                            pendingLogId
+
+                    })
+
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        // =====================================================
+        // LOCKOUT
+        // =====================================================
+
+        if (
+            response.status === 429
+            &&
+            result.reason_code ===
+                'OTP_LOCKED'
+        ) {
+
+            document.getElementById(
+                'otpInfo'
+            ).textContent =
+                result.message ||
+                'OTP terkunci sementara.';
+
+
+            document.getElementById(
+                'otpInfo'
+            ).className =
+                'mt-3 text-danger fw-semibold';
+
+
+            setStatus(
+                result.message ||
+                'OTP terkunci sementara.',
+                'danger'
+            );
+
+
+            return;
+
+        }
+
+
+        // =====================================================
+        // ERROR
+        // =====================================================
+
+        if (!response.ok) {
+
+            document.getElementById(
+                'otpInfo'
+            ).textContent =
+                result.message ||
+                'OTP tidak valid.';
+
+
+            document.getElementById(
+                'otpInfo'
+            ).className =
+                'mt-3 text-danger fw-semibold';
+
+
+            setStatus(
+                result.message ||
+                'Verifikasi OTP gagal.',
+                'danger'
+            );
+
+
+            return;
+
+        }
+
+
+        // =====================================================
+        // SUCCESS
+        // =====================================================
+
+        setStatus(
+            result.message ||
+            'Akses berhasil diberikan.',
+            'success'
+        );
+
+
+        document.getElementById(
+            'otpInfo'
+        ).textContent =
+            'OTP berhasil diverifikasi.';
+
+
+        document.getElementById(
+            'otpInfo'
+        ).className =
+            'mt-3 text-success fw-semibold';
+
+
+        showGateOpen(
+            result
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            'VERIFY OTP ERROR:',
+            error
+        );
+
+
+        setStatus(
+            error.message ||
+            'Terjadi kesalahan saat menghubungi server.',
+            'danger'
+        );
+
+
+    } finally {
+
+        hideLoading();
+
+
+        document.getElementById(
+            'btnVerifyOtp'
+        ).disabled =
+            false;
+
+    }
+
+}
+
+
+// =========================================================
+// SHOW GATE OPEN
+// =========================================================
+// SHOW GATE OPEN
+// =========================================================
+
+function showGateOpen(result) {
+
+    const section =
+        document.getElementById('gateSection');
+
+    const indicator =
+        document.getElementById('gateIndicator');
+
+    const statusText =
+        document.getElementById('gateStatusText');
+
+    const countdown =
+        document.getElementById('countdown');
+
+    const closeButton =
+        document.getElementById('btnCloseGate');
+
+    if (!section || !indicator || !statusText || !countdown) {
+        console.error('[GATE] Elemen gate tidak lengkap.');
+        return;
+    }
+
+    section.style.display = 'block';
+    indicator.className = 'gate-indicator gate-open';
+    statusText.textContent = 'OPEN';
+
+    try {
+        if (typeof updateGateHealthUI === 'function') {
+            updateGateHealthUI(
+                result && result.gate_health
+                    ? result.gate_health
+                    : 'NORMAL',
+                result && result.last_error
+                    ? result.last_error
+                    : null
+            );
+        }
+    } catch (error) {
+        console.warn('[GATE] Health UI error:', error);
+    }
+
+    let seconds = Number(
+        result && result.gate_open_seconds
+    );
+
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+        seconds = Number(
+            result && result.gate_auto_close_seconds
+        );
+    }
+
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+        seconds = 30;
+    }
+
+    seconds = Math.ceil(seconds);
+
+    console.log(
+        '[GATE] Countdown dimulai:',
+        seconds,
+        'detik'
+    );
+
+    startCountdown(seconds);
+
+    if (closeButton) {
+        closeButton.style.display = 'block';
+        closeButton.disabled = false;
+    }
+}
+
+
+// =========================================================
+// START COUNTDOWN
+// =========================================================
+
+function startCountdown(seconds) {
+
+    stopCountdown();
+
+    const countdown =
+        document.getElementById('countdown');
+
+    if (!countdown) {
+        console.error('[GATE] #countdown tidak ditemukan.');
+        return;
+    }
+
+    countdownValue = Math.max(
+        0,
+        Math.ceil(Number(seconds) || 30)
+    );
+
+    countdown.textContent =
+        String(countdownValue);
+
+    const closeButton =
+        document.getElementById('btnCloseGate');
+
+    if (closeButton) {
+        closeButton.style.display = 'block';
+        closeButton.disabled = false;
+    }
+
+    countdownTimer = window.setInterval(
+        function () {
+
+            countdownValue = Math.max(
+                0,
+                countdownValue - 1
+            );
+
+            countdown.textContent =
+                String(countdownValue);
+
+            if (countdownValue <= 0) {
+
+                stopCountdown();
+
+                closeGateManually(true);
+            }
+
+        },
+        1000
+    );
+}
+
+
+// =========================================================
+// UPDATE COUNTDOWN DISPLAY
+// =========================================================
+
+function updateCountdownDisplay() {
+
+    const countdown =
+        document.getElementById('countdown');
+
+    if (!countdown) {
+        return;
+    }
+
+    countdown.textContent =
+        String(
+            Math.max(
+                0,
+                Number(countdownValue) || 0
+            )
+        );
+}
+
+
+// =========================================================
+// STOP COUNTDOWN
+// =========================================================
+
+function stopCountdown() {
+
+    if (countdownTimer !== null) {
+
+        clearInterval(
+            countdownTimer
+        );
+
+        countdownTimer = null;
+    }
+}
+
+
+// =========================================================
+// CLOSE GATE
+// =========================================================
+
+async function closeGateManually(
+    automatic = false
+) {
+
+    stopCountdown();
+
+
+    const button =
+        document.getElementById(
+            'btnCloseGate'
+        );
+
+
+    button.disabled =
+        true;
+
+
+    try {
+
+        if (!csrfToken) {
+
+            const loaded =
+                await loadCSRFToken();
+
+
+            if (!loaded) {
+
+                throw new Error(
+                    'Token keamanan tidak tersedia.'
+                );
+
+            }
+
+        }
+
+
+        const response =
+            await apiFetch(
+                '/api/gate-close',
+                {
+
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type':
+                            'application/json'
+                    },
+
+                    body: JSON.stringify({
+
+                        site_id:
+                            selectedSiteId
+
+                    })
+
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.message ||
+                'Gerbang gagal ditutup.'
+            );
+
+        }
+
+
+        const indicator =
+            document.getElementById(
+                'gateIndicator'
+            );
+
+
+        indicator.className =
+            'gate-indicator gate-closed';
+
+
+        document.getElementById(
+            'gateStatusText'
+        ).textContent =
+            'CLOSED';
+
+
+        document.getElementById(
+            'countdown'
+        ).textContent =
+            '0';
+
+
+        setStatus(
+            automatic
+                ? 'Gerbang otomatis ditutup.'
+                : 'Gerbang berhasil ditutup.',
+            'success'
+        );
+
+
+        button.style.display =
+            'none';
+
+
+    } catch (error) {
+
+        console.error(
+            'CLOSE GATE ERROR:',
+            error
+        );
+
+
+        setStatus(
+            error.message ||
+            'Gerbang gagal ditutup.',
+            'danger'
+        );
+
+
+        button.disabled =
+            false;
+
+    }
+
+}
+
+
+// =========================================================
+// GATE STATUS POLLING
+// =========================================================
+
+async function refreshGateStatus() {
+
+    if (!csrfToken) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await apiFetch(
+                '/api/gate-status',
+                {
+                    method: 'GET'
+                }
+            );
+
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const result =
+            await response.json();
+
+
+        if (
+            result.status !==
+            'success'
+        ) {
+
+            return;
+        }
+
+
+        const status =
+            result.gate_status ||
+            'CLOSED';
+
+
+        const indicator =
+            document.getElementById(
+                'gateIndicator'
+            );
+
+
+        if (
+            status === 'OPEN'
+        ) {
+
+            indicator.className =
+                'gate-indicator gate-open';
+
+
+            document.getElementById(
+                'gateStatusText'
+            ).textContent =
+                'OPEN';
+
+        } else {
+
+            indicator.className =
+                'gate-indicator gate-closed';
+
+
+            document.getElementById(
+                'gateStatusText'
+            ).textContent =
+                'CLOSED';
+
+        }
+
+
+        updateGateHealthUI(
+            result.gate_health || 'NORMAL',
+            result.last_error || null
+        );
+
+
+        if (
+            status === 'OPEN'
+            &&
+            typeof result.remaining_seconds === 'number'
+            &&
+            result.remaining_seconds > 0
+        ) {
+
+            const serverRemaining =
+                Math.ceil(
+                    result.remaining_seconds
+                );
+
+
+            if (
+                Math.abs(
+                    serverRemaining -
+                    countdownValue
+                ) > 1
+            ) {
+
+                countdownValue =
+                    serverRemaining;
+
+                updateCountdownDisplay();
+
+            }
+
+
+            if (
+                gateSection.style.display ===
+                'none'
+            ) {
+
+                gateSection.style.display =
+                    'block';
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            'GATE STATUS ERROR:',
+            error
+        );
+
+    }
+
+}
+
+
+// =========================================================
+// RESET
+// =========================================================
+
+function resetVerification() {
+
+    activeTechId =
+        null;
+
+
+    pendingLogId =
+        null;
+
+
+    faceResult.style.display =
+        'none';
+
+
+    otpSection.style.display =
+        'none';
+
+
+    gateSection.style.display =
+        'none';
+
+
+    document.getElementById(
+        'otpInput'
+    ).value =
+        '';
+
+
+    stopCountdown();
+
+
+    document.getElementById(
+        'countdown'
+    ).textContent =
+        '0';
+
+
+    document.getElementById(
+        'gateStatusText'
+    ).textContent =
+        'CLOSED';
+
+
+    document.getElementById(
+        'gateIndicator'
+    ).className =
+        'gate-indicator gate-closed';
+
+
+    updateGateHealthUI(
+        'NORMAL'
+    );
+
+
+    document.getElementById(
+        'btnCloseGate'
+    ).style.display =
+        'none';
+
+
+    document.getElementById(
+        'btnCloseGate'
+    ).disabled =
+        false;
+
+}
+
+
+// =========================================================
+// OTP INPUT
+// =========================================================
+
+document.getElementById(
+    'otpInput'
+).addEventListener(
+    'input',
+    function () {
+
+        this.value =
+            this.value
+                .replace(
+                    /\D/g,
+                    ''
+                )
+                .slice(
+                    0,
+                    6
+                );
+
+    }
+);
+
+
+// =========================================================
+// ENTER OTP
+// =========================================================
+
+document.getElementById(
+    'otpInput'
+).addEventListener(
+    'keydown',
+    function (event) {
+
+        if (
+            event.key ===
+            'Enter'
+        ) {
+
+            verifyOtp();
+
+        }
+
+    }
+);
+
+
+// =========================================================
+// PAGE INIT
+// =========================================================
+
+video.style.display =
+    'none';
+
+
+resetVerification();
+
+
+loadCSRFToken()
+    .then(
+        function () {
+
+            updateVerifyButton();
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const preSite = urlParams.get('site_id');
+                const preType = urlParams.get('access_type');
+                if (preSite && siteSelect) {
+                    siteSelect.value = preSite;
+                    siteSelect.dispatchEvent(new Event('change'));
+                }
+                if (preType && typeof selectAccessType === 'function') {
+                    selectAccessType(preType.toUpperCase());
+                }
+            } catch (err) {
+                console.debug('URL params auto-select error:', err);
+            }
+
+        }
+    );
+
+
+setInterval(
+    refreshGateStatus,
+    2000
+);
+
+
+window.addEventListener(
+    'beforeunload',
+    function () {
+
+        if (stream) {
+
+            stream
+                .getTracks()
+                .forEach(
+                    track =>
+                        track.stop()
+                );
+
+        }
+
+    }
+);
+
+</script>
+
+
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Security Operations Dashboard | BTS Security System{% endblock %}
+{% block content %}
+
+<div class="modern-dashboard">
+
+    <!-- HERO SECTION -->
+    <div class="modern-card hero-card mb-4">
+        <div class="hero-content">
+            <h2>Security Operations</h2>
+            <p>Monitoring teknisi, site BTS, dan aktivitas akses gerbang secara real-time.</p>
+            <div class="hero-stats">
+                <div class="stat-pill">
+                    <span id="threatLevelBadge" class="threat-badge--secure">
+                        <span class="threat-badge__led"></span> SECURE
+                    </span>
+                </div>
+                <div class="stat-pill">
+                    <i class="bi bi-clock"></i> <span id="liveClock" class="tick">--:--:--</span>
+                </div>
+                <div class="stat-pill">
+                    <i class="bi bi-activity"></i> Active Sessions: <span id="activeSessionsCount">--</span>
+                </div>
+            </div>
+        </div>
+        <div class="hero-illustration">
+            <i class="bi bi-shield-check"></i>
+        </div>
+    </div>
+
+    <!-- STATS ROW (4 Kotak Angka) -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="modern-card stat-card">
+                <div class="stat-icon bg-purple-light text-purple"><i class="bi bi-people-fill"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Teknisi</span>
+                    <span class="stat-value text-purple">{{ total_techs|default(0) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="modern-card stat-card">
+                <div class="stat-icon bg-success-light text-success"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Teknisi Aktif</span>
+                    <span class="stat-value text-success">{{ active_techs|default(0) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="modern-card stat-card">
+                <div class="stat-icon bg-blue-light text-blue"><i class="bi bi-hdd-network-fill"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Site BTS</span>
+                    <span class="stat-value text-blue">{{ total_sites|default(0) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="modern-card stat-card">
+                <div class="stat-icon bg-warning-light text-warning"><i class="bi bi-key-fill"></i></div>
+                <div class="stat-info">
+                    <span class="stat-label">Akses Hari Ini</span>
+                    <span class="stat-value text-warning">{{ access_today|default(0) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRAFIK & GATE CONTROL -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="modern-card h-100">
+                <div class="card-title-modern">
+                    <h5>Aktivitas Akses (7 Hari)</h5>
+                    <span class="badge bg-purple-light text-purple rounded-pill">Minggu ini</span>
+                </div>
+                <div class="chart-container mt-3" style="position: relative; height: 260px;">
+                    <canvas id="accessChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="modern-card h-100 gate-control-card">
+                <div class="card-title-modern">
+                    <h5>Gate Control</h5>
+                </div>
+                <div class="gate-selector mt-3">
+                    <label class="form-label text-muted small">Pilih Site BTS</label>
+                    <select id="dashboardGateSiteSelector" class="form-select modern-select mb-3">
+                        <option value="">-- Pilih Site --</option>
+                    </select>
+                </div>
+                
+                <div class="gate-status-modern mb-4 p-3 bg-light rounded-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small">Status Gate</span>
+                        <span id="dashboardGateStatus" class="badge bg-danger rounded-pill">CLOSED</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">System Health</span>
+                        <span id="dashboardGateHealth" class="badge bg-success rounded-pill">NORMAL</span>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button id="btnManualGateOpen" type="button" class="btn modern-btn-success flex-fill" onclick="manualGateOpen()">Buka</button>
+                    <button id="btnManualGateClose" type="button" class="btn modern-btn-danger flex-fill" onclick="manualGateClose()">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- CHART DATA JINJA2 -->
+<script id="dashboardChartData" type="application/json">
+{
+    "labels": {{ chart_labels|default([])|tojson }},
+    "granted": {{ chart_granted|default([])|tojson }},
+    "denied": {{ chart_denied|default([])|tojson }}
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const dataElement = document.getElementById('dashboardChartData');
+    const chartElement = document.getElementById('accessChart');
+    if (!dataElement || !chartElement) return;
+
+    let chartData;
+    try {
+        chartData = JSON.parse(dataElement.textContent);
+    } catch (error) {
+        chartData = { labels: [], granted: [], denied: [] };
+    }
+
+    new Chart(chartElement, {
+        type: 'line',
+        data: {
+            labels: chartData.labels || [],
+            datasets: [
+                {
+                    label: 'GRANTED',
+                    data: chartData.granted || [],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.3,
+                    borderWidth: 3,
+                    fill: true
+                },
+                {
+                    label: 'DENIED',
+                    data: chartData.denied || [],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.3,
+                    borderWidth: 3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                x: { grid: { display: false } },
+                y: { beginAtZero: true }
+            }
+        }
+    });
+});
+</script>
+
+<script>
+let dashboardCsrfToken = '';
+let dashboardSelectedSiteId = localStorage.getItem('dashboardSelectedSiteId') || '';
+let dashboardSites = [];
+
+async function loadDashboardCsrf() {
+    try {
+        const response = await fetch('/api/csrf-token');
+        const result = await response.json();
+        if (response.ok && result.status === 'success') {
+            dashboardCsrfToken = result.csrf_token || '';
+        }
+    } catch (error) { console.error('CSRF ERROR:', error); }
+}
+
+async function loadDashboardSites() {
+    const selector = document.getElementById('dashboardGateSiteSelector');
+    if (!selector) return;
+    try {
+        const response = await fetch('/api/features/sites');
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') return;
+        dashboardSites = result.sites || [];
+        selector.innerHTML = '';
+        dashboardSites.forEach(site => {
+            const opt = document.createElement('option');
+            opt.value = site.site_id;
+            opt.textContent = `${site.site_name} (${site.site_id})`;
+            selector.appendChild(opt);
+        });
+        if (dashboardSites.length > 0 && !dashboardSelectedSiteId) {
+            dashboardSelectedSiteId = String(dashboardSites[0].site_id);
+        }
+        selector.value = dashboardSelectedSiteId;
+    } catch (error) { console.error('SITE ERROR:', error); }
+}
+
+async function manualGateOpen() {
+    alert('Perintah Buka Gate dikirim.');
+}
+
+async function manualGateClose() {
+    alert('Perintah Tutup Gate dikirim.');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadDashboardCsrf();
+    await loadDashboardSites();
+});
+</script>
+
+{% endblock %}

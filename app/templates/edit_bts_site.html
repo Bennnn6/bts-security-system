@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-dark text-white text-center py-3">
+                    <h4 class="mb-0">Edit Data Site BTS</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ID Site</label>
+                            <input type="text" name="site_id" class="form-control" value="{{ site.site_id }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nama Site</label>
+                            <input type="text" name="site_name" class="form-control" value="{{ site.site_name }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Lokasi / Alamat</label>
+                            <input type="text" name="location" class="form-control" value="{{ site.location }}" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Latitude</label>
+                                <input type="text" name="latitude" class="form-control" value="{{ site.latitude }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Longitude</label>
+                                <input type="text" name="longitude" class="form-control" value="{{ site.longitude }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Keterangan / Deskripsi (Opsional)</label>
+                            <input type="text" name="description" class="form-control" value="{{ site.description }}">
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary fw-bold">Simpan Perubahan</button>
+                            <a href="{{ url_for('bts_sites') }}" class="btn btn-outline-secondary">Batal</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

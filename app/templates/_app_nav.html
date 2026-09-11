@@ -1,0 +1,62 @@
+{% set is_worker = session.get('worker_id') %}
+{% set is_admin = current_user.is_authenticated %}
+{% if is_admin or is_worker %}
+
+<!-- SIDEBAR KIRI (DESAIN MODERN ROUNDED) -->
+<aside class="modern-sidebar">
+    <div class="sidebar-brand">
+        <i class="bi bi-shield-check"></i>
+        <span>Smart BTS</span>
+    </div>
+
+    <div class="sidebar-menu-title">Main Menu</div>
+    <nav class="sidebar-nav">
+        <a href="{{ url_for('dashboard') if is_admin else url_for('worker_dashboard') }}" class="nav-link {% if request.endpoint in ('dashboard', 'worker_dashboard') %}active{% endif %}">
+            <i class="bi bi-grid-1x2-fill"></i> Dashboard
+        </a>
+        
+        {% if is_admin %}
+        <a href="{{ url_for('bts_sites') }}" class="nav-link {% if request.endpoint in ('bts_sites', 'edit_bts_site') %}active{% endif %}">
+            <i class="bi bi-hdd-network-fill"></i> Sites
+        </a>
+        <a href="{{ url_for('work_orders') }}" class="nav-link {% if request.endpoint == 'work_orders' %}active{% endif %}">
+            <i class="bi bi-card-checklist"></i> Work Orders
+        </a>
+        <a href="{{ url_for('access_logs') }}" class="nav-link {% if request.endpoint == 'access_logs' %}active{% endif %}">
+            <i class="bi bi-journal-text"></i> Access Logs
+        </a>
+        <a href="{{ url_for('security_features_page') }}" class="nav-link {% if request.endpoint in ('security_features_page', 'security_alerts', 'security_incidents') %}active{% endif %}">
+            <i class="bi bi-shield-lock-fill"></i> Security
+        </a>
+        {% else %}
+        <a href="{{ url_for('access_simulation') }}" class="nav-link {% if request.endpoint == 'access_simulation' %}active{% endif %}">
+            <i class="bi bi-door-open-fill"></i> Access Gate
+        </a>
+        {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+        <a href="{{ url_for('logout') }}" class="logout-btn" onclick="return confirm('Yakin ingin logout?')">
+            <i class="bi bi-box-arrow-right"></i> Log Out
+        </a>
+    </div>
+</aside>
+
+<!-- TOPBAR ATAS (SEARCH & PROFILE) -->
+<header class="modern-topbar">
+    <div class="topbar-search">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Search...">
+    </div>
+    
+    <div class="topbar-user">
+        <div class="user-greeting">
+            <span class="greeting-text">Hello, <b>{{ session.get('auth_username') or ('Admin' if is_admin else 'Teknisi') }}!</b></span>
+            <span class="greeting-sub">Sistem berjalan normal.</span>
+        </div>
+        <div class="user-avatar">
+            <i class="bi bi-person-fill"></i>
+        </div>
+    </div>
+</header>
+{% endif %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Login | BTS Security System{% endblock %}
+
+{% block page_class %}login-layout{% endblock %}
+
+{% block content %}
+<style>
+    /* Styling background khusus halaman login dengan Jinja2 url_for */
+    body.login-layout {
+        background-image: url("{{ url_for('static', filename='IMG/tower bts.jpeg') }}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #0F172A; /* Fallback jika gambar kosong */
+    }
+    
+    /* Sembunyikan topbar/navigasi bawaan di halaman login */
+    body.login-layout .app-topbar { 
+        display: none !important; 
+    }
+
+    /* Posisikan flash message error di bagian atas tengah */
+    body.login-layout .app-flash-stack {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 600px;
+        z-index: 1050;
+    }
+</style>
+
+<div class="glass-login-wrapper">
+    <div class="glass-login-container">
+        
+        <!-- Bagian Kiri (Visual & Teks) -->
+        <div class="glass-login-left">
+            <div class="login-brand">BTS SECURITY</div>
+            <h2>EXPLORE<br>HORIZONS</h2>
+            <p>Sistem Kontrol Akses Terpadu & Pemantauan Keamanan Jaringan Area. Real-time Monitoring 24/7.</p>
+        </div>
+
+        <!-- Bagian Kanan (Form Login) -->
+        <div class="glass-login-right">
+            <div class="login-header-mobile">
+                <h3>Welcome Back</h3>
+                <p>Silakan masuk ke akun Anda</p>
+            </div>
+            
+            <form method="POST">
+                <div class="mb-4">
+                    <label for="username" class="form-label glass-label">Username / ID Pengguna</label>
+                    <input id="username" type="text" name="username" class="form-control glass-input" placeholder="Masukkan username..." required autofocus>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="password" class="form-label glass-label">Password</label>
+                    <input id="password" type="password" name="password" class="form-control glass-input" placeholder="••••••••" required>
+                </div>
+                
+                <div class="d-grid gap-2 mt-5">
+                    <button type="submit" class="btn btn-primary glass-btn fw-bold">SIGN IN</button>
+                </div>
+            </form>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

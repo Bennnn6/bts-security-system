@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-md-7">
+
+        <div class="card shadow">
+
+            <!-- HEADER -->
+            <div class="card-header bg-dark text-white text-center">
+                <h4 class="mb-0">
+                    Setup TOTP Teknisi
+                </h4>
+            </div>
+
+
+            <div class="card-body">
+
+
+                <!-- DATA TEKNISI -->
+                <div class="text-center mb-4">
+
+                    <h5 class="fw-bold">
+                        {{ technician.name }}
+                    </h5>
+
+                    <p class="text-muted mb-0">
+                        ID Teknisi:
+                        <strong>
+                            {{ technician.technician_id }}
+                        </strong>
+                    </p>
+
+                </div>
+
+
+                <!-- INFORMASI -->
+                <div class="alert alert-info">
+
+                    <strong>Setup Authenticator</strong>
+
+                    <p class="mb-0 mt-2">
+                        Buka Google Authenticator atau
+                        Microsoft Authenticator, lalu scan
+                        QR Code di bawah.
+                    </p>
+
+                </div>
+
+
+                <!-- =========================================
+                     QR CODE
+                ========================================== -->
+
+                {% if qr_code %}
+
+                <div class="text-center mb-4">
+
+                    <p class="fw-bold">
+                        Scan QR Code
+                    </p>
+
+                    <div class="d-flex justify-content-center">
+
+                        <div
+                            style="
+                                background: white;
+                                padding: 15px;
+                                border-radius: 12px;
+                                border: 1px solid #ddd;
+                                display: inline-block;
+                            "
+                        >
+
+                            <img
+                                src="data:image/svg+xml;base64,{{ qr_code }}"
+                                alt="QR Code TOTP"
+                                width="250"
+                                height="250"
+                            >
+
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted mt-2 mb-0">
+                        Arahkan kamera aplikasi Authenticator
+                        ke QR Code tersebut.
+                    </p>
+
+                </div>
+
+                {% else %}
+
+                <div class="alert alert-danger">
+
+                    QR Code gagal dibuat.
+
+                    <br>
+
+                    Periksa konfigurasi
+                    <strong>totp_module.py</strong>.
+
+                </div>
+
+                {% endif %}
+
+
+                <!-- =========================================
+                     SECRET KEY
+                ========================================== -->
+
+                {% if secret %}
+
+                <div class="mb-4">
+
+                    <label
+                        for="secretKey"
+                        class="form-label fw-bold"
+                    >
+                        Secret Key
+                    </label>
+
+
+                    <div class="input-group">
+
+                        <input
+                            type="text"
+                            id="secretKey"
+                            class="form-control"
+                            value="{{ secret }}"
+                            readonly
+                        >
+
+
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            onclick="copySecret()"
+                        >
+                            Copy
+                        </button>
+
+                    </div>
+
+
+                    <small class="text-muted">
+                        Gunakan secret ini sebagai alternatif
+                        jika QR Code tidak dapat dipindai.
+                    </small>
+
+                </div>
+
+                {% endif %}
+
+
+                <!-- =========================================
+                     SIMPAN TOTP
+                ========================================== -->
+
+                <form
+                    method="POST"
+                    action="{{ url_for(
+                        'totp_setup',
+                        tech_id=technician.technician_id
+                    ) }}"
+                >
+
+                    <div class="mb-3">
+
+                        <label
+                            for="totp_secret"
+                            class="form-label fw-bold"
+                        >
+                            Secret TOTP
+                        </label>
+
+
+                        <input
+                            type="text"
+                            id="totp_secret"
+                            name="totp_secret"
+                            class="form-control"
+                            value="{{ secret }}"
+                            readonly
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="d-grid gap-2">
+
+                        <button
+                            type="submit"
+                            class="btn btn-success btn-lg"
+                        >
+                            Simpan TOTP
+                        </button>
+
+
+                        <a
+                            href="{{ url_for('dashboard') }}"
+                            class="btn btn-outline-secondary"
+                        >
+                            ← Kembali ke Dashboard
+                        </a>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+function copySecret() {
+
+    const input =
+        document.getElementById("secretKey");
+
+
+    if (!input) {
+        return;
+    }
+
+
+    // Browser modern
+    if (
+        navigator.clipboard &&
+        window.isSecureContext
+    ) {
+
+        navigator.clipboard.writeText(
+            input.value
+        )
+
+        .then(function () {
+
+            alert(
+                "Secret Key berhasil disalin."
+            );
+
+        })
+
+        .catch(function () {
+
+            fallbackCopy(input);
+
+        });
+
+    }
+
+    // Browser lama / HTTP
+    else {
+
+        fallbackCopy(input);
+
+    }
+
+}
+
+
+function fallbackCopy(input) {
+
+    input.focus();
+
+    input.select();
+
+    input.setSelectionRange(
+        0,
+        input.value.length
+    );
+
+
+    try {
+
+        document.execCommand(
+            "copy"
+        );
+
+        alert(
+                "Secret Key berhasil disalin."
+        );
+
+    }
+
+    catch (error) {
+
+        alert(
+                "Secret Key tidak dapat disalin otomatis. Silakan copy manual."
+        );
+
+    }
+
+}
+
+</script>
+
+{% endblock %}

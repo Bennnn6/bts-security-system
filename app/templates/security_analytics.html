@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="app-page">
+
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Security Analytics</h2>
+            <p class="text-muted mb-0">
+                Analisis statistik akses BTS, autentikasi, dan insiden keamanan.
+            </p>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+            <div class="btn-group" role="group" aria-label="Periode analitik">
+                <a href="{{ url_for('security_analytics', days=7) }}"
+                   class="btn {% if days == 7 %}btn-dark{% else %}btn-outline-dark{% endif %}">7 Hari</a>
+                <a href="{{ url_for('security_analytics', days=30) }}"
+                   class="btn {% if days == 30 %}btn-dark{% else %}btn-outline-dark{% endif %}">30 Hari</a>
+                <a href="{{ url_for('security_analytics', days=90) }}"
+                   class="btn {% if days == 90 %}btn-dark{% else %}btn-outline-dark{% endif %}">90 Hari</a>
+            </div>
+            <a href="{{ url_for('access_logs') }}" class="btn btn-outline-primary">Access Log</a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Dashboard</a>
+        </div>
+    </div>
+
+    <div class="alert alert-light border shadow-sm rounded-4 mb-4">
+        <div class="small text-muted">
+            Periode data:
+            <strong>{{ start_time.strftime('%d/%m/%Y %H:%M') }} UTC</strong>
+            sampai
+            <strong>{{ end_time.strftime('%d/%m/%Y %H:%M') }} UTC</strong>.
+            Analitik dihitung dari Access Log yang tersedia.
+        </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Total Akses</div>
+                    <div class="fs-2 fw-bold">{{ total }}</div>
+                    <div class="small text-muted">Semua transaksi pada periode</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Granted</div>
+                    <div class="fs-2 fw-bold text-success">{{ granted }}</div>
+                    <div class="small text-muted">Success rate: {{ grant_rate }}%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Denied</div>
+                    <div class="fs-2 fw-bold text-danger">{{ denied }}</div>
+                    <div class="small text-muted">Deny rate: {{ deny_rate }}%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Security Incident</div>
+                    <div class="fs-2 fw-bold text-warning">{{ security_incidents }}</div>
+                    <div class="small text-muted">Warning + High + Critical</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-1">Trend Aktivitas</h5>
+                    <div class="small text-muted">Total akses, granted, denied, dan incident per hari.</div>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div style="height:340px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-1">Hasil Akses</h5>
+                    <div class="small text-muted">Komposisi hasil transaksi.</div>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div style="height:340px;">
+                        <canvas id="resultChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECURITY / AUTH -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-1">Autentikasi</h5>
+                    <div class="small text-muted">Ringkasan keberhasilan face recognition dan OTP.</div>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="border rounded-4 p-3 h-100">
+                                <div class="small text-muted">Face Berhasil</div>
+                                <div class="fs-3 fw-bold text-success">{{ successful_face }}</div>
+                                <div class="small text-muted">Gagal/selain sukses: {{ face_failure }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded-4 p-3 h-100">
+                                <div class="small text-muted">OTP Berhasil</div>
+                                <div class="fs-3 fw-bold text-success">{{ successful_otp }}</div>
+                                <div class="small text-muted">Gagal/selain valid: {{ otp_failure }}</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="progress" style="height: 14px;">
+                                {% set face_rate = (successful_face / total * 100) if total else 0 %}
+                                <div class="progress-bar bg-success face-progress" role="progressbar" aria-label="Face success rate"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2 small text-muted">
+                                <span>Face success rate</span>
+                                <strong>{{ '%.1f'|format(face_rate) }}%</strong>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="progress" style="height: 14px;">
+                                {% set otp_rate = (successful_otp / total * 100) if total else 0 %}
+                                <div class="progress-bar bg-primary otp-progress" role="progressbar" aria-label="OTP success rate"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2 small text-muted">
+                                <span>OTP success rate</span>
+                                <strong>{{ '%.1f'|format(otp_rate) }}%</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-1">Incident Severity</h5>
+                    <div class="small text-muted">Distribusi level keamanan pada periode terpilih.</div>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div style="height:290px;">
+                        <canvas id="incidentChart"></canvas>
+                    </div>
+                    <div class="row g-2 mt-2">
+                        <div class="col-4">
+                            <div class="text-center border rounded-3 p-2">
+                                <div class="small text-muted">WARNING</div>
+                                <div class="fw-bold">{{ incidents['WARNING'] }}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center border rounded-3 p-2">
+                                <div class="small text-muted">HIGH</div>
+                                <div class="fw-bold">{{ incidents['HIGH'] }}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center border rounded-3 p-2">
+                                <div class="small text-muted">CRITICAL</div>
+                                <div class="fw-bold">{{ incidents['CRITICAL'] }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOP TABLES -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-1">Top Reason Code</h5>
+                    <div class="small text-muted">Alasan transaksi paling sering muncul.</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th class="ps-4">Reason</th><th class="text-end pe-4">Jumlah</th></tr>
+                            </thead>
+                            <tbody>
+                            {% for reason, count in top_reasons %}
+                                <tr>
+                                    <td class="ps-4"><code>{{ reason }}</code></td>
+                                    <td class="text-end pe-4 fw-bold">{{ count }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="2" class="text-center text-muted py-4">Belum ada data.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-1">Top Site</h5>
+                    <div class="small text-muted">Site dengan aktivitas akses terbanyak.</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th class="ps-4">Site</th><th class="text-end pe-4">Akses</th></tr>
+                            </thead>
+                            <tbody>
+                            {% for item in top_sites %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <strong>{{ item.site_name }}</strong>
+                                        <div class="small text-muted">{{ item.site_id }}</div>
+                                    </td>
+                                    <td class="text-end pe-4 fw-bold">{{ item.count }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="2" class="text-center text-muted py-4">Belum ada data.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-1">Top Teknisi</h5>
+                    <div class="small text-muted">Teknisi dengan transaksi terbanyak.</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th class="ps-4">Teknisi</th><th class="text-end pe-4">Akses</th></tr>
+                            </thead>
+                            <tbody>
+                            {% for item in top_technicians %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <strong>{{ item.name }}</strong>
+                                        <div class="small text-muted">{{ item.technician_id }}</div>
+                                    </td>
+                                    <td class="text-end pe-4 fw-bold">{{ item.count }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="2" class="text-center text-muted py-4">Belum ada data.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAST INCIDENTS -->
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-dark text-white rounded-top-4 py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <strong>Insiden Terbaru</strong>
+                <span class="small">
+                    24 jam terakhir: High {{ high_24h }} · Critical {{ critical_24h }}
+                </span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Waktu</th>
+                            <th>Level</th>
+                            <th>Site</th>
+                            <th>Teknisi</th>
+                            <th>Reason</th>
+                            <th>Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for log in latest_incidents %}
+                        <tr>
+                            <td class="text-nowrap">{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else '-' }}</td>
+                            <td>
+                                {% if log.incident_level == 'CRITICAL' %}
+                                    <span class="badge bg-danger">CRITICAL</span>
+                                {% elif log.incident_level == 'HIGH' %}
+                                    <span class="badge bg-warning text-dark">HIGH</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">WARNING</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ log.site_id or '-' }}</td>
+                            <td>
+                                {% if log.technician %}
+                                    {{ log.technician.name }}
+                                    <div class="small text-muted">{{ log.technician.technician_id }}</div>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td><code>{{ log.reason_code or '-' }}</code></td>
+                            <td class="text-truncate" style="max-width:320px;">{{ log.description or '-' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">Tidak ada insiden pada periode ini.</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div
+    id="analyticsData"
+    hidden
+    data-labels="{{ trend_labels|tojson|forceescape }}"
+    data-total="{{ trend_total|tojson|forceescape }}"
+    data-granted="{{ trend_granted|tojson|forceescape }}"
+    data-denied="{{ trend_denied|tojson|forceescape }}"
+    data-incident="{{ trend_incident|tojson|forceescape }}"
+    data-result-granted="{{ granted }}"
+    data-result-denied="{{ denied }}"
+    data-result-pending="{{ pending }}"
+    data-incident-normal="{{ incidents['NORMAL'] }}"
+    data-incident-warning="{{ incidents['WARNING'] }}"
+    data-incident-high="{{ incidents['HIGH'] }}"
+    data-incident-critical="{{ incidents['CRITICAL'] }}"
+    data-face-rate="{{ '%.2f'|format(face_rate) }}"
+    data-otp-rate="{{ '%.2f'|format(otp_rate) }}"
+></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(() => {
+    const dataElement = document.getElementById('analyticsData');
+
+    if (!dataElement) {
+        return;
+    }
+
+    const parseJson = (value, fallback = []) => {
+        try {
+            return JSON.parse(value || JSON.stringify(fallback));
+        } catch (error) {
+            console.error('Gagal membaca data analytics:', error);
+            return fallback;
+        }
+    };
+
+    const labels = parseJson(dataElement.dataset.labels);
+    const totalData = parseJson(dataElement.dataset.total);
+    const grantedData = parseJson(dataElement.dataset.granted);
+    const deniedData = parseJson(dataElement.dataset.denied);
+    const incidentData = parseJson(dataElement.dataset.incident);
+
+    const granted = Number(dataElement.dataset.resultGranted || 0);
+    const denied = Number(dataElement.dataset.resultDenied || 0);
+    const pending = Number(dataElement.dataset.resultPending || 0);
+
+    const incidents = {
+        NORMAL: Number(dataElement.dataset.incidentNormal || 0),
+        WARNING: Number(dataElement.dataset.incidentWarning || 0),
+        HIGH: Number(dataElement.dataset.incidentHigh || 0),
+        CRITICAL: Number(dataElement.dataset.incidentCritical || 0)
+    };
+
+    const faceRate = Number(dataElement.dataset.faceRate || 0);
+    const otpRate = Number(dataElement.dataset.otpRate || 0);
+
+    document.querySelectorAll('.face-progress').forEach((element) => {
+        element.style.width = `${Math.max(0, Math.min(100, faceRate))}%`;
+        element.setAttribute('aria-valuenow', faceRate.toFixed(1));
+        element.setAttribute('aria-valuemin', '0');
+        element.setAttribute('aria-valuemax', '100');
+    });
+
+    document.querySelectorAll('.otp-progress').forEach((element) => {
+        element.style.width = `${Math.max(0, Math.min(100, otpRate))}%`;
+        element.setAttribute('aria-valuenow', otpRate.toFixed(1));
+        element.setAttribute('aria-valuemin', '0');
+        element.setAttribute('aria-valuemax', '100');
+    });
+
+    const compactLabels = labels.map(v => {
+        const p = v.split('-');
+        return p.length === 3 ? `${p[2]}/${p[1]}` : v;
+    });
+
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            legend: { position: 'bottom' }
+        },
+        scales: {
+            y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+    };
+
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: compactLabels,
+            datasets: [
+                { label: 'Total', data: totalData, tension: 0.25 },
+                { label: 'Granted', data: grantedData, tension: 0.25 },
+                { label: 'Denied', data: deniedData, tension: 0.25 },
+                { label: 'Incident', data: incidentData, tension: 0.25 }
+            ]
+        },
+        options: commonOptions
+    });
+
+    new Chart(document.getElementById('resultChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Granted', 'Denied', 'Pending'],
+            datasets: [{ data: [granted, denied, pending] }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+
+    new Chart(document.getElementById('incidentChart'), {
+        type: 'bar',
+        data: {
+            labels: ['NORMAL', 'WARNING', 'HIGH', 'CRITICAL'],
+            datasets: [{
+                label: 'Jumlah',
+                data: [
+                    incidents.NORMAL,
+                    incidents.WARNING,
+                    incidents.HIGH,
+                    incidents.CRITICAL
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+})();
+</script>
+
+{% endblock %}

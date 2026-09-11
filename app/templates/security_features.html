@@ -1,0 +1,1504 @@
+{% extends "base.html" %}
+
+{% block title %}
+Security Center
+{% endblock %}
+
+{% block content %}
+
+<div class="app-page">
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
+    <div class="app-page-header">
+
+        <div class="app-page-header__copy">
+            <h2 class="fw-bold mb-1">
+                Security Center
+            </h2>
+
+            <p class="text-muted mb-0">
+                Monitoring keamanan BTS Security System
+            </p>
+        </div>
+
+        <div class="app-page-header__actions">
+
+            <a
+                href="{{ url_for('dashboard') }}"
+                class="btn btn-outline-secondary"
+            >
+                ← Dashboard
+            </a>
+
+            <a
+                href="{{ url_for('logout') }}"
+                class="btn btn-outline-danger"
+                onclick="return confirm('Yakin ingin logout dari sistem?')"
+            >
+                Logout
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         STATUS SISTEM
+    ====================================================== -->
+
+    <div
+        id="systemMessage"
+        class="alert alert-light border"
+    >
+        Memuat status sistem...
+    </div>
+
+
+    <!-- =====================================================
+         STATISTICS
+    ====================================================== -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-6 col-xl-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Total Teknisi
+                    </div>
+
+                    <div
+                        id="totalTechnicians"
+                        class="display-6 fw-bold"
+                    >
+                        -
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-xl-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Site BTS
+                    </div>
+
+                    <div
+                        id="totalSites"
+                        class="display-6 fw-bold"
+                    >
+                        -
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-xl-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Akses Hari Ini
+                    </div>
+
+                    <div
+                        id="accessToday"
+                        class="display-6 fw-bold"
+                    >
+                        -
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-xl-3">
+
+            <div class="card border-0 shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <div class="text-muted small">
+                        Incident Hari Ini
+                    </div>
+
+                    <div
+                        id="incidentsToday"
+                        class="display-6 fw-bold text-danger"
+                    >
+                        -
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         GATE CONTROL
+    ====================================================== -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white">
+
+            <div class="d-flex justify-content-between
+                        align-items-center">
+
+                <strong>
+                    Gate Control
+                </strong>
+
+                <span
+                    id="gateStatus"
+                    class="badge text-bg-secondary"
+                >
+                    -
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-body">
+
+            <div class="row g-3">
+
+                <div class="col-md-6">
+
+                    <div class="border rounded p-3">
+
+                        <div class="small text-muted">
+                            Gate Health
+                        </div>
+
+                        <div
+                            id="gateHealth"
+                            class="fs-4 fw-bold"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <div class="border rounded p-3">
+
+                        <div class="small text-muted">
+                            Device
+                        </div>
+
+                        <div
+                            id="gateDevice"
+                            class="fs-5 fw-bold"
+                        >
+                            -
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="d-flex gap-2 flex-wrap mt-3">
+
+                <button
+                    id="btnOpenGate"
+                    type="button"
+                    class="btn btn-success"
+                >
+                    🔓 Buka Gate
+                </button>
+
+
+                <button
+                    id="btnCloseGate"
+                    type="button"
+                    class="btn btn-danger"
+                >
+                    🔒 Tutup Gate
+                </button>
+
+            </div>
+
+
+            <div
+                id="gateMessage"
+                class="small text-muted mt-3"
+            >
+                -
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         EMERGENCY MODE
+    ====================================================== -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white">
+
+            <strong>
+                    Emergency Mode
+            </strong>
+
+        </div>
+
+
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between
+                        align-items-center flex-wrap gap-3">
+
+                <div>
+
+                    <div class="fw-bold">
+                        Status Emergency
+                    </div>
+
+                    <div
+                        id="emergencyReason"
+                        class="small text-muted"
+                    >
+                        Tidak ada emergency.
+                    </div>
+
+                </div>
+
+
+                <div class="d-flex gap-2">
+
+                    <button
+                        id="btnEmergencyOn"
+                        type="button"
+                        class="btn btn-danger"
+                    >
+                        Aktifkan
+                    </button>
+
+
+                    <button
+                        id="btnEmergencyOff"
+                        type="button"
+                        class="btn btn-outline-secondary"
+                    >
+                        Normal
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         SYSTEM HEALTH
+    ====================================================== -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white">
+
+            <strong>
+                    System Health
+            </strong>
+
+        </div>
+
+
+        <div class="card-body">
+
+            <div
+                id="healthContainer"
+                class="row g-3"
+            >
+
+                <div class="col-12">
+                    Memuat health check...
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         SECURITY INCIDENTS
+    ====================================================== -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white">
+
+            <div class="d-flex justify-content-between
+                        align-items-center flex-wrap gap-2">
+
+                <strong>
+                    Security Incidents
+                </strong>
+
+                <a
+                    href="{{ url_for('security_incidents') }}"
+                    class="btn btn-sm btn-outline-danger"
+                >
+                    Lihat Semua
+                </a>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th>
+                                Waktu
+                            </th>
+
+                            <th>
+                                Site
+                            </th>
+
+                            <th>
+                                Teknisi
+                            </th>
+
+                            <th>
+                                Hasil
+                            </th>
+
+                            <th>
+                                Level
+                            </th>
+
+                            <th>
+                                Keterangan
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="incidentTable">
+
+                        <tr>
+
+                            <td
+                                colspan="6"
+                                class="text-center text-muted py-4"
+                            >
+                                Memuat data...
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         ACCESS LOG
+    ====================================================== -->
+
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-header bg-white">
+
+            <div class="d-flex justify-content-between
+                        align-items-center flex-wrap gap-2">
+
+                <strong>
+                    Security Access Log
+                </strong>
+
+                <div class="d-flex gap-2">
+
+                    <a
+                        href="{{ url_for('access_logs') }}"
+                        class="btn btn-sm btn-outline-dark"
+                    >
+                        Buka Access Log
+                    </a>
+
+                    <a
+                        href="/api/features/export/access-logs.xlsx"
+                        class="btn btn-sm btn-outline-success"
+                    >
+                        Excel
+                    </a>
+
+                    <a
+                        href="/api/features/export/access-logs.pdf"
+                        class="btn btn-sm btn-outline-danger"
+                    >
+                        PDF
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         BTS SITE RISK
+    ====================================================== -->
+
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white">
+
+            <strong>
+                    BTS Site Security Risk
+            </strong>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th>
+                                Site
+                            </th>
+
+                            <th>
+                                Lokasi
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Risk Score
+                            </th>
+
+                            <th>
+                                Level
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="siteRiskTable">
+
+                        <tr>
+
+                            <td
+                                colspan="5"
+                                class="text-center text-muted py-4"
+                            >
+                                Memuat data site...
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================== -->
+
+<script>
+
+(function () {
+
+    "use strict";
+
+
+    // =====================================================
+    // HELPER
+    // =====================================================
+
+    function escapeHtml(value) {
+
+        return String(value ?? "-")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+    }
+
+
+    function badge(value) {
+
+        const v =
+            String(value || "-").toUpperCase();
+
+        let cls = "secondary";
+
+
+        if (
+            [
+                "NORMAL",
+                "GRANTED",
+                "ONLINE",
+                "OPEN",
+                "HEALTHY",
+                "AKTIF"
+            ].includes(v)
+        ) {
+
+            cls = "success";
+
+        }
+
+
+        if (
+            [
+                "WARNING",
+                "PENDING",
+                "HIGH"
+            ].includes(v)
+        ) {
+
+            cls = "warning";
+
+        }
+
+
+        if (
+            [
+                "DENIED",
+                "ERROR",
+                "CRITICAL",
+                "OFFLINE",
+                "AKTIF"
+            ].includes(v)
+        ) {
+
+            cls = "danger";
+
+        }
+
+
+        return `
+            <span class="badge text-bg-${cls}">
+                ${escapeHtml(v)}
+            </span>
+        `;
+
+    }
+
+
+    async function apiGet(url) {
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: {
+                        "X-Requested-With":
+                            "XMLHttpRequest"
+                    }
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.message ||
+                "API gagal diakses."
+            );
+
+        }
+
+
+        return data;
+
+    }
+
+
+    async function apiPost(
+        url,
+        body = {}
+    ) {
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "X-Requested-With":
+                            "XMLHttpRequest"
+                    },
+
+                    body:
+                        JSON.stringify(body)
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.message ||
+                "Request gagal."
+            );
+
+        }
+
+
+        return data;
+
+    }
+
+
+    // =====================================================
+    // SUMMARY
+    // =====================================================
+
+    async function loadSummary() {
+
+        const data =
+            await apiGet(
+                "/api/features/summary"
+            );
+
+
+        if (
+            data.status !==
+            "success"
+        ) {
+
+            throw new Error(
+                data.message ||
+                "Summary gagal."
+            );
+
+        }
+
+
+        const counts =
+            data.counts || {};
+
+        const gate =
+            data.gate || {};
+
+        const emergency =
+            data.emergency || {};
+
+
+        document.getElementById(
+            "totalTechnicians"
+        ).textContent =
+            counts.technicians ?? 0;
+
+
+        document.getElementById(
+            "totalSites"
+        ).textContent =
+            counts.sites ?? 0;
+
+
+        document.getElementById(
+            "accessToday"
+        ).textContent =
+            counts.access_today ?? 0;
+
+
+        document.getElementById(
+            "incidentsToday"
+        ).textContent =
+            counts.incidents_today ?? 0;
+
+
+        document.getElementById(
+            "gateStatus"
+        ).innerHTML =
+            badge(
+                gate.status ||
+                "CLOSED"
+            );
+
+
+        document.getElementById(
+            "gateHealth"
+        ).innerHTML =
+            badge(
+                gate.health ||
+                "NORMAL"
+            );
+
+
+        document.getElementById(
+            "gateDevice"
+        ).textContent =
+            gate.device_id ||
+            "LOCAL_SIMULATION";
+
+
+        document.getElementById(
+            "gateMessage"
+        ).textContent =
+            gate.last_error ||
+            (
+                "Last action: " +
+                (
+                    gate.last_action ||
+                    "-"
+                )
+            );
+
+
+        document.getElementById(
+            "emergencyReason"
+        ).innerHTML =
+            emergency.enabled
+                ? `
+                    ${badge("AKTIF")}
+                    <span class="ms-2">
+                        ${escapeHtml(
+                            emergency.reason ||
+                            "Emergency Mode aktif."
+                        )}
+                    </span>
+                  `
+                : `
+                    ${badge("NORMAL")}
+                    <span class="ms-2">
+                        Tidak ada Emergency Mode aktif.
+                    </span>
+                  `;
+
+    }
+
+
+    // =====================================================
+    // HEALTH
+    // =====================================================
+
+    async function loadHealth() {
+
+        const container =
+            document.getElementById(
+                "healthContainer"
+            );
+
+
+        const data =
+            await apiGet(
+                "/api/features/health"
+            );
+
+
+        container.innerHTML = "";
+
+
+        const services =
+            data.services || {};
+
+
+        Object.keys(
+            services
+        ).forEach(
+            function (name) {
+
+                const service =
+                    services[name] || {};
+
+
+                const col =
+                    document.createElement(
+                        "div"
+                    );
+
+                col.className =
+                    "col-md-6 col-xl-3";
+
+
+                col.innerHTML = `
+
+                    <div class="border rounded p-3 h-100">
+
+                        <div class="d-flex justify-content-between">
+
+                            <strong>
+                                ${escapeHtml(
+                                    name
+                                )}
+                            </strong>
+
+                            ${
+                                badge(
+                                    service.status ||
+                                    "UNKNOWN"
+                                )
+                            }
+
+                        </div>
+
+                        <div class="small text-muted mt-2">
+
+                            ${
+                                escapeHtml(
+                                    service.message ||
+                                    "-"
+                                )
+                            }
+
+                        </div>
+
+                    </div>
+
+                `;
+
+
+                container.appendChild(
+                    col
+                );
+
+            }
+        );
+
+    }
+
+
+    // =====================================================
+    // INCIDENTS
+    // =====================================================
+
+    async function loadIncidents() {
+
+        const tbody =
+            document.getElementById(
+                "incidentTable"
+            );
+
+
+        const data =
+            await apiGet(
+                "/api/features/incidents"
+            );
+
+
+        const incidents =
+            data.incidents || [];
+
+
+        if (
+            incidents.length === 0
+        ) {
+
+            tbody.innerHTML = `
+
+                <tr>
+
+                    <td
+                        colspan="6"
+                        class="text-center text-muted py-4"
+                    >
+                        Tidak ada security incident.
+
+                    </td>
+
+                </tr>
+
+            `;
+
+            return;
+
+        }
+
+
+        tbody.innerHTML =
+            incidents
+                .slice(0, 10)
+                .map(
+                    function (item) {
+
+                        return `
+
+                            <tr>
+
+                                <td>
+                                    ${
+                                        escapeHtml(
+                                            item.timestamp
+                                        )
+                                    }
+                                </td>
+
+                                <td>
+                                    ${
+                                        escapeHtml(
+                                            item.site_id
+                                        )
+                                    }
+                                </td>
+
+                                <td>
+                                    ${
+                                        escapeHtml(
+                                            item.technician_id
+                                        )
+                                    }
+                                </td>
+
+                                <td>
+                                    ${
+                                        badge(
+                                            item.access_result
+                                        )
+                                    }
+                                </td>
+
+                                <td>
+                                    ${
+                                        badge(
+                                            item.incident_level
+                                        )
+                                    }
+                                </td>
+
+                                <td>
+                                    ${
+                                        escapeHtml(
+                                            item.description ||
+                                            item.reason_code ||
+                                            "-"
+                                        )
+                                    }
+                                </td>
+
+                            </tr>
+
+                        `;
+
+                    }
+                )
+                .join("");
+
+    }
+
+
+    // =====================================================
+    // SITE RISK
+    // =====================================================
+
+    async function loadSites() {
+
+        const tbody =
+            document.getElementById(
+                "siteRiskTable"
+            );
+
+
+        const data =
+            await apiGet(
+                "/api/features/sites"
+            );
+
+
+        const sites =
+            data.sites || [];
+
+
+        if (
+            sites.length === 0
+        ) {
+
+            tbody.innerHTML = `
+
+                <tr>
+
+                    <td
+                        colspan="5"
+                        class="text-center text-muted py-4"
+                    >
+                        Belum ada data BTS Site.
+
+                    </td>
+
+                </tr>
+
+            `;
+
+            return;
+
+        }
+
+
+        tbody.innerHTML =
+            sites
+                .map(
+                    function (site) {
+
+                        const risk =
+                            site.risk || {};
+
+
+                        return `
+
+                            <tr>
+
+                                <td>
+                                    <strong>
+                                        ${
+                                            escapeHtml(
+                                                site.site_name
+                                            )
+                                        }
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    ${
+                                        escapeHtml(
+                                            site.location
+                                        )
+                                    }
+                                </td>
+
+                                <td>
+                                    ${
+                                        badge(
+                                            site.status
+                                        )
+                                    }
+                                </td>
+
+                                <td>
+                                    <strong>
+                                        ${
+                                            risk.score ??
+                                            0
+                                        }
+                                    </strong>
+                                    / 100
+                                </td>
+
+                                <td>
+                                    ${
+                                        badge(
+                                            risk.level ||
+                                            "NORMAL"
+                                        )
+                                    }
+                                </td>
+
+                            </tr>
+
+                        `;
+
+                    }
+                )
+                .join("");
+
+    }
+
+
+    // =====================================================
+    // GATE OPEN
+    // =====================================================
+
+    async function openGate() {
+
+        const button =
+            document.getElementById(
+                "btnOpenGate"
+            );
+
+
+        button.disabled = true;
+
+        button.textContent =
+            "Membuka...";
+
+
+        try {
+
+            const data =
+                await apiPost(
+                    "/api/features/gate/open"
+                );
+
+
+            document.getElementById(
+                "gateMessage"
+            ).textContent =
+                data.message ||
+                "Gate berhasil dibuka.";
+
+
+            await loadSummary();
+
+        } catch (error) {
+
+            alert(
+                error.message
+            );
+
+        } finally {
+
+            button.disabled = false;
+
+            button.textContent =
+                "🔓 Buka Gate";
+
+        }
+
+    }
+
+
+    // =====================================================
+    // GATE CLOSE
+    // =====================================================
+
+    async function closeGate() {
+
+        const button =
+            document.getElementById(
+                "btnCloseGate"
+            );
+
+
+        button.disabled = true;
+
+        button.textContent =
+            "Menutup...";
+
+
+        try {
+
+            const data =
+                await apiPost(
+                    "/api/features/gate/close"
+                );
+
+
+            document.getElementById(
+                "gateMessage"
+            ).textContent =
+                data.message ||
+                "Gate berhasil ditutup.";
+
+
+            await loadSummary();
+
+        } catch (error) {
+
+            alert(
+                error.message
+            );
+
+        } finally {
+
+            button.disabled = false;
+
+            button.textContent =
+                "🔒 Tutup Gate";
+
+        }
+
+    }
+
+
+    // =====================================================
+    // EMERGENCY ON
+    // =====================================================
+
+    async function emergencyOn() {
+
+        const reason =
+            prompt(
+                "Masukkan alasan Emergency Mode:"
+            );
+
+
+        if (
+            reason === null
+        ) {
+
+            return;
+
+        }
+
+
+        try {
+
+            await apiPost(
+                "/api/features/emergency",
+                {
+                    enabled: true,
+                    reason: reason
+                }
+            );
+
+
+            await refreshAll();
+
+
+        } catch (error) {
+
+            alert(
+                error.message
+            );
+
+        }
+
+    }
+
+
+    // =====================================================
+    // EMERGENCY OFF
+    // =====================================================
+
+    async function emergencyOff() {
+
+        if (
+            !confirm(
+                "Nonaktifkan Emergency Mode?"
+            )
+        ) {
+
+            return;
+
+        }
+
+
+        try {
+
+            await apiPost(
+                "/api/features/emergency",
+                {
+                    enabled: false
+                }
+            );
+
+
+            await refreshAll();
+
+
+        } catch (error) {
+
+            alert(
+                error.message
+            );
+
+        }
+
+    }
+
+
+    // =====================================================
+    // REFRESH
+    // =====================================================
+
+    async function refreshAll() {
+
+        const message =
+            document.getElementById(
+                "systemMessage"
+            );
+
+
+        try {
+
+            await Promise.all(
+                [
+                    loadSummary(),
+                    loadHealth(),
+                    loadIncidents(),
+                    loadSites()
+                ]
+            );
+
+
+            message.className =
+                "alert alert-success border";
+
+
+            message.textContent =
+                "✓ Security Center terhubung. Data diperbarui.";
+
+        } catch (error) {
+
+            console.error(
+                "Security Center:",
+                error
+            );
+
+
+            message.className =
+                "alert alert-warning border";
+
+
+            message.textContent =
+                "Security Center gagal mengambil sebagian data: " +
+                error.message;
+
+        }
+
+    }
+
+
+    // =====================================================
+    // EVENT
+    // =====================================================
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            document
+                .getElementById(
+                    "btnOpenGate"
+                )
+                .addEventListener(
+                    "click",
+                    openGate
+                );
+
+
+            document
+                .getElementById(
+                    "btnCloseGate"
+                )
+                .addEventListener(
+                    "click",
+                    closeGate
+                );
+
+
+            document
+                .getElementById(
+                    "btnEmergencyOn"
+                )
+                .addEventListener(
+                    "click",
+                    emergencyOn
+                );
+
+
+            document
+                .getElementById(
+                    "btnEmergencyOff"
+                )
+                .addEventListener(
+                    "click",
+                    emergencyOff
+                );
+
+
+            refreshAll();
+
+
+            setInterval(
+                refreshAll,
+                5000
+            );
+
+        }
+    );
+
+})();
+
+</script>
+
+{% endblock %}

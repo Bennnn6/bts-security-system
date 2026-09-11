@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="app-page">
+
+    <!-- HEADER -->
+    <div class="app-page-header">
+        <div class="app-page-header__copy">
+            <h2 class="fw-bold mb-1">Surat Perintah Kerja (Work Orders)</h2>
+            <p class="text-muted mb-0">
+                Manajemen izin dan penugasan teknisi untuk akses gerbang Site BTS.
+            </p>
+        </div>
+        <div class="app-page-header__actions">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-dark">
+                ← Kembali ke Dashboard
+            </a>
+            <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#createWoCard">
+                Terbitkan Work Order Baru
+            </button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('export_work_orders', status=status_filter, technician_id=technician_filter) }}">
+                Export CSV
+            </a>
+            <a class="btn btn-outline-success" href="{{ url_for('export_work_orders_format', format='xlsx', status=status_filter, technician_id=technician_filter) }}">
+                Export Excel
+            </a>
+            <a class="btn btn-outline-danger" href="{{ url_for('export_work_orders_format', format='pdf', status=status_filter, technician_id=technician_filter) }}">
+                Export PDF
+            </a>
+        </div>
+    </div>
+
+    <form class="work-order-filters mb-4" method="GET" action="{{ url_for('work_orders') }}">
+        <div>
+            <label class="form-label" for="statusFilter">Status</label>
+            <select id="statusFilter" name="status" class="form-select">
+                <option value="">Semua status</option>
+                {% for status in ['PENDING', 'APPROVED', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED', 'CANCELLED'] %}
+                    <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="technicianFilter">Teknisi</label>
+            <select id="technicianFilter" name="technician_id" class="form-select">
+                <option value="">Semua teknisi</option>
+                {% for t in technicians %}
+                    <option value="{{ t.technician_id }}" {% if technician_filter == t.technician_id %}selected{% endif %}>{{ t.technician_id }} - {{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="work-order-filters__actions">
+            <button type="submit" class="btn btn-primary">Terapkan filter</button>
+            <a href="{{ url_for('work_orders') }}" class="btn btn-light">Reset</a>
+        </div>
+    </form>
+
+    <!-- FORM BUAT WORK ORDER (COLLAPSIBLE) -->
+    <div class="collapse mb-4" id="createWoCard">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-0 pt-3 px-4">
+                <h5 class="fw-bold mb-0">Penerbitan Surat Perintah Kerja Baru</h5>
+            </div>
+            <div class="card-body px-4 pb-4">
+                <form method="POST" action="{{ url_for('work_orders') }}">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Pilih Teknisi</label>
+                            <select name="technician_id" class="form-select" required>
+                                <option value="">-- Pilih Teknisi --</option>
+                                {% for t in technicians %}
+                                <option value="{{ t.technician_id }}">{{ t.technician_id }} - {{ t.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Site BTS Tujuan</label>
+                            <select name="site_id" class="form-select" required>
+                                <option value="">-- Pilih Site BTS --</option>
+                                {% for s in sites %}
+                                <option value="{{ s.site_id }}">{{ s.site_name }} ({{ s.site_id }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Tanggal Pelaksanaan</label>
+                            <input type="date" name="scheduled_date" class="form-control" value="{{ today }}" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Tujuan Pekerjaan / Deskripsi</label>
+                            <input type="text" name="purpose" class="form-control" placeholder="Contoh: Pemeliharaan berkala genset dan baterai cadangan" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Catatan Tambahan (Opsional)</label>
+                            <input type="text" name="notes" class="form-control" placeholder="Misal: Bawa kunci tower tambahan">
+                        </div>
+                        <div class="col-12 text-end mt-3">
+                            <button type="button" class="btn btn-light me-2" data-bs-toggle="collapse" data-bs-target="#createWoCard">Batal</button>
+                            <button type="submit" class="btn btn-success px-4">Terbitkan Surat Izin</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABEL WORK ORDERS -->
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0">Daftar Work Order Terjadwal</h5>
+            <span class="badge bg-secondary">Total: {{ orders|length }} Tiket</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Nomor Tiket</th>
+                            <th>Tanggal</th>
+                            <th>Teknisi</th>
+                            <th>Site BTS</th>
+                            <th>Tujuan Pekerjaan</th>
+                            <th>Status Izin</th>
+                            <th class="pe-4 text-end">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if not orders %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                Belum ada Surat Perintah Kerja yang diterbitkan.
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% for wo in orders %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="badge bg-dark font-monospace">{{ wo.ticket_number }}</span>
+                            </td>
+                            <td>{{ wo.scheduled_date.strftime('%d/%m/%Y') if wo.scheduled_date else '-' }}</td>
+                            <td>
+                                <strong>{{ wo.technician_name }}</strong>
+                                <div class="small text-muted font-monospace">{{ wo.technician_id }}</div>
+                            </td>
+                            <td>
+                                <div>{{ wo.site_name }}</div>
+                                <div class="small text-muted font-monospace">{{ wo.site_id }}</div>
+                            </td>
+                            <td>
+                                <div>{{ wo.purpose }}</div>
+                                {% if wo.notes %}
+                                <div class="small text-muted fst-italic">{{ wo.notes }}</div>
+                                {% endif %}
+                                {% if wo.completion_note %}
+                                <div class="small text-success mt-1">Laporan: {{ wo.completion_note }}</div>
+                                {% endif %}
+                                {% if wo.evidence_image %}
+                                <a class="small d-block mt-1" href="{{ wo.evidence_image }}" target="_blank" rel="noopener">Lihat bukti pekerjaan</a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if wo.status == 'APPROVED' %}
+                                <span class="badge bg-success">APPROVED</span>
+                                {% elif wo.status == 'COMPLETED' %}
+                                <span class="badge bg-primary">COMPLETED</span>
+                                {% elif wo.status == 'IN_PROGRESS' %}
+                                <span class="badge bg-info text-dark">IN PROGRESS</span>
+                                {% elif wo.status == 'VERIFIED' %}
+                                <span class="badge bg-success">VERIFIED</span>
+                                {% elif wo.status == 'PENDING' %}
+                                <span class="badge bg-warning text-dark">PENDING</span>
+                                {% else %}
+                                <span class="badge bg-danger">{{ wo.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4 text-end">
+                                {% if wo.status == 'COMPLETED' %}
+                                <form method="POST" action="{{ url_for('verify_work_order', wo_id=wo.id) }}" class="d-inline-block me-1">
+                                    <button type="submit" class="btn btn-sm btn-success">Verifikasi</button>
+                                </form>
+                                {% endif %}
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        Status
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item text-success" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='APPROVED') }}">Setujui (Approved)</a></li>
+                                        <li><a class="dropdown-item text-primary" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='COMPLETED') }}">Selesai (Completed)</a></li>
+                                        <li><a class="dropdown-item text-success" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='VERIFIED') }}">Verifikasi</a></li>
+                                        <li><a class="dropdown-item text-danger" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='CANCELLED') }}">Batalkan (Cancelled)</a></li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

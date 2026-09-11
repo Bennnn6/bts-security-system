@@ -1,0 +1,1001 @@
+{% extends "base.html" %}
+
+{% block title %}
+Access Logs
+{% endblock %}
+
+{% block content %}
+
+<div class="app-page">
+
+    <!-- HEADER -->
+    <div class="app-page-header">
+
+        <div class="app-page-header__copy">
+            <h2 class="fw-bold mb-1">
+                Access Logs
+            </h2>
+
+            <p class="text-muted mb-0">
+                Riwayat akses keamanan BTS Security System
+            </p>
+        </div>
+
+        <div class="app-page-header__actions">
+
+            <a
+                href="{{ url_for('dashboard') }}"
+                class="btn btn-outline-secondary"
+            >
+                ← Dashboard
+            </a>
+
+            <button
+                type="button"
+                id="refreshButton"
+                class="btn btn-primary"
+            >
+                🔄 Refresh
+            </button>
+
+            <a
+                href="{{ url_for('export_access_logs') }}"
+                class="btn btn-outline-success"
+            >
+                📥 Export Excel
+            </a>
+
+            <button
+                type="button"
+                class="btn btn-outline-danger"
+                data-bs-toggle="modal"
+                data-bs-target="#cleanupLogModal"
+            >
+                🧹 Bersihkan Log Lama
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- CLEANUP LOG MODAL -->
+    <div class="modal fade" id="cleanupLogModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('admin_cleanup_logs') }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">🧹 Pembersihan Log Lama</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small">
+                            Hapus riwayat log akses lama untuk menghemat ruang penyimpanan database SQLite.
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Hapus log yang lebih lama dari:</label>
+                            <select name="days" class="form-select">
+                                <option value="7">7 Hari Terakhir</option>
+                                <option value="30" selected>30 Hari Terakhir (Direkomendasikan)</option>
+                                <option value="60">60 Hari Terakhir</option>
+                                <option value="90">90 Hari Terakhir</option>
+                            </select>
+                        </div>
+                        <div class="alert alert-warning small mb-0">
+                            Tindakan ini permanen. Pastikan Anda telah mengunduh backup database terlebih dahulu.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-danger">Hapus Log</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- STATUS -->
+    <div
+        id="pageMessage"
+        class="alert alert-light border"
+    >
+        Memuat access log...
+    </div>
+
+
+    <!-- FILTER -->
+    <div class="card border-0 shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <div class="row g-3">
+
+                <div class="col-md-4">
+
+                    <label
+                        for="searchInput"
+                        class="form-label fw-semibold"
+                    >
+                        🔎 Cari
+                    </label>
+
+                    <input
+                        type="text"
+                        id="searchInput"
+                        class="form-control"
+                        placeholder="Site, teknisi, user..."
+                    >
+
+                </div>
+
+
+                <div class="col-md-3">
+
+                    <label
+                        for="resultFilter"
+                        class="form-label fw-semibold"
+                    >
+                        Hasil
+                    </label>
+
+                    <select
+                        id="resultFilter"
+                        class="form-select"
+                    >
+
+                        <option value="">
+                            Semua
+                        </option>
+
+                        <option value="GRANTED">
+                            GRANTED
+                        </option>
+
+                        <option value="DENIED">
+                            DENIED
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-md-3">
+
+                    <label
+                        for="limitInput"
+                        class="form-label fw-semibold"
+                    >
+                        Jumlah Data
+                    </label>
+
+                    <select
+                        id="limitInput"
+                        class="form-select"
+                    >
+
+                        <option value="25">
+                            25
+                        </option>
+
+                        <option value="50" selected>
+                            50
+                        </option>
+
+                        <option value="100">
+                            100
+                        </option>
+
+                        <option value="200">
+                            200
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-md-2 d-flex align-items-end">
+
+                    <button
+                        type="button"
+                        id="clearFilterButton"
+                        class="btn btn-outline-secondary w-100"
+                    >
+                        Reset
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SUMMARY -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-body">
+
+                    <div class="small text-muted">
+                        Total Log
+                    </div>
+
+                    <div
+                        id="totalLogs"
+                        class="fs-2 fw-bold"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-body">
+
+                    <div class="small text-muted">
+                        Akses Diizinkan
+                    </div>
+
+                    <div
+                        id="grantedLogs"
+                        class="fs-2 fw-bold text-success"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-body">
+
+                    <div class="small text-muted">
+                        Akses Ditolak
+                    </div>
+
+                    <div
+                        id="deniedLogs"
+                        class="fs-2 fw-bold text-danger"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- TABLE -->
+    <div class="card border-0 shadow-sm">
+
+        <div class="card-header bg-white">
+
+            <div class="d-flex justify-content-between align-items-center">
+
+                <strong>
+                    Riwayat Akses
+                </strong>
+
+                <span
+                    id="visibleCount"
+                    class="badge text-bg-secondary"
+                >
+                    0 data
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th>
+                                #
+                            </th>
+
+                            <th>
+                                Waktu
+                            </th>
+
+                            <th>
+                                Site
+                            </th>
+
+                            <th>
+                                Teknisi
+                            </th>
+
+                            <th>
+                                Hasil
+                            </th>
+
+                            <th>
+                                Metode
+                            </th>
+
+                            <th>
+                                Reason
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="accessLogTable">
+
+                        <tr>
+
+                            <td
+                                colspan="7"
+                                class="text-center py-5 text-muted"
+                            >
+                                Memuat data...
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+(function () {
+
+    "use strict";
+
+
+    let allLogs = [];
+
+
+    // =====================================================
+    // ESCAPE HTML
+    // =====================================================
+
+    function escapeHtml(value) {
+
+        return String(value ?? "-")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+    }
+
+
+    // =====================================================
+    // BADGE
+    // =====================================================
+
+    function resultBadge(value) {
+
+        const result =
+            String(value || "-")
+                .toUpperCase();
+
+
+        if (result === "GRANTED") {
+
+            return `
+                <span class="badge text-bg-success">
+                    ✓ GRANTED
+                </span>
+            `;
+
+        }
+
+
+        if (result === "DENIED") {
+
+            return `
+                <span class="badge text-bg-danger">
+                    ✕ DENIED
+                </span>
+            `;
+
+        }
+
+
+        return `
+            <span class="badge text-bg-secondary">
+                ${escapeHtml(result)}
+            </span>
+        `;
+
+    }
+
+
+    // =====================================================
+    // GET VALUE
+    // =====================================================
+
+    function getLogValue(
+        log,
+        keys,
+        fallback = "-"
+    ) {
+
+        for (
+            const key of keys
+        ) {
+
+            if (
+                log[key] !== undefined &&
+                log[key] !== null &&
+                log[key] !== ""
+            ) {
+
+                return log[key];
+
+            }
+
+        }
+
+        return fallback;
+
+    }
+
+
+    // =====================================================
+    // LOAD DATA
+    // =====================================================
+
+    async function loadAccessLogs() {
+
+        const message =
+            document.getElementById(
+                "pageMessage"
+            );
+
+
+        message.className =
+            "alert alert-light border";
+
+
+        message.textContent =
+            "Memuat access log...";
+
+
+        try {
+
+            const limit =
+                document.getElementById(
+                    "limitInput"
+                ).value;
+
+
+            const response =
+                await fetch(
+                    `/api/features/access-logs?limit=${limit}`,
+                    {
+                        method: "GET",
+                        credentials: "same-origin",
+                        cache: "no-store",
+
+                        headers: {
+                            "X-Requested-With":
+                                "XMLHttpRequest"
+                        }
+                    }
+                );
+
+
+            if (
+                response.status === 401 ||
+                response.status === 403
+            ) {
+
+                throw new Error(
+                    "Sesi login tidak memiliki akses ke Access Logs."
+                );
+
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    data.message ||
+                    "Gagal mengambil access log."
+                );
+
+            }
+
+
+            if (
+                data.status &&
+                data.status !== "success"
+            ) {
+
+                throw new Error(
+                    data.message ||
+                    "API mengembalikan error."
+                );
+
+            }
+
+
+            allLogs =
+                Array.isArray(
+                    data.logs
+                )
+                    ? data.logs
+                    : (
+                        Array.isArray(
+                            data.access_logs
+                        )
+                            ? data.access_logs
+                            : []
+                    );
+
+
+            updateSummary();
+
+            renderTable();
+
+
+            message.className =
+                "alert alert-success border";
+
+
+            message.textContent =
+                `✓ Access log berhasil dimuat. ${allLogs.length} data ditemukan.`;
+
+
+        } catch (error) {
+
+            console.error(
+                "ACCESS LOG ERROR:",
+                error
+            );
+
+
+            allLogs = [];
+
+
+            updateSummary();
+
+            renderTable();
+
+
+            message.className =
+                "alert alert-danger border";
+
+
+            message.textContent =
+                "Gagal memuat access log: " +
+                error.message;
+
+        }
+
+    }
+
+
+    // =====================================================
+    // SUMMARY
+    // =====================================================
+
+    function updateSummary() {
+
+        const granted =
+            allLogs.filter(
+                function (log) {
+
+                    return (
+                        String(
+                            getLogValue(
+                                log,
+                                [
+                                    "result",
+                                    "access_result",
+                                    "status"
+                                ]
+                            )
+                        )
+                        .toUpperCase()
+                        === "GRANTED"
+                    );
+
+                }
+            ).length;
+
+
+        const denied =
+            allLogs.filter(
+                function (log) {
+
+                    return (
+                        String(
+                            getLogValue(
+                                log,
+                                [
+                                    "result",
+                                    "access_result",
+                                    "status"
+                                ]
+                            )
+                        )
+                        .toUpperCase()
+                        === "DENIED"
+                    );
+
+                }
+            ).length;
+
+
+        document.getElementById(
+            "totalLogs"
+        ).textContent =
+            allLogs.length;
+
+
+        document.getElementById(
+            "grantedLogs"
+        ).textContent =
+            granted;
+
+
+        document.getElementById(
+            "deniedLogs"
+        ).textContent =
+            denied;
+
+    }
+
+
+    // =====================================================
+    // RENDER TABLE
+    // =====================================================
+
+    function renderTable() {
+
+        const tbody =
+            document.getElementById(
+                "accessLogTable"
+            );
+
+
+        const search =
+            document.getElementById(
+                "searchInput"
+            )
+            .value
+            .trim()
+            .toLowerCase();
+
+
+        const resultFilter =
+            document.getElementById(
+                "resultFilter"
+            )
+            .value
+            .trim()
+            .toUpperCase();
+
+
+        const filtered =
+            allLogs.filter(
+                function (log) {
+
+                    const text =
+                        JSON.stringify(
+                            log
+                        ).toLowerCase();
+
+
+                    const result =
+                        String(
+                            getLogValue(
+                                log,
+                                [
+                                    "result",
+                                    "access_result",
+                                    "status"
+                                ]
+                            )
+                        )
+                        .toUpperCase();
+
+
+                    const searchMatch =
+                        !search ||
+                        text.includes(
+                            search
+                        );
+
+
+                    const resultMatch =
+                        !resultFilter ||
+                        result === resultFilter;
+
+
+                    return (
+                        searchMatch &&
+                        resultMatch
+                    );
+
+                }
+            );
+
+
+        document.getElementById(
+            "visibleCount"
+        ).textContent =
+            `${filtered.length} data`;
+
+
+        if (
+            filtered.length === 0
+        ) {
+
+            tbody.innerHTML = `
+
+                <tr>
+
+                    <td
+                        colspan="7"
+                        class="text-center py-5 text-muted"
+                    >
+                        Tidak ada access log yang sesuai.
+
+                    </td>
+
+                </tr>
+
+            `;
+
+            return;
+
+        }
+
+
+        tbody.innerHTML =
+            filtered.map(
+                function (log, index) {
+
+                    const timestamp =
+                        getLogValue(
+                            log,
+                            [
+                                "timestamp",
+                                "created_at",
+                                "time"
+                            ]
+                        );
+
+
+                    const site =
+                        getLogValue(
+                            log,
+                            [
+                                "site_id",
+                                "site",
+                                "site_name"
+                            ]
+                        );
+
+
+                    const technician =
+                        getLogValue(
+                            log,
+                            [
+                                "technician_id",
+                                "worker_id",
+                                "technician",
+                                "worker_name"
+                            ]
+                        );
+
+
+                    const result =
+                        getLogValue(
+                            log,
+                            [
+                                "result",
+                                "access_result",
+                                "status"
+                            ]
+                        );
+
+
+                    const method =
+                        getLogValue(
+                            log,
+                            [
+                                "method",
+                                "access_method",
+                                "verification_method"
+                            ]
+                        );
+
+
+                    const reason =
+                        getLogValue(
+                            log,
+                            [
+                                "reason",
+                                "reason_code",
+                                "description",
+                                "message"
+                            ]
+                        );
+
+
+                    return `
+
+                        <tr>
+
+                            <td>
+                                ${index + 1}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(timestamp)}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(site)}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(technician)}
+                            </td>
+
+                            <td>
+                                ${resultBadge(result)}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(method)}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(reason)}
+                            </td>
+
+                        </tr>
+
+                    `;
+
+                }
+            ).join("");
+
+    }
+
+
+    // =====================================================
+    // EVENT
+    // =====================================================
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            document
+                .getElementById(
+                    "refreshButton"
+                )
+                .addEventListener(
+                    "click",
+                    loadAccessLogs
+                );
+
+
+            document
+                .getElementById(
+                    "searchInput"
+                )
+                .addEventListener(
+                    "input",
+                    renderTable
+                );
+
+
+            document
+                .getElementById(
+                    "resultFilter"
+                )
+                .addEventListener(
+                    "change",
+                    renderTable
+                );
+
+
+            document
+                .getElementById(
+                    "limitInput"
+                )
+                .addEventListener(
+                    "change",
+                    loadAccessLogs
+                );
+
+
+            document
+                .getElementById(
+                    "clearFilterButton"
+                )
+                .addEventListener(
+                    "click",
+                    function () {
+
+                        document.getElementById(
+                            "searchInput"
+                        ).value = "";
+
+
+                        document.getElementById(
+                            "resultFilter"
+                        ).value = "";
+
+
+                        renderTable();
+
+                    }
+                );
+
+
+            loadAccessLogs();
+
+        }
+
+    );
+
+})();
+
+</script>
+
+{% endblock %}
