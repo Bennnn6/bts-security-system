@@ -1,72 +1,139 @@
 {% extends "base.html" %}
 
+{% block title %}Direktori Site BTS | BTS Security System{% endblock %}
+
 {% block content %}
 
-<div class="app-page">
+<!-- STYLE OVERRIDE -->
+<style>
+    :root {
+        --jk-primary: #7C3AED;
+        --jk-primary-hover: #885CF6;
+        --jk-primary-light: #A78BFA;
+        --jk-bg-subtle: #EDE9FE;
+        --jk-bg-main: #F5F3FF;
+        --jk-text-dark: #0F172A;
+        --jk-white: #FFFFFF;
+        
+        --jk-radius-card: 16px;
+        --jk-radius-btn: 10px;
+        --jk-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+    }
+
+    body {
+        background-color: var(--jk-bg-main) !important;
+        color: var(--jk-text-dark);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .card {
+        background-color: var(--jk-white) !important;
+        border: none !important;
+        border-radius: var(--jk-radius-card) !important;
+        box-shadow: var(--jk-shadow) !important;
+    }
+
+    .section-title {
+        color: var(--jk-primary) !important;
+        font-weight: 700;
+    }
+    .section-subtitle {
+        color: #475569 !important;
+        font-size: 0.875rem;
+    }
+
+    .btn {
+        border-radius: var(--jk-radius-btn);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s;
+    }
+    .btn-sm {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.8rem;
+    }
+    
+    /* Tombol Utama Ungu */
+    .btn-primary {
+        background-color: #7C3AED !important;
+        border-color: #7C3AED !important;
+        color: #FFFFFF !important;
+    }
+    .btn-primary:hover {
+        background-color: #6D28D9 !important;
+        border-color: #6D28D9 !important;
+    }
+
+    /* Memperjelas tombol outline agar teks tidak hilang */
+    .btn-outline-dark {
+        color: #0F172A !important;
+        border-color: #CBD5E1 !important;
+        background-color: #FFFFFF !important;
+    }
+    .btn-outline-dark:hover {
+        background-color: #EDE9FE !important;
+        color: #7C3AED !important;
+        border-color: #7C3AED !important;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 1px solid var(--jk-bg-subtle);
+        background-color: var(--jk-bg-main);
+        color: var(--jk-text-dark);
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: var(--jk-white);
+        border-color: var(--jk-primary-light);
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+    }
+    
+    footer, .footer-section, #footer {
+        display: none !important;
+    }
+</style>
+
+<div class="app-page p-2 p-md-4">
 
     <!-- =====================================================
          HEADER
     ====================================================== -->
+    <div class="card p-4 mb-4" style="border-left: 6px solid var(--jk-primary) !important;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2 class="section-title mb-1" style="font-size: 1.5rem;">
+                    Direktori Site BTS
+                </h2>
+                <p class="section-subtitle mb-0">
+                    Kelola site BTS dan pantau keamanan akses setiap lokasi.
+                </p>
+            </div>
 
-    <div class="app-page-header">
-
-        <div class="app-page-header__copy">
-            <h2 class="fw-bold mb-1">
-                Direktori Site BTS
-            </h2>
-
-            <p class="text-muted mb-0">
-                Kelola site BTS dan pantau keamanan akses setiap lokasi.
-            </p>
+            <div class="d-flex gap-2">
+                <!-- Tombol Dashboard dengan warna teks tegas agar tidak hilang -->
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-dark shadow-sm fw-semibold">
+                    ← Dashboard
+                </a>
+                <a href="{{ url_for('access_simulation') }}" class="btn btn-primary shadow-sm">
+                    Simulasi Akses
+                </a>
+            </div>
         </div>
-
-        <div class="app-page-header__actions">
-
-            <a
-                href="{{ url_for('dashboard') }}"
-                class="btn btn-outline-dark"
-            >
-                ← Dashboard
-            </a>
-
-            <a
-                href="{{ url_for('access_simulation') }}"
-                class="btn btn-primary"
-            >
-                Simulasi Akses
-            </a>
-
-        </div>
-
     </div>
 
 
     <!-- =====================================================
          SEARCH + ADD
     ====================================================== -->
-
-    <div class="card border-0 shadow-sm mb-4">
-
-        <div class="card-body">
-
+    <div class="card mb-4">
+        <div class="card-body p-4">
             <div class="row g-3 align-items-end">
-
                 <div class="col-lg-8">
-
-                    <form
-                        method="GET"
-                        action="{{ url_for('bts_sites') }}"
-                    >
-
-                        <label
-                            class="form-label fw-semibold"
-                            for="searchSite"
-                        >
+                    <form method="GET" action="{{ url_for('bts_sites') }}">
+                        <label class="form-label fw-semibold text-muted small text-uppercase" for="searchSite">
                             Cari Site BTS
                         </label>
-
                         <div class="input-group">
-
                             <input
                                 type="text"
                                 id="searchSite"
@@ -75,444 +142,172 @@
                                 placeholder="Cari Site ID, nama site, atau lokasi..."
                                 value="{{ search_query|default('') }}"
                             >
-
-                            <button
-                                type="submit"
-                                class="btn btn-dark"
-                            >
+                            <button type="submit" class="btn btn-dark px-4" style="background-color: var(--jk-text-dark);">
                                 Cari
                             </button>
-
                         </div>
-
                     </form>
-
                 </div>
 
-
                 <div class="col-lg-4 text-lg-end">
-
                     <button
                         type="button"
-                        class="btn btn-success"
+                        class="btn btn-primary px-4 shadow-sm"
                         data-bs-toggle="modal"
                         data-bs-target="#addSiteModal"
                     >
-                        Tambah Site BTS
+                        + Tambah Site BTS
                     </button>
-
                 </div>
-
             </div>
-
         </div>
-
     </div>
 
 
     <!-- =====================================================
          SITE TABLE
     ====================================================== -->
-
-    <div class="card border-0 shadow-sm">
-
-        <div class="card-header bg-white border-0 pt-3">
-
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-
-                <div>
-
-                    <h5 class="fw-bold mb-1">
-                        Daftar Site BTS
-                    </h5>
-
-                    <small class="text-muted">
-                        Monitoring operasional dan keamanan akses.
-                    </small>
-
-                </div>
-
-                <span class="badge bg-dark">
-                    {{ sites|length if sites else 0 }} Site
-                </span>
-
-            </div>
-
+    <div class="card">
+        <div class="pt-4 px-4 pb-0" style="background-color: #FFFFFF !important; border-bottom: none !important;">
+            <h5 class="section-title mb-1" style="font-size: 1.25rem; color: #7C3AED !important;">Daftar Site BTS</h5>
+            <small class="section-subtitle" style="color: #475569 !important;">Monitoring operasional dan keamanan akses.</small>
         </div>
 
-
-        <div class="card-body p-0">
-
+        <div class="card-body p-0 mt-3" style="background-color: #FFFFFF !important;">
             <div class="table-responsive">
-
                 <table class="table table-hover align-middle mb-0">
-
-                    <thead class="table-light">
-
+                    <thead style="background-color: var(--jk-bg-main);">
                         <tr>
-
-                            <th class="ps-3">
-                                Site
-                            </th>
-
-                            <th>
-                                Lokasi
-                            </th>
-
-                            <th class="text-center">
-                                Status Operasional
-                            </th>
-
-                            <th class="text-center">
-                                Akses Terakhir
-                            </th>
-
-                            <th class="text-center">
-                                Keamanan
-                            </th>
-
-                            <th class="text-center">
-                                Teknisi
-                            </th>
-
-                            <th class="text-center pe-3">
-                                Aksi
-                            </th>
-
+                            <th class="ps-4 text-muted small text-uppercase border-0">Site</th>
+                            <th class="text-muted small text-uppercase border-0">Lokasi</th>
+                            <th class="text-center text-muted small text-uppercase border-0">Status Operasional</th>
+                            <th class="text-center text-muted small text-uppercase border-0">Akses Terakhir</th>
+                            <th class="text-center text-muted small text-uppercase border-0">Keamanan</th>
+                            <th class="text-center text-muted small text-uppercase border-0">Teknisi</th>
+                            <th class="text-center pe-4 text-muted small text-uppercase border-0">Aksi</th>
                         </tr>
-
                     </thead>
-
-
                     <tbody>
-
                     {% if sites %}
-
                         {% for site in sites %}
-
-                            {% set metrics =
-                                site_metrics.get(site.site_id)
-                                if site_metrics is defined
-                                else {}
-                            %}
-
+                            {% set metrics = site_metrics.get(site.site_id) if site_metrics is defined else {} %}
                             <tr>
-
-                                <!-- =================================
-                                     SITE
-                                ================================== -->
-
-                                <td class="ps-3">
-
-                                    <div class="fw-bold">
-                                        {{ site.site_name }}
-                                    </div>
-
-                                    <div class="small text-muted">
-
-                                        <code>
-                                            {{ site.site_id }}
-                                        </code>
-
-                                    </div>
-
+                                <!-- SITE -->
+                                <td class="ps-4 py-3 border-light">
+                                    <div class="fw-bold" style="color: var(--jk-text-dark);">{{ site.site_name }}</div>
+                                    <small class="text-primary font-monospace">{{ site.site_id }}</small>
                                 </td>
 
-
-                                <!-- =================================
-                                     LOKASI
-                                ================================== -->
-
-                                <td>
-
-                                    <div>
-                                        {{ site.location }}
-                                    </div>
-
-                                    <div class="small text-muted">
-                                        {{ site.latitude }},
-                                        {{ site.longitude }}
-                                    </div>
-
+                                <!-- LOKASI -->
+                                <td class="border-light">
+                                    <div class="text-dark">{{ site.location }}</div>
+                                    <div class="small text-muted">{{ site.latitude }}, {{ site.longitude }}</div>
                                 </td>
 
-
-                                <!-- =================================
-                                     OPERASIONAL
-                                ================================== -->
-
-                                <td class="text-center">
-
-                                    {% set operational_status =
-                                        site.status|default('Unknown')|upper
-                                    %}
-
-                                    {% if operational_status in [
-                                        'NORMAL (UP)',
-                                        'UP',
-                                        'NORMAL'
-                                    ] %}
-
-                                        <span class="badge bg-success">
-                                            {{ site.status }}
-                                        </span>
-
-                                    {% elif operational_status in [
-                                        'MAINTENANCE',
-                                        'PEMELIHARAAN'
-                                    ] %}
-
-                                        <span class="badge bg-warning text-dark">
-                                            🟡 {{ site.status }}
-                                        </span>
-
+                                <!-- OPERASIONAL -->
+                                <td class="text-center border-light">
+                                    {% set operational_status = site.status|default('Unknown')|upper %}
+                                    {% if operational_status in ['NORMAL (UP)', 'UP', 'NORMAL'] %}
+                                        <span class="badge bg-success rounded-pill px-2">Normal (Up)</span>
+                                    {% elif operational_status in ['MAINTENANCE', 'PEMELIHARAAN'] %}
+                                        <span class="badge bg-warning text-dark rounded-pill px-2">Maintenance</span>
                                     {% else %}
-
-                                        <span class="badge bg-danger">
-                                            🔴 {{ site.status|default('DOWN') }}
-                                        </span>
-
+                                        <span class="badge bg-danger rounded-pill px-2">Down</span>
                                     {% endif %}
-
                                 </td>
 
-
-                                <!-- =================================
-                                     LAST ACCESS
-                                ================================== -->
-
-                                <td class="text-center">
-
-                                    {% set last_access =
-                                        metrics.last_access
-                                        if metrics
-                                        and metrics.last_access is defined
-                                        else None
-                                    %}
-
+                                <!-- LAST ACCESS -->
+                                <td class="text-center border-light">
+                                    {% set last_access = metrics.last_access if metrics and metrics.last_access is defined else None %}
                                     {% if last_access %}
-
-                                        <div class="fw-semibold small">
-                                            {{ last_access }}
-                                        </div>
-
-                                        {% if metrics.last_access_type is defined
-                                              and metrics.last_access_type %}
-
-                                            <span class="badge
-                                                {% if metrics.last_access_type == 'MASUK' %}
-                                                    bg-primary
-                                                {% else %}
-                                                    bg-secondary
-                                                {% endif %}
-                                            ">
+                                        <div class="fw-semibold small text-dark">{{ last_access }}</div>
+                                        {% if metrics.last_access_type is defined and metrics.last_access_type %}
+                                            <span class="badge {% if metrics.last_access_type == 'MASUK' %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill px-2 mt-1">
                                                 {{ metrics.last_access_type }}
                                             </span>
-
                                         {% endif %}
-
                                     {% else %}
-
-                                        <span class="text-muted small">
-                                            Belum ada akses
-                                        </span>
-
+                                        <span class="text-muted small">Belum ada akses</span>
                                     {% endif %}
-
                                 </td>
 
-
-                                <!-- =================================
-                                     SECURITY
-                                ================================== -->
-
-                                <td class="text-center">
-
-                                    {% set security_status =
-                                        metrics.security_status
-                                        if metrics
-                                        and metrics.security_status is defined
-                                        else 'NORMAL'
-                                    %}
-
-                                    {% set security_upper =
-                                        security_status|upper
-                                    %}
-
-                                    {% if security_upper in [
-                                        'NORMAL',
-                                        'AMAN',
-                                        'SECURE'
-                                    ] %}
-
-                                        <span class="badge bg-success">
-                                            {{ security_status }}
-                                        </span>
-
-                                    {% elif security_upper in [
-                                        'WARNING',
-                                        'WASPADA'
-                                    ] %}
-
-                                        <span class="badge bg-warning text-dark">
-                                            🟡 {{ security_status }}
-                                        </span>
-
+                                <!-- SECURITY -->
+                                <td class="text-center border-light">
+                                    {% set security_status = metrics.security_status if metrics and metrics.security_status is defined else 'NORMAL' %}
+                                    {% set security_upper = security_status|upper %}
+                                    {% if security_upper in ['NORMAL', 'AMAN', 'SECURE'] %}
+                                        <span class="badge bg-success rounded-pill px-2">{{ security_status }}</span>
+                                    {% elif security_upper in ['WARNING', 'WASPADA'] %}
+                                        <span class="badge bg-warning text-dark rounded-pill px-2">{{ security_status }}</span>
                                     {% else %}
-
-                                        <span class="badge bg-danger">
-                                            🔴 {{ security_status }}
-                                        </span>
-
+                                        <span class="badge bg-danger rounded-pill px-2">{{ security_status }}</span>
                                     {% endif %}
-
 
                                     {% if metrics.denied_today is defined %}
-
-                                        <div class="small text-muted mt-1">
-                                            {{ metrics.denied_today }}
-                                            denied hari ini
-                                        </div>
-
+                                        <div class="small text-muted mt-1">{{ metrics.denied_today }} denied hari ini</div>
                                     {% endif %}
-
                                 </td>
 
-
-                                <!-- =================================
-                                     TECHNICIANS INSIDE
-                                ================================== -->
-
-                                <td class="text-center">
-
-                                    {% set inside_count =
-                                        metrics.inside_count
-                                        if metrics
-                                        and metrics.inside_count is defined
-                                        else 0
-                                    %}
-
+                                <!-- TECHNICIANS INSIDE -->
+                                <td class="text-center border-light">
+                                    {% set inside_count = metrics.inside_count if metrics and metrics.inside_count is defined else 0 %}
                                     {% if inside_count > 0 %}
-
-                                        <span class="badge bg-primary">
-                                            {{ inside_count }}
-                                        </span>
-
-                                        <div class="small text-muted">
-                                            di dalam
-                                        </div>
-
+                                        <span class="badge bg-primary rounded-pill px-2">{{ inside_count }}</span>
+                                        <div class="small text-muted mt-1">di dalam</div>
                                     {% else %}
-
-                                        <span class="badge bg-light text-dark">
-                                            0
-                                        </span>
-
-                                        <div class="small text-muted">
-                                            tidak ada
-                                        </div>
-
+                                        <span class="badge bg-light text-dark rounded-pill px-2 border">0</span>
+                                        <div class="small text-muted mt-1">tidak ada</div>
                                     {% endif %}
-
                                 </td>
 
-
-                                <!-- =================================
-                                     ACTION
-                                ================================== -->
-
-                                <td class="text-center pe-3">
-
-                                    <div class="btn-group btn-group-sm">
-
+                                <!-- ACTION (Diberikan tulisan penanda yang jelas pada setiap tombol) -->
+                                <td class="text-center pe-4 border-light">
+                                    <div class="d-flex justify-content-center gap-1 flex-wrap">
                                         <button
                                             type="button"
-                                            class="btn btn-outline-primary"
+                                            class="btn btn-sm btn-outline-primary"
                                             data-bs-toggle="modal"
                                             data-bs-target="#historyModal{{ site.id }}"
                                         >
                                             Riwayat
                                         </button>
-
                                         <a
-                                            href="{{ url_for(
-                                                'edit_bts_site',
-                                                site_id=site.id
-                                            ) }}"
-                                            class="btn btn-outline-warning"
+                                            href="{{ url_for('edit_bts_site', site_id=site.id) }}"
+                                            class="btn btn-sm btn-outline-warning text-dark fw-semibold"
                                         >
-                                            <i class="bi bi-pencil"></i>
+                                            Edit
                                         </a>
-
                                         <a
-                                            href="{{ url_for(
-                                                'qr_code_site',
-                                                site_id=site.id
-                                            ) }}"
-                                            class="btn btn-outline-primary"
+                                            href="{{ url_for('qr_code_site', site_id=site.id) }}"
+                                            class="btn btn-sm btn-outline-primary"
                                             target="_blank"
-                                            title="Generate QR Code"
                                         >
-                                            <i class="bi bi-qr-code"></i>
+                                            QR
                                         </a>
-
                                         <a
-                                            href="{{ url_for(
-                                                'delete_bts_site',
-                                                site_id=site.id
-                                            ) }}"
-                                            class="btn btn-outline-danger"
-                                            onclick="return confirm(
-                                                'Hapus site {{ site.site_name }}?'
-                                            )"
+                                            href="{{ url_for('delete_bts_site', site_id=site.id) }}"
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Hapus site {{ site.site_name }}?')"
                                         >
-                                            🗑️
+                                            Hapus
                                         </a>
-
                                     </div>
-
                                 </td>
-
                             </tr>
-
                         {% endfor %}
-
                     {% else %}
-
                         <tr>
-
-                            <td
-                                colspan="7"
-                                class="text-center py-5 text-muted"
-                            >
-
-                                <div class="fs-1 mb-2">
-                                    SITE
-                                </div>
-
-                                <div class="fw-semibold">
-                                    Belum ada Site BTS.
-                                </div>
-
-                                <div class="small">
-                                    Tambahkan site menggunakan tombol
-                                    "Tambah Site BTS".
-                                </div>
-
+                            <td colspan="7" class="text-center py-5 text-muted border-0">
+                                <div class="fs-1 mb-2">🏢</div>
+                                <div class="fw-semibold">Belum ada Site BTS.</div>
+                                <div class="small">Tambahkan site menggunakan tombol "Tambah Site BTS".</div>
                             </td>
-
                         </tr>
-
                     {% endif %}
-
                     </tbody>
-
                 </table>
-
             </div>
-
         </div>
-
     </div>
 
 </div>
@@ -521,723 +316,220 @@
 <!-- =========================================================
      MODAL ADD SITE
 ========================================================== -->
-
-<div
-    class="modal fade"
-    id="addSiteModal"
-    tabindex="-1"
-    aria-hidden="true"
->
-
+<div class="modal fade" id="addSiteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-
-        <div class="modal-content">
-
-            <div class="modal-header">
-
-                <h5 class="modal-title fw-bold">
-                    Tambah Site BTS
-                </h5>
-
-                <button
-                    type="button"
-                    class="btn-close"
-                    data-bs-dismiss="modal"
-                ></button>
-
+        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--jk-radius-card);">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold text-primary">Tambah Site BTS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
-
-            <form
-                method="POST"
-                action="{{ url_for('add_bts_site') }}"
-            >
-
-                <div class="modal-body">
-
+            <form method="POST" action="{{ url_for('add_bts_site') }}">
+                <div class="modal-body p-4">
                     <div class="row g-3">
-
-                        <!-- SITE ID -->
-
                         <div class="col-md-6">
-
-                            <label class="form-label fw-semibold">
-                                Site ID
-                            </label>
-
-                            <input
-                                type="text"
-                                name="site_id"
-                                class="form-control"
-                                placeholder="Contoh: BTS-JKT-001"
-                                required
-                            >
-
+                            <label class="form-label fw-semibold small text-muted">Site ID</label>
+                            <input type="text" name="site_id" class="form-control" placeholder="Contoh: BTS-JKT-001" required>
                         </div>
-
-
-                        <!-- SITE NAME -->
-
                         <div class="col-md-6">
-
-                            <label class="form-label fw-semibold">
-                                Nama Site
-                            </label>
-
-                            <input
-                                type="text"
-                                name="site_name"
-                                class="form-control"
-                                placeholder="Contoh: BTS Jakarta Selatan"
-                                required
-                            >
-
+                            <label class="form-label fw-semibold small text-muted">Nama Site</label>
+                            <input type="text" name="site_name" class="form-control" placeholder="Contoh: BTS Jakarta Selatan" required>
                         </div>
-
-
-                        <!-- LOCATION -->
-
                         <div class="col-12">
-
-                            <label class="form-label fw-semibold">
-                                Lokasi
-                            </label>
-
-                            <input
-                                type="text"
-                                name="location"
-                                class="form-control"
-                                placeholder="Alamat/lokasi BTS"
-                                required
-                            >
-
+                            <label class="form-label fw-semibold small text-muted">Lokasi</label>
+                            <input type="text" name="location" class="form-control" placeholder="Alamat/lokasi BTS" required>
                         </div>
-
-
-                        <!-- LATITUDE -->
-
                         <div class="col-md-6">
-
-                            <label class="form-label fw-semibold">
-                                Latitude
-                            </label>
-
-                            <input
-                                type="text"
-                                name="latitude"
-                                class="form-control"
-                                placeholder="-6.200000"
-                                required
-                            >
-
+                            <label class="form-label fw-semibold small text-muted">Latitude</label>
+                            <input type="text" name="latitude" class="form-control" placeholder="-6.200000" required>
                         </div>
-
-
-                        <!-- LONGITUDE -->
-
                         <div class="col-md-6">
-
-                            <label class="form-label fw-semibold">
-                                Longitude
-                            </label>
-
-                            <input
-                                type="text"
-                                name="longitude"
-                                class="form-control"
-                                placeholder="106.816666"
-                                required
-                            >
-
+                            <label class="form-label fw-semibold small text-muted">Longitude</label>
+                            <input type="text" name="longitude" class="form-control" placeholder="106.816666" required>
                         </div>
-
-
-                        <!-- STATUS -->
-
                         <div class="col-md-6">
-
-                            <label class="form-label fw-semibold">
-                                Status Site
-                            </label>
-
-                            <select
-                                name="status"
-                                class="form-select"
-                            >
-
-                                <option value="Normal (Up)">
-                                    Normal (Up)
-                                </option>
-
-                                <option value="Maintenance">
-                                    Maintenance
-                                </option>
-
-                                <option value="Down">
-                                    Down
-                                </option>
-
+                            <label class="form-label fw-semibold small text-muted">Status Site</label>
+                            <select name="status" class="form-select">
+                                <option value="Normal (Up)">Normal (Up)</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Down">Down</option>
                             </select>
-
                         </div>
-
-
-                        <!-- DESCRIPTION -->
-
                         <div class="col-12">
-
-                            <label class="form-label fw-semibold">
-                                Deskripsi
-                            </label>
-
-                            <textarea
-                                name="description"
-                                class="form-control"
-                                rows="3"
-                                placeholder="Keterangan Site BTS..."
-                            ></textarea>
-
+                            <label class="form-label fw-semibold small text-muted">Deskripsi</label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Keterangan Site BTS..."></textarea>
                         </div>
-
                     </div>
-
                 </div>
 
-
-                <div class="modal-footer">
-
-                    <button
-                        type="button"
-                        class="btn btn-secondary"
-                        data-bs-dismiss="modal"
-                    >
-                        Batal
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="btn btn-success"
-                    >
-                        Simpan Site
-                    </button>
-
+                <div class="modal-footer border-top bg-light" style="border-radius: 0 0 var(--jk-radius-card) var(--jk-radius-card);">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Site</button>
                 </div>
-
             </form>
-
         </div>
-
     </div>
-
 </div>
 
 
 <!-- =========================================================
      MODAL RIWAYAT AKSES PER SITE
 ========================================================== -->
-
 {% if sites %}
-
     {% for site in sites %}
-
-        <div
-            class="modal fade"
-            id="historyModal{{ site.id }}"
-            tabindex="-1"
-            aria-hidden="true"
-        >
-
+        <div class="modal fade" id="historyModal{{ site.id }}" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
-
-                <div class="modal-content">
-
-
-                    <!-- HEADER -->
-
-                    <div class="modal-header">
-
+                <div class="modal-content border-0 shadow-lg" style="border-radius: var(--jk-radius-card);">
+                    <div class="modal-header border-bottom">
                         <div>
-
-                            <h5 class="modal-title fw-bold">
-                                Riwayat Akses
-                            </h5>
-
-                            <div class="small text-muted">
-
-                                {{ site.site_name }}
-                                —
-                                <code>{{ site.site_id }}</code>
-
-                            </div>
-
+                            <h5 class="modal-title fw-bold text-primary">Riwayat Akses</h5>
+                            <div class="small text-muted">{{ site.site_name }} — <code class="text-primary">{{ site.site_id }}</code></div>
                         </div>
-
-                        <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                        ></button>
-
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
 
-
-                    <!-- BODY -->
-
-                    <div class="modal-body">
-
-                        {% set site_logs =
-                            (
-                                site.access_logs
-                                |sort(attribute='timestamp', reverse=true)
-                            )
-                        %}
-
+                    <div class="modal-body p-4">
+                        {% set site_logs = (site.access_logs|sort(attribute='timestamp', reverse=true)) %}
                         {% if site_logs %}
-
                             <div class="table-responsive">
-
                                 <table class="table table-hover align-middle">
-
                                     <thead class="table-light">
-
                                         <tr>
-
-                                            <th>
-                                                Waktu
-                                            </th>
-
-                                            <th>
-                                                Teknisi
-                                            </th>
-
-                                            <th class="text-center">
-                                                Akses
-                                            </th>
-
-                                            <th class="text-center">
-                                                Face
-                                            </th>
-
-                                            <th class="text-center">
-                                                OTP
-                                            </th>
-
-                                            <th class="text-center">
-                                                Hasil
-                                            </th>
-
-                                            <th>
-                                                Device
-                                            </th>
-
-                                            <th>
-                                                Bukti
-                                            </th>
-
-                                            <th>
-                                                Keterangan
-                                            </th>
-
+                                            <th>Waktu</th>
+                                            <th>Teknisi</th>
+                                            <th class="text-center">Akses</th>
+                                            <th class="text-center">Face</th>
+                                            <th class="text-center">OTP</th>
+                                            <th class="text-center">Hasil</th>
+                                            <th>Device</th>
+                                            <th>Bukti</th>
+                                            <th>Keterangan</th>
                                         </tr>
-
                                     </thead>
-
-
                                     <tbody>
-
                                     {% for log in site_logs %}
-
                                         <tr>
-
-                                            <!-- WAKTU -->
-
+                                            <td><small>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '-' }}</small></td>
                                             <td>
-
-                                                <small>
-
-                                                    {{
-                                                        log.timestamp.strftime(
-                                                            '%Y-%m-%d %H:%M:%S'
-                                                        )
-                                                        if log.timestamp
-                                                        else '-'
-                                                    }}
-
-                                                </small>
-
-                                            </td>
-
-
-                                            <!-- TEKNISI -->
-
-                                            <td>
-
                                                 {% if log.technician %}
-
-                                                    <div class="fw-semibold">
-                                                        {{ log.technician.name }}
-                                                    </div>
-
-                                                    <small class="text-muted">
-
-                                                        {{
-                                                            log.technician.technician_id
-                                                        }}
-
-                                                    </small>
-
+                                                    <div class="fw-semibold">{{ log.technician.name }}</div>
+                                                    <small class="text-muted">{{ log.technician.technician_id }}</small>
                                                 {% else %}
-
-                                                    <span class="text-muted">
-                                                        Tidak dikenali
-                                                    </span>
-
+                                                    <span class="text-muted">Tidak dikenali</span>
                                                 {% endif %}
-
                                             </td>
-
-
-                                            <!-- ACCESS TYPE -->
-
                                             <td class="text-center">
-
                                                 {% if log.access_type == 'MASUK' %}
-
-                                                    <span class="badge bg-primary">
-                                                        MASUK
-                                                    </span>
-
+                                                    <span class="badge bg-primary">MASUK</span>
                                                 {% elif log.access_type == 'KELUAR' %}
-
-                                                    <span class="badge bg-secondary">
-                                                        🔴 KELUAR
-                                                    </span>
-
+                                                    <span class="badge bg-secondary">KELUAR</span>
                                                 {% else %}
-
-                                                    <span class="badge bg-light text-dark">
-                                                        -
-                                                    </span>
-
+                                                    <span class="badge bg-light text-dark">-</span>
                                                 {% endif %}
-
                                             </td>
-
-
-                                            <!-- FACE -->
-
                                             <td class="text-center">
-
                                                 {% if log.face_result == 'SUCCESS' %}
-
-                                                    <span class="badge bg-success">
-                                                        OK
-                                                    </span>
-
+                                                    <span class="badge bg-success">OK</span>
                                                 {% elif log.face_result == 'FAILED' %}
-
-                                                    <span class="badge bg-danger">
-                                                        GAGAL
-                                                    </span>
-
+                                                    <span class="badge bg-danger">GAGAL</span>
                                                 {% else %}
-
-                                                    <span class="text-muted">
-                                                        -
-                                                    </span>
-
+                                                    <span class="text-muted">-</span>
                                                 {% endif %}
-
                                                 {% if log.face_distance is not none %}
-
-                                                    <div class="small text-muted">
-                                                        {{
-                                                            '%.4f'|format(
-                                                                log.face_distance
-                                                            )
-                                                        }}
-                                                    </div>
-
+                                                    <div class="small text-muted">{{ '%.4f'|format(log.face_distance) }}</div>
                                                 {% endif %}
-
                                             </td>
-
-
-                                            <!-- OTP -->
-
                                             <td class="text-center">
-
                                                 {% if log.otp_result == 'SUCCESS' %}
-
-                                                    <span class="badge bg-success">
-                                                        OK
-                                                    </span>
-
+                                                    <span class="badge bg-success">OK</span>
                                                 {% elif log.otp_result == 'FAILED' %}
-
-                                                    <span class="badge bg-danger">
-                                                        GAGAL
-                                                    </span>
-
+                                                    <span class="badge bg-danger">GAGAL</span>
                                                 {% elif log.otp_result == 'PENDING' %}
-
-                                                    <span class="badge bg-warning text-dark">
-                                                        PENDING
-                                                    </span>
-
+                                                    <span class="badge bg-warning text-dark">PENDING</span>
                                                 {% else %}
-
-                                                    <span class="text-muted">
-                                                        -
-                                                    </span>
-
+                                                    <span class="text-muted">-</span>
                                                 {% endif %}
-
                                             </td>
-
-
-                                            <!-- HASIL -->
-
                                             <td class="text-center">
-
                                                 {% if log.access_result == 'GRANTED' %}
-
-                                                    <span class="badge bg-success">
-                                                        GRANTED
-                                                    </span>
-
+                                                    <span class="badge bg-success">GRANTED</span>
                                                 {% elif log.access_result == 'DENIED' %}
-
-                                                    <span class="badge bg-danger">
-                                                        DENIED
-                                                    </span>
-
+                                                    <span class="badge bg-danger">DENIED</span>
                                                 {% elif log.access_result == 'PENDING' %}
-
-                                                    <span class="badge bg-warning text-dark">
-                                                        PENDING
-                                                    </span>
-
+                                                    <span class="badge bg-warning text-dark">PENDING</span>
                                                 {% else %}
-
-                                                    <span class="text-muted">
-                                                        -
-                                                    </span>
-
+                                                    <span class="text-muted">-</span>
                                                 {% endif %}
-
                                             </td>
-
-
-                                            <!-- DEVICE -->
-
+                                            <td><small class="text-muted">{{ log.device_id or '-' }}</small></td>
                                             <td>
-
-                                                <small class="text-muted">
-
-                                                    {{ log.device_id or '-' }}
-
-                                                </small>
-
-                                            </td>
-
-
-                                            <!-- BUKTI -->
-
-                                            <td>
-
                                                 {% if log.evidence_image %}
-
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-sm btn-outline-primary"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#evidenceModal{{ log.id }}"
-                                                    >
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#evidenceModal{{ log.id }}">
                                                         📷 Lihat
                                                     </button>
-
                                                 {% else %}
-
-                                                    <span class="text-muted small">
-                                                        Tidak ada
-                                                    </span>
-
+                                                    <span class="text-muted small">Tidak ada</span>
                                                 {% endif %}
-
                                             </td>
-
-
-                                            <!-- KETERANGAN -->
-
-                                            <td>
-
-                                                <small>
-
-                                                    {{ log.description or '-' }}
-
-                                                </small>
-
-                                            </td>
-
+                                            <td><small>{{ log.description or '-' }}</small></td>
                                         </tr>
-
                                     {% endfor %}
-
                                     </tbody>
-
                                 </table>
-
                             </div>
-
                         {% else %}
-
                             <div class="text-center text-muted py-5">
-
-                                <div class="fs-1">
-                                    LOG
-                                </div>
-
-                                <div class="fw-semibold mt-2">
-                                    Belum ada riwayat akses.
-                                </div>
-
+                                <div class="fs-1">LOG</div>
+                                <div class="fw-semibold mt-2">Belum ada riwayat akses.</div>
                             </div>
-
                         {% endif %}
-
                     </div>
 
-
-                    <!-- FOOTER -->
-
-                    <div class="modal-footer">
-
-                        <a
-                            href="{{ url_for(
-                                'access_logs',
-                                site_id=site.site_id
-                            ) }}"
-                            class="btn btn-outline-primary"
-                        >
+                    <div class="modal-footer border-top bg-light" style="border-radius: 0 0 var(--jk-radius-card) var(--jk-radius-card);">
+                        <a href="{{ url_for('access_logs', site_id=site.site_id) }}" class="btn btn-outline-primary">
                             Lihat Semua Access Log
                         </a>
-
-                        <button
-                            type="button"
-                            class="btn btn-secondary"
-                            data-bs-dismiss="modal"
-                        >
-                            Tutup
-                        </button>
-
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
                     </div>
-
                 </div>
-
             </div>
-
         </div>
-
     {% endfor %}
-
 {% endif %}
 
 
 <!-- =========================================================
      MODAL FOTO BUKTI
 ========================================================== -->
-
 {% if sites %}
-
     {% for site in sites %}
-
         {% for log in site.access_logs %}
-
             {% if log.evidence_image %}
-
-                <div
-                    class="modal fade"
-                    id="evidenceModal{{ log.id }}"
-                    tabindex="-1"
-                    aria-hidden="true"
-                >
-
+                <div class="modal fade" id="evidenceModal{{ log.id }}" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-dialog-centered">
-
-                        <div class="modal-content">
-
-                            <div class="modal-header">
-
-                                <h5 class="modal-title fw-bold">
-                                    📷 Foto Bukti Akses
-                                </h5>
-
-                                <button
-                                    type="button"
-                                    class="btn-close"
-                                    data-bs-dismiss="modal"
-                                ></button>
-
+                        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--jk-radius-card);">
+                            <div class="modal-header border-bottom">
+                                <h5 class="modal-title fw-bold text-primary">📷 Foto Bukti Akses</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
-
-                            <div class="modal-body text-center">
-
-                                <img
-                                    src="{{ log.evidence_image }}"
-                                    class="img-fluid rounded shadow-sm"
-                                    alt="Foto bukti akses"
-                                    style="max-height: 70vh;"
-                                >
-
+                            <div class="modal-body text-center p-4">
+                                <img src="{{ log.evidence_image }}" class="img-fluid rounded shadow-sm" alt="Foto bukti akses" style="max-height: 70vh;">
                                 <div class="mt-3 small text-muted">
-
                                     {% if log.technician %}
-                                        Teknisi:
-                                        <strong>
-                                            {{ log.technician.name }}
-                                        </strong>
-                                        <br>
+                                        Teknisi: <strong>{{ log.technician.name }}</strong><br>
                                     {% endif %}
-
-                                    Waktu:
-                                    {{
-                                        log.timestamp.strftime(
-                                            '%Y-%m-%d %H:%M:%S'
-                                        )
-                                        if log.timestamp
-                                        else '-'
-                                    }}
-
+                                    Waktu: {{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '-' }}
                                 </div>
-
                             </div>
-
-                            <div class="modal-footer">
-
-                                <button
-                                    type="button"
-                                    class="btn btn-secondary"
-                                    data-bs-dismiss="modal"
-                                >
-                                    Tutup
-                                </button>
-
+                            <div class="modal-footer border-top bg-light" style="border-radius: 0 0 var(--jk-radius-card) var(--jk-radius-card);">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
                             </div>
-
                         </div>
-
                     </div>
-
                 </div>
-
             {% endif %}
-
         {% endfor %}
-
     {% endfor %}
-
 {% endif %}
-
 
 {% endblock %}

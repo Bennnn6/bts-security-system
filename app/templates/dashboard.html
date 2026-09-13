@@ -1,121 +1,732 @@
 {% extends "base.html" %}
+
 {% block title %}Security Operations Dashboard | BTS Security System{% endblock %}
+
 {% block content %}
 
-<div class="modern-dashboard">
+<!-- STYLE OVERRIDE UNTUK TEMA UNGU ELEGAN (JEJAK KODE) -->
+<style>
+    :root {
+        /* Palet Jejak Kode - Ungu Elegan */
+        --jk-primary: #7C3AED;
+        --jk-primary-hover: #885CF6;
+        --jk-primary-light: #A78BFA;
+        --jk-bg-subtle: #EDE9FE;
+        --jk-bg-main: #F5F3FF;
+        --jk-text-dark: #0F172A;
+        --jk-white: #FFFFFF;
+        
+        /* Layout Variables */
+        --jk-radius-card: 16px;
+        --jk-radius-btn: 10px;
+        --jk-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+        --jk-shadow-hover: 0 8px 30px rgba(124, 58, 237, 0.12);
+    }
 
-    <!-- HERO SECTION -->
-    <div class="modern-card hero-card mb-4">
-        <div class="hero-content">
-            <h2>Security Operations</h2>
-            <p>Monitoring teknisi, site BTS, dan aktivitas akses gerbang secara real-time.</p>
-            <div class="hero-stats">
-                <div class="stat-pill">
-                    <span id="threatLevelBadge" class="threat-badge--secure">
-                        <span class="threat-badge__led"></span> SECURE
-                    </span>
-                </div>
-                <div class="stat-pill">
-                    <i class="bi bi-clock"></i> <span id="liveClock" class="tick">--:--:--</span>
-                </div>
-                <div class="stat-pill">
-                    <i class="bi bi-activity"></i> Active Sessions: <span id="activeSessionsCount">--</span>
-                </div>
-            </div>
-        </div>
-        <div class="hero-illustration">
-            <i class="bi bi-shield-check"></i>
+    /* Global Background & Text */
+    body {
+        background-color: var(--jk-bg-main) !important;
+        color: var(--jk-text-dark);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* Cards Modernization */
+    .telecom-card, .card {
+        background-color: var(--jk-white) !important;
+        border: none !important;
+        border-radius: var(--jk-radius-card) !important;
+        box-shadow: var(--jk-shadow) !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .telecom-card:hover {
+        box-shadow: var(--jk-shadow-hover) !important;
+    }
+    
+    /* Header Card (Gate Control, dll) tetap putih, border bawah subtle */
+    .card-header {
+        background-color: var(--jk-white) !important;
+        border-bottom: 1px solid var(--jk-bg-subtle) !important;
+        border-radius: var(--jk-radius-card) var(--jk-radius-card) 0 0 !important;
+        padding: 1.25rem 1.5rem !important;
+    }
+
+    /* --- SECTION TITLE (Teks Ungu sesuai Referensi) --- */
+    .section-title {
+        color: var(--jk-primary) !important;
+        font-weight: 700;
+        font-size: 1.25rem; /* Ukuran h5 */
+        margin-bottom: 0.25rem;
+    }
+    .section-subtitle {
+        color: #64748B !important;
+        font-size: 0.875rem;
+    }
+
+    /* Override Bootstrap Primary Colors */
+    .text-primary { color: var(--jk-primary) !important; }
+    .bg-primary { background-color: var(--jk-primary) !important; color: var(--jk-white) !important; }
+    .bg-light { background-color: var(--jk-bg-main) !important; }
+    
+    /* Buttons Modernization */
+    .btn {
+        border-radius: var(--jk-radius-btn);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s;
+    }
+    .btn-sm {
+        padding: 0.35rem 0.8rem;
+        font-size: 0.875rem;
+    }
+    .btn-primary {
+        background-color: var(--jk-primary);
+        border-color: var(--jk-primary);
+        color: var(--jk-white);
+    }
+    .btn-primary:hover, .btn-primary:focus {
+        background-color: var(--jk-primary-hover);
+        border-color: var(--jk-primary-hover);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+    }
+    .btn-outline-primary {
+        color: var(--jk-primary);
+        border-color: var(--jk-primary-light);
+        background-color: transparent;
+    }
+    .btn-outline-primary:hover {
+        background-color: var(--jk-bg-subtle);
+        color: var(--jk-primary);
+        border-color: var(--jk-primary);
+    }
+
+    .text-muted { color: #64748B !important; }
+    
+    /* Custom Badge for Light Mode */
+    .badge.bg-primary { background-color: var(--jk-primary) !important; }
+    .badge-subtle-primary {
+        background-color: var(--jk-bg-subtle);
+        color: var(--jk-primary);
+        border: 1px solid var(--jk-primary-light);
+    }
+    
+    /* Dashboard Hero (Header Utama) */
+    .dashboard-hero {
+        background: var(--jk-white);
+        border-radius: var(--jk-radius-card);
+        box-shadow: var(--jk-shadow);
+        border-left: 6px solid var(--jk-primary);
+    }
+    .hero-status-badge {
+        background-color: var(--jk-bg-main);
+        color: var(--jk-text-dark);
+        border: 1px solid var(--jk-bg-subtle);
+        padding: 0.3rem 0.6rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+    }
+
+    /* Inner light boxes */
+    .inner-box-light {
+        background-color: var(--jk-bg-main);
+        border: 1px solid var(--jk-bg-subtle);
+        border-radius: 12px;
+    }
+
+    /* --- STATISTIC CARDS BARU (Kecil & Clean) --- */
+    .stat-card-mini {
+        background-color: var(--jk-white);
+        border: 1px solid var(--jk-bg-subtle);
+        border-radius: 12px;
+        padding: 1.25rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.02);
+    }
+    .stat-card-mini-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        flex-shrink: 0;
+    }
+    .icon-purple { background-color: #EDE9FE; } /* Soft Purple */
+    .icon-green  { background-color: #DCFCE7; } /* Soft Green */
+    .icon-yellow { background-color: #FEF9C3; } /* Soft Yellow */
+    .icon-blue   { background-color: #DBEAFE; } /* Soft Blue */
+
+    .stat-card-mini-content h6 {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .stat-card-mini-content h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--jk-text-dark);
+        margin: 0;
+    }
+
+    /* HIDE FOOTER (Untuk menghilangkan tulisan Live Gateway dll di base.html) */
+    footer, .footer-section, #footer {
+        display: none !important;
+    }
+</style>
+
+<div class="app-page dashboard-page p-2 p-md-4">
+
+    <!-- =====================================================
+         HEADER (HERO)
+    ====================================================== -->
+
+    <div class="dashboard-hero p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+             <div>
+                 <h2 class="fw-bold mb-1" style="color: var(--jk-text-dark);">
+                     Security Operations
+                 </h2>
+                 <p class="text-muted mb-0">
+                     Monitoring teknisi, site BTS, dan aktivitas akses gerbang.
+                 </p>
+
+                 <div class="mt-3 d-flex gap-2 flex-wrap" aria-label="Status operasi">
+                     <span class="hero-status-badge"><b>NODE:</b> <span class="text-primary fw-bold ms-1">CONNECTED</span></span>
+                     <span class="hero-status-badge"><b>SYNC:</b> <span class="text-success fw-bold ms-1">LIVE</span></span>
+                     <span class="hero-status-badge d-flex align-items-center gap-1">
+                         <b>THREAT:</b>
+                         <span id="threatLevelBadge" class="badge bg-success ms-1 rounded-pill" style="font-size: 0.75rem;">SECURE</span>
+                     </span>
+                     <span class="hero-status-badge d-flex align-items-center gap-1">
+                         <b>CLOCK:</b>
+                         <span id="liveClock" class="ms-1 font-monospace fw-bold text-primary"><span class="tick">--</span></span>
+                     </span>
+                 </div>
+             </div>
+
+             <div class="d-none d-md-block text-end">
+                 <div class="text-muted small fw-bold mb-1">NETWORK STATUS</div>
+                 <div class="text-success fw-bold fs-5 mb-2">STABLE 99.9%</div>
+                 <div class="text-muted small fw-bold mb-1">ACTIVE SESSIONS</div>
+                 <div class="text-primary fw-bold fs-4" id="activeSessionsCount">--</div>
+             </div>
         </div>
     </div>
 
-    <!-- STATS ROW (4 Kotak Angka) -->
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-xl-3">
-            <div class="modern-card stat-card">
-                <div class="stat-icon bg-purple-light text-purple"><i class="bi bi-people-fill"></i></div>
-                <div class="stat-info">
-                    <span class="stat-label">Total Teknisi</span>
-                    <span class="stat-value text-purple">{{ total_techs|default(0) }}</span>
+    {% if pending_work_order_verifications %}
+        <div class="alert shadow-sm border-0 d-flex align-items-center justify-content-between mb-4" style="background-color: var(--jk-bg-subtle); color: var(--jk-text-dark); border-radius: var(--jk-radius-card);">
+            <div>
+                <span class="badge bg-primary me-2 rounded-pill">REVIEW QUEUE</span>
+                <strong style="color: var(--jk-primary);">{{ pending_work_order_verifications }} work order menunggu verifikasi</strong>
+            </div>
+            <a href="{{ url_for('work_orders', status='COMPLETED') }}" class="btn btn-sm btn-primary shadow-sm">Buka antrean review</a>
+        </div>
+    {% endif %}
+
+
+    <!-- =====================================================
+         STATISTIC CARDS (MINI & CLEAN)
+    ====================================================== -->
+
+    <div class="row g-3 mb-4">
+        <!-- TOTAL TEKNISI -->
+        <div class="col-6 col-xl-3">
+            <div class="stat-card-mini">
+                <div class="stat-card-mini-icon icon-purple"></div>
+                <div class="stat-card-mini-content">
+                    <h6>Total Teknisi</h6>
+                    <h3>{{ total_techs|default(0) }}</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-xl-3">
-            <div class="modern-card stat-card">
-                <div class="stat-icon bg-success-light text-success"><i class="bi bi-check-circle-fill"></i></div>
-                <div class="stat-info">
-                    <span class="stat-label">Teknisi Aktif</span>
-                    <span class="stat-value text-success">{{ active_techs|default(0) }}</span>
+        
+        <!-- TEKNISI AKTIF -->
+        <div class="col-6 col-xl-3">
+            <div class="stat-card-mini">
+                <div class="stat-card-mini-icon icon-green"></div>
+                <div class="stat-card-mini-content">
+                    <h6>Teknisi Aktif</h6>
+                    <h3>{{ active_techs|default(0) }}</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-xl-3">
-            <div class="modern-card stat-card">
-                <div class="stat-icon bg-blue-light text-blue"><i class="bi bi-hdd-network-fill"></i></div>
-                <div class="stat-info">
-                    <span class="stat-label">Total Site BTS</span>
-                    <span class="stat-value text-blue">{{ total_sites|default(0) }}</span>
+
+        <!-- TOTAL SITE -->
+        <div class="col-6 col-xl-3">
+            <div class="stat-card-mini">
+                <div class="stat-card-mini-icon icon-yellow"></div>
+                <div class="stat-card-mini-content">
+                    <h6>Total Site BTS</h6>
+                    <h3>{{ total_sites|default(0) }}</h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-xl-3">
-            <div class="modern-card stat-card">
-                <div class="stat-icon bg-warning-light text-warning"><i class="bi bi-key-fill"></i></div>
-                <div class="stat-info">
-                    <span class="stat-label">Akses Hari Ini</span>
-                    <span class="stat-value text-warning">{{ access_today|default(0) }}</span>
+
+        <!-- AKSES HARI INI -->
+        <div class="col-6 col-xl-3">
+            <div class="stat-card-mini">
+                <div class="stat-card-mini-icon icon-blue"></div>
+                <div class="stat-card-mini-content">
+                    <h6>Akses Hari Ini</h6>
+                    <h3>{{ access_today|default(0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- GRAFIK & GATE CONTROL -->
-    <div class="row g-4 mb-4">
-        <div class="col-lg-8">
-            <div class="modern-card h-100">
-                <div class="card-title-modern">
-                    <h5>Aktivitas Akses (7 Hari)</h5>
-                    <span class="badge bg-purple-light text-purple rounded-pill">Minggu ini</span>
-                </div>
-                <div class="chart-container mt-3" style="position: relative; height: 260px;">
-                    <canvas id="accessChart"></canvas>
-                </div>
+
+    <!-- =====================================================
+         SECURITY CENTER
+    ====================================================== -->
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="section-title">Security Center</h5>
+                <div class="section-subtitle">Monitoring keamanan tambahan yang terhubung ke sistem utama.</div>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('admin_backup_db') }}" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-database-down"></i> Backup DB
+                </a>
+                <button id="btnTestNotification" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-bell"></i> Test Notifikasi
+                </button>
             </div>
         </div>
 
-        <div class="col-lg-4">
-            <div class="modern-card h-100 gate-control-card">
-                <div class="card-title-modern">
-                    <h5>Gate Control</h5>
+        <div class="card-body">
+            <div id="securityCenterMessage" class="alert mb-3 border" style="background-color: var(--jk-bg-main); border-radius: 10px;">
+                <i class="bi bi-arrow-repeat me-2"></i> Memuat status Security Center...
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6 col-xl-3">
+                    <div class="inner-box-light p-3 h-100 text-center">
+                        <div class="text-muted small fw-bold text-uppercase mb-2">Akses Hari Ini</div>
+                        <div id="scAccessToday" class="fs-3 fw-bold text-primary">-</div>
+                    </div>
                 </div>
-                <div class="gate-selector mt-3">
-                    <label class="form-label text-muted small">Pilih Site BTS</label>
-                    <select id="dashboardGateSiteSelector" class="form-select modern-select mb-3">
-                        <option value="">-- Pilih Site --</option>
-                    </select>
+                <div class="col-md-6 col-xl-3">
+                    <div class="inner-box-light p-3 h-100 text-center">
+                        <div class="text-muted small fw-bold text-uppercase mb-2">Granted Hari Ini</div>
+                        <div id="scGrantedToday" class="fs-3 fw-bold text-success">-</div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="inner-box-light p-3 h-100 text-center">
+                        <div class="text-muted small fw-bold text-uppercase mb-2">Denied Hari Ini</div>
+                        <div id="scDeniedToday" class="fs-3 fw-bold text-danger">-</div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="inner-box-light p-3 h-100 text-center">
+                        <div class="text-muted small fw-bold text-uppercase mb-2">Incident Hari Ini</div>
+                        <div id="scIncidentsToday" class="fs-3 fw-bold text-warning">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row g-3 mt-1">
+                <div class="col-lg-4">
+                    <div class="inner-box-light p-3 h-100 bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong class="text-dark">Gate</strong>
+                            <span id="scGateStatus" class="badge bg-secondary rounded-pill">-</span>
+                        </div>
+                        <div class="small text-muted d-flex justify-content-between">
+                            <span>Health:</span>
+                            <span id="scGateHealth" class="fw-bold">-</span>
+                        </div>
+                        <div id="scGateMessage" class="small mt-2 pt-2 border-top text-muted">
+                            -
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="gate-status-modern mb-4 p-3 bg-light rounded-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-muted small">Status Gate</span>
-                        <span id="dashboardGateStatus" class="badge bg-danger rounded-pill">CLOSED</span>
+                <div class="col-lg-4">
+                     <div class="inner-box-light p-3 h-100 bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong class="text-dark">System Health</strong>
+                            <span id="scApiHealth" class="badge bg-secondary rounded-pill">-</span>
+                        </div>
+                        <div id="scHealthDetails" class="small text-muted">Memuat...</div>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted small">System Health</span>
-                        <span id="dashboardGateHealth" class="badge bg-success rounded-pill">NORMAL</span>
+                </div>
+                
+                <div class="col-lg-4">
+                     <div class="inner-box-light p-3 h-100 bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong class="text-dark">Emergency Mode</strong>
+                            <span id="scEmergency" class="badge bg-secondary rounded-pill">-</span>
+                        </div>
+                        <div id="scEmergencyReason" class="small text-muted">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         GATE CONTROL PANEL
+     ====================================================== -->
+
+    <div class="card mb-4">
+        <div class="card-header border-bottom">
+            <h5 class="section-title">Gate Control Panel</h5>
+            <div class="section-subtitle">Kontrol dan monitoring gerbang akses site BTS.</div>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-4">
+                
+                <!-- SITE SELECTION -->
+                <div class="col-lg-4">
+                    <div class="inner-box-light p-4 h-100 text-center d-flex flex-column justify-content-center bg-white">
+                        <label for="dashboardGateSiteSelector" class="form-label fw-bold mb-3 text-primary text-uppercase small">Pilih Site BTS</label>
+                        <select id="dashboardGateSiteSelector" class="form-select mb-3 shadow-sm border-0" style="background-color: var(--jk-bg-main); font-weight: 500;">
+                            <option value="">-- Pilih Site --</option>
+                        </select>
+                        <div id="dashboardGateSiteName" class="fw-bold fs-4 mb-1" style="color: var(--jk-text-dark);">-</div>
+                        <div id="dashboardGateSiteId" class="small text-muted mb-3">ID: -</div>
+                        <div>
+                            <span id="dashboardGateOnline" class="badge bg-secondary rounded-pill px-3 py-2">
+                                <i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> OFFLINE
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="d-flex gap-2">
-                    <button id="btnManualGateOpen" type="button" class="btn modern-btn-success flex-fill" onclick="manualGateOpen()">Buka</button>
-                    <button id="btnManualGateClose" type="button" class="btn modern-btn-danger flex-fill" onclick="manualGateClose()">Tutup</button>
+                <!-- GATE STATUS DISPLAY -->
+                <div class="col-lg-4">
+                    <div class="inner-box-light p-4 text-center h-100 d-flex flex-column justify-content-center bg-white">
+                        <div class="mb-2">
+                             <span id="dashboardGateLight" class="badge bg-danger rounded-circle p-2 mb-2 shadow-sm d-inline-block" style="width: 24px; height: 24px;"></span><br>
+                            <span id="dashboardGateStatusLarge" class="fs-2 fw-bold" style="color: var(--jk-text-dark);">CLOSED</span>
+                        </div>
+                        <div class="mb-4">
+                            <span id="dashboardGateStatus" class="badge bg-danger rounded-pill px-3">CLOSED</span>
+                        </div>
+                        
+                        <!-- ACTION BUTTONS -->
+                        <div class="d-flex gap-2">
+                            <button id="btnManualGateOpen" type="button" class="btn btn-success flex-fill fw-bold shadow-sm" onclick="manualGateOpen()">
+                                <i class="bi bi-unlock-fill me-1"></i> Buka Gate
+                            </button>
+                            <button id="btnManualGateClose" type="button" class="btn btn-danger flex-fill fw-bold shadow-sm" onclick="manualGateClose()">
+                                <i class="bi bi-lock-fill me-1"></i> Tutup Gate
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- GATE INFO & MESSAGE -->
+                <div class="col-lg-4">
+                    <div class="inner-box-light p-4 h-100 d-flex flex-column justify-content-center bg-white">
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
+                            <span class="text-muted fw-bold small text-uppercase">Gate Health</span>
+                            <span id="dashboardGateHealth" class="badge bg-secondary rounded-pill">UNKNOWN</span>
+                        </div>
+                        <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
+                            <span class="text-muted fw-bold small text-uppercase">System</span>
+                            <span id="dashboardGateSystem" class="fw-bold text-dark">NORMAL</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-4">
+                            <span class="text-muted fw-bold small text-uppercase">Last Sync</span>
+                            <span id="dashboardGateLastUpdate" class="fw-bold text-dark">--:--:--</span>
+                        </div>
+                        
+                        <div class="p-3 rounded mt-auto text-center" style="background-color: var(--jk-bg-subtle);">
+                            <div id="gateControlMessage" class="small fw-bold text-primary">
+                                <i class="bi bi-info-circle me-1"></i> Pilih site untuk memulai monitoring.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         CHART + SITE MONITORING
+     ====================================================== -->
+
+     <div class="row g-4 mb-4">
+        <!-- CHART -->
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="section-title">Aktivitas Akses</h5>
+                            <div class="section-subtitle">Statistik GRANTED dan DENIED (7 hari).</div>
+                        </div>
+                        <span class="badge badge-subtle-primary rounded-pill px-3 py-2">7 Hari Terakhir</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="accessChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- SITE MONITOR -->
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="section-title">Ringkasan Site</h5>
+                    <div class="section-subtitle">Status keamanan Site BTS.</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 border-0">
+                            <thead style="background-color: var(--jk-bg-main);">
+                                <tr>
+                                    <th class="ps-4 text-muted small text-uppercase border-0">Site</th>
+                                    <th class="text-center text-muted small text-uppercase border-0">Status</th>
+                                    <th class="text-center text-muted small text-uppercase border-0">Akses</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% if site_metrics %}
+                                {% for site in sites[:5] %}
+                                    {% set metrics = site_metrics.get(site.site_id, {}) %}
+                                    <tr>
+                                        <td class="ps-4 py-3 border-light">
+                                            <div class="fw-bold" style="color: var(--jk-text-dark);">{{ site.site_name|default(site.site_id|default('-')) }}</div>
+                                            <small class="text-muted">{{ site.site_id|default('-') }}</small>
+                                        </td>
+                                        <td class="text-center border-light">
+                                            {% set security = metrics.get('security_status', 'NORMAL')|upper %}
+                                            {% if security in ['AMAN', 'NORMAL', 'SECURE'] %}
+                                                <span class="badge bg-success rounded-pill px-2">SECURE</span>
+                                            {% else %}
+                                                <span class="badge bg-danger rounded-pill px-2">{{ security }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center border-light">
+                                            <span class="fw-bold text-primary">{{ metrics.get('access_today', 0) }}</span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="3" class="text-center text-muted py-4 border-0">Data tidak tersedia</td></tr>
+                            {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top text-center py-3" style="border-radius: 0 0 var(--jk-radius-card) var(--jk-radius-card);">
+                    <a href="{{ url_for('bts_sites') }}" class="btn btn-sm btn-outline-primary rounded-pill px-4">Lihat Semua Site</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         AI ANALYTICS DASHBOARD 
+     ====================================================== -->
+
+    <div class="card mb-5 border-0">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="section-title">AI Analytics Dashboard</h5>
+                <div class="section-subtitle">Analisis keamanan berbasis AI yang terhubung ke sistem utama.</div>
+            </div>
+            <span class="badge bg-primary rounded-pill px-3 py-2 shadow-sm">Powered by AI</span>
+        </div>
+
+        <div class="card-body">
+           <!-- Contoh Perbaikan Struktur Card Grafik -->
+<div class="row g-4">
+    <!-- Card 1: Akurasi Face Recognition -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 16px;">
+            <h5 class="fw-bold text-dark mb-1">Akurasi Face Recognition</h5>
+            <p class="text-muted small mb-3">Distribusi confidence score</p>
+            
+            <div style="position: relative; height: 250px; width: 100%;">
+                <canvas id="faceRecognitionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Pola Akses per Jam -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 16px;">
+            <h5 class="fw-bold text-dark mb-1">Pola Akses per Jam</h5>
+            <p class="text-muted small mb-3">24-hour access distribution (7 hari)</p>
+            
+            <div style="position: relative; height: 250px; width: 100%;">
+                <canvas id="accessPatternChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. DENIAL REASONS -->
+    <div class="col-lg-6">
+        <div class="inner-box-light p-3 h-100 bg-white shadow-sm border-0" style="border-radius: 16px;">
+            <div class="mb-3">
+                <h6 class="section-title" style="font-size: 1rem;">Penyebab Penolakan</h6>
+                <small class="section-subtitle">Alasan akses ditolak hari ini</small>
+            </div>
+            <!-- 🔑 DIBUNGKUS DENGAN DIV WRAPPER SUPAYA TIDAK MELAR -->
+            <div style="position: relative; height: 220px; width: 100%;">
+                <canvas id="denialReasonsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. ANOMALY TIMELINE -->
+    <div class="col-lg-6">
+        <div class="inner-box-light p-3 h-100 bg-white shadow-sm border-0" style="border-radius: 16px;">
+            <div class="mb-3">
+                <h6 class="section-title" style="font-size: 1rem;">Deteksi Anomali AI</h6>
+                <small class="section-subtitle">Hari dengan pola akses tidak biasa</small>
+            </div>
+            <!-- 🔑 DIBUNGKUS DENGAN DIV WRAPPER SUPAYA TIDAK MELAR -->
+            <div style="position: relative; height: 220px; width: 100%;">
+                <canvas id="anomalyTimelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. AI INSIGHTS -->
+    <div class="col-lg-6">
+        <div class="inner-box-light p-3 h-100 bg-white shadow-sm border-0" style="border-radius: 16px; overflow-y: auto; max-height: 280px;">
+            <div class="mb-3 border-bottom pb-2 sticky-top bg-white">
+                <h6 class="section-title" style="font-size: 1rem;">Insight Keamanan AI</h6>
+                <small class="section-subtitle">Rekomendasi berdasarkan analisis data</small>
+            </div>
+            <div id="aiInsightsContainer" style="color: var(--jk-text-dark);">
+                <div class="text-center text-muted small py-3">Memuat insight analitik...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. SITE RISK HEATMAP -->
+    <div class="col-lg-6">
+        <div class="inner-box-light p-3 h-100 bg-white shadow-sm border-0" style="border-radius: 16px; overflow-y: auto; max-height: 280px;">
+            <div class="mb-3 border-bottom pb-2 sticky-top bg-white">
+                <h6 class="section-title" style="font-size: 1rem;">Peta Risiko Site</h6>
+                <small class="section-subtitle">Risk score per lokasi BTS</small>
+            </div>
+            <div id="aiHeatmapContainer" style="color: var(--jk-text-dark);">
+                <div class="text-center text-muted small py-3">Memuat peta risiko...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <!-- =====================================================
+         STATUS TEKNISI
+    ====================================================== -->
+
+    <div class="card mb-4 border-0">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="section-title">Status Teknisi</h5>
+                <div class="section-subtitle">Status keberadaan teknisi berdasarkan akses terakhir yang berhasil.</div>
+            </div>
+            <a href="/technicians/register" class="btn btn-sm btn-primary">
+                Tambah Teknisi
+            </a>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 border-0">
+                    <thead style="background-color: var(--jk-bg-main);">
+                        <tr>
+                            <th class="ps-4 text-muted small text-uppercase border-0">ID</th>
+                            <th class="text-muted small text-uppercase border-0">Teknisi</th>
+                            <th class="text-muted small text-uppercase border-0">Jabatan</th>
+                            <th class="text-muted small text-uppercase border-0">Status</th>
+                            <th class="text-muted small text-uppercase border-0">Posisi</th>
+                            <th class="text-muted small text-uppercase border-0">Akses Terakhir</th>
+                            <th class="text-muted small text-uppercase border-0 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% if techs %}
+                        {% for tech in techs %}
+                            {% set state = (technician_states.get(tech.technician_id) if technician_states is defined else None) %}
+                            <tr>
+                                <td class="ps-4 border-light"><span class="text-primary" style="font-family: monospace;">{{ tech.technician_id }}</span></td>
+                                <td class="border-light">
+                                    <div class="fw-bold" style="color: var(--jk-text-dark);">{{ tech.name }}</div>
+                                    <small class="text-muted">@{{ tech.username or '-' }}</small>
+                                </td>
+                                <td class="border-light text-muted">{{ tech.position or '-' }}</td>
+                                <td class="border-light">
+                                    {% if tech.status == 'Active' %}
+                                        <span class="badge bg-success rounded-pill px-2">AKTIF</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary rounded-pill px-2">{{ tech.status or 'NONAKTIF' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="border-light">
+                                    {% if state %}
+                                        {% set inside = state.inside|default(false) %}
+                                        {% if inside %}
+                                            <span class="badge bg-primary rounded-pill px-2">DI DALAM</span>
+                                        {% else %}
+                                            <span class="badge border border-secondary text-muted rounded-pill px-2">DI LUAR</span>
+                                        {% endif %}
+                                        {% if state.site_name %}
+                                            <div class="small text-muted mt-1 fw-bold">{{ state.site_name }}</div>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge border border-secondary text-muted rounded-pill px-2">DI LUAR</span>
+                                    {% endif %}
+                                </td>
+                                <td class="border-light">
+                                    {% if state and state.last_access %}
+                                        <div class="small fw-bold text-dark">{{ state.last_access }}</div>
+                                        {% if state.last_access_type %}
+                                            <div class="small text-muted">{{ state.last_access_type }}</div>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted small">Belum ada akses</span>
+                                    {% endif %}
+                                </td>
+                                <td class="border-light text-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('edit_technician', tech_id=tech.technician_id) }}" class="btn btn-outline-primary" title="Edit Teknisi">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                        <a href="{{ url_for('face_enrollment', tech_id=tech.technician_id) }}" class="btn btn-outline-success" title="Enroll Wajah">
+                                            <i class="bi bi-camera"></i> Wajah
+                                        </a>
+                                        <a href="{{ url_for('totp_setup', tech_id=tech.technician_id) }}" class="btn btn-outline-info" title="Setup TOTP">
+                                            <i class="bi bi-key"></i> TOTP
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5 border-0">Belum ada data teknisi.</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
 </div>
 
-<!-- CHART DATA JINJA2 -->
+<!-- SCRIPT LOGIC -->
+
 <script id="dashboardChartData" type="application/json">
 {
     "labels": {{ chart_labels|default([])|tojson }},
@@ -128,103 +739,323 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // --- MAIN ACCESS CHART ---
     const dataElement = document.getElementById('dashboardChartData');
     const chartElement = document.getElementById('accessChart');
-    if (!dataElement || !chartElement) return;
+    if (dataElement && chartElement) {
+        let chartData = { labels: [], granted: [], denied: [] };
+        try { chartData = JSON.parse(dataElement.textContent); } catch (e) {}
 
-    let chartData;
-    try {
-        chartData = JSON.parse(dataElement.textContent);
-    } catch (error) {
-        chartData = { labels: [], granted: [], denied: [] };
+        new Chart(chartElement, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'GRANTED',
+                        data: chartData.granted,
+                        borderColor: '#7C3AED',
+                        backgroundColor: 'rgba(124, 58, 237, 0.15)',
+                        tension: 0.4, borderWidth: 3, fill: true, pointBackgroundColor: '#7C3AED'
+                    },
+                    {
+                        label: 'DENIED',
+                        data: chartData.denied,
+                        borderColor: '#F43F5E',
+                        backgroundColor: 'rgba(244, 63, 94, 0.1)',
+                        tension: 0.4, borderWidth: 2, fill: true, borderDash: [5, 5], pointBackgroundColor: '#F43F5E'
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: { legend: { position: 'top', labels: { color: '#0F172A', font: { family: 'Inter' } } } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#64748B' } },
+                    y: { border: { display: false }, grid: { color: '#F1F5F9' }, ticks: { precision: 0, color: '#64748B' } }
+                }
+            }
+        });
     }
 
-    new Chart(chartElement, {
-        type: 'line',
-        data: {
-            labels: chartData.labels || [],
-            datasets: [
-                {
-                    label: 'GRANTED',
-                    data: chartData.granted || [],
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    tension: 0.3,
-                    borderWidth: 3,
-                    fill: true
+    // --- AI CHARTS FOR 6-GRID LAYOUT ---
+    const faceCtx = document.getElementById('faceRecognitionChart') || document.getElementById('faceAccuracyChart');
+    const hourlyCtx = document.getElementById('accessPatternChart') || document.getElementById('hourlyPatternChart');
+    const denialCtx = document.getElementById('denialReasonsChart');
+    const anomalyCtx = document.getElementById('anomalyTimelineChart');
+
+    function fetchJSON(url, fallback) { return fetch(url, { credentials: 'include' }).then(r => r.json()).catch(() => fallback); }
+
+    // 1. FACE CHART
+    fetchJSON('/api/ai/face-accuracy', { data: { buckets: [] } }).then(resp => {
+        let data = resp.data || { buckets: [] };
+        if (data.buckets.length > 0 && faceCtx) {
+            new Chart(faceCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.buckets.map(b => b.label),
+                    datasets: [{
+                        data: data.buckets.map(b => b.count),
+                        backgroundColor: ['#10B981', '#F59E0B', '#F97316', '#EF4444'], // Green to Red
+                        borderRadius: 6
+                    }]
                 },
-                {
-                    label: 'DENIED',
-                    data: chartData.denied || [],
-                    borderColor: '#ef4444',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    tension: 0.3,
-                    borderWidth: 3,
-                    fill: true
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' } },
-            scales: {
-                x: { grid: { display: false } },
-                y: { beginAtZero: true }
-            }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { display: false } } }
+            });
+        } else if (faceCtx) {
+            faceCtx.parentNode.innerHTML += '<div class="text-center py-4"><span class="text-muted small">Belum ada data face recognition</span></div>';
+            faceCtx.style.display = 'none';
+        }
+    });
+
+    // 2. HOURLY CHART
+    fetchJSON('/api/ai/hourly-pattern', { pattern: {} }).then(resp => {
+        let pattern = resp.pattern || {};
+        if (hourlyCtx && Object.keys(pattern).length > 0) {
+            let labels = [], values = [];
+            for (let h=0; h<24; h++) { labels.push(h+':00'); values.push(pattern[h] || 0); }
+            new Chart(hourlyCtx, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ data: values, backgroundColor: '#A78BFA', hoverBackgroundColor: '#7C3AED', borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: {maxTicksLimit: 8} }, y: { display: false } } }
+            });
+        } else if (hourlyCtx) {
+            hourlyCtx.parentNode.innerHTML += '<div class="text-center py-4"><span class="text-muted small">Tidak ada pola akses hari ini</span></div>';
+            hourlyCtx.style.display = 'none';
+        }
+    });
+
+    // 3. DENIAL REASONS
+    fetchJSON('/api/ai/denial-reasons', { reasons: [] }).then(function(resp) {
+        var reasons = resp.reasons || [];
+        if (denialCtx && reasons.length > 0) {
+            new Chart(denialCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: reasons.map(function(r) { return r.reason; }),
+                    datasets: [{ data: reasons.map(function(r) { return r.count; }), backgroundColor: ['#F43F5E', '#F59E0B', '#10B981', '#7C3AED'], borderWidth: 2, borderColor: '#fff' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#0F172A' } } }, cutout: '70%' }
+            });
+        } else if (denialCtx) {
+            denialCtx.parentNode.innerHTML += '<div class="text-center py-4"><span class="text-muted small">Tidak ada akses yang ditolak hari ini</span></div>';
+            denialCtx.style.display = 'none';
+        }
+    });
+
+    // 4. ANOMALY TIMELINE
+    fetchJSON('/api/ai/anomalies', { anomalies: [], daily_counts: {} }).then(function(resp) {
+        var data = resp.data || {}, daily = data.daily_counts || {}, anomalyDates = {};
+        (data.anomalies || []).forEach(function(a) { anomalyDates[a.date] = true; });
+        if (anomalyCtx && Object.keys(daily).length > 0) {
+            var labels = Object.keys(daily).sort();
+            var values = labels.map(function(d) { return daily[d]; });
+            var bgColors = labels.map(function(d) { return anomalyDates[d] ? '#F43F5E' : '#885CF6'; }); 
+            new Chart(anomalyCtx, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Akses Harian', data: values, backgroundColor: bgColors, borderRadius: 3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#64748B' } } } }
+            });
+        } else if (anomalyCtx) {
+            anomalyCtx.parentNode.innerHTML += '<div class="text-center py-4"><span class="text-muted small">Belum ada data anomali</span></div>';
+            anomalyCtx.style.display = 'none';
+        }
+    });
+
+    // 5. AI INSIGHTS
+    const insightsContainer = document.getElementById('aiInsightsContainer');
+    fetchJSON('/api/ai/insights', { insights: [] }).then(resp => {
+        let insights = resp.insights || [];
+        if (insightsContainer && insights.length > 0) {
+            let html = '';
+            insights.forEach(item => {
+                let badge = item.type === 'DANGER' ? 'bg-danger' : item.type === 'WARNING' ? 'bg-warning text-dark' : 'bg-primary';
+                html += `
+                <div class="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom border-light">
+                    <span class="badge ${badge} rounded-pill mt-1 px-2 py-1">${item.type}</span>
+                    <div>
+                        <strong class="d-block mb-1" style="color: var(--jk-text-dark);">${item.title}</strong>
+                        <div class="small text-muted mb-1">${item.description}</div>
+                        ${item.recommendation ? `<div class="small fw-bold text-primary"><i class="bi bi-arrow-right-short"></i> ${item.recommendation}</div>` : ''}
+                    </div>
+                </div>`;
+            });
+            insightsContainer.innerHTML = html;
+        } else if (insightsContainer) {
+            insightsContainer.innerHTML = '<div class="text-center text-muted small py-3">Tidak ada insight tersedia hari ini.</div>';
+        }
+    });
+
+    // 6. SITE RISK HEATMAP
+    var heatmapContainer = document.getElementById('aiHeatmapContainer');
+    fetchJSON('/api/ai/heatmap', { sites: [] }).then(function(resp) {
+        var sites = resp.sites || [];
+        if (heatmapContainer && sites.length > 0) {
+            var html = '<div class="d-grid gap-2">';
+            sites.forEach(function(site) {
+                var riskBadge = site.risk_level === 'HIGH' ? 'bg-danger' : site.risk_level === 'MEDIUM' ? 'bg-warning text-dark' : 'bg-success';
+                html += `
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
+                    <div>
+                        <strong class="small" style="color: var(--jk-primary);">${site.site_name}</strong>
+                        <div class="small text-muted">${site.site_id}</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge ${riskBadge} rounded-pill px-2">${site.risk_level}</span>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            heatmapContainer.innerHTML = html;
+        } else if (heatmapContainer) {
+            heatmapContainer.innerHTML = '<div class="text-center text-muted small py-3">Tidak ada data site</div>';
         }
     });
 });
 </script>
 
 <script>
-let dashboardCsrfToken = '';
+// --- SECURITY CENTER, GATE CONTROL, LIVE CLOCK & SSE ---
+
+(function () {
+    'use strict';
+    
+    // LIVE CLOCK
+    const clockEl = document.getElementById('liveClock');
+    const clockTickSpan = clockEl ? clockEl.querySelector('.tick') : null;
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function updateClock() {
+        if (!clockEl || !clockTickSpan) return;
+        var now = new Date();
+        clockTickSpan.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    // SECURITY CENTER FETCH
+    async function scFetch(url) {
+        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        return await res.json();
+    }
+    
+    async function refreshSecurityCenter() {
+        try {
+            const result = await scFetch('/api/features/summary');
+            if (result.status === 'success') {
+                const c = result.counts || {};
+                document.getElementById('scAccessToday').textContent = c.access_today ?? 0;
+                document.getElementById('scGrantedToday').textContent = c.granted_today ?? 0;
+                document.getElementById('scDeniedToday').textContent = c.denied_today ?? 0;
+                document.getElementById('scIncidentsToday').textContent = c.incidents_today ?? 0;
+                
+                let g = result.gate || {};
+                document.getElementById('scGateStatus').textContent = g.status || 'CLOSED';
+                document.getElementById('scGateHealth').textContent = g.health || 'NORMAL';
+                document.getElementById('scGateHealth').className = (g.health === 'NORMAL' || g.health === 'HEALTHY') ? 'text-success fw-bold' : 'text-danger fw-bold';
+                document.getElementById('scGateMessage').textContent = g.last_error || `Engine online.`;
+                
+                document.getElementById('scApiHealth').textContent = 'HEALTHY';
+                document.getElementById('scApiHealth').className = 'badge bg-success rounded-pill';
+                document.getElementById('scHealthDetails').innerHTML = 'Sistem API beroperasi secara normal.';
+                
+                document.getElementById('securityCenterMessage').className = 'alert alert-success bg-white mb-3 shadow-sm border-0 text-success';
+                document.getElementById('securityCenterMessage').innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Sistem terhubung dan tersinkronisasi.';
+            }
+        } catch(e) {
+            document.getElementById('securityCenterMessage').className = 'alert alert-danger bg-white mb-3 shadow-sm border-0 text-danger';
+            document.getElementById('securityCenterMessage').innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> Gagal terhubung ke modul keamanan.';
+            
+            document.getElementById('scApiHealth').textContent = 'ERROR';
+            document.getElementById('scApiHealth').className = 'badge bg-danger rounded-pill';
+            document.getElementById('scHealthDetails').innerHTML = 'Tidak dapat menghubungi server API.';
+        }
+    }
+    setInterval(refreshSecurityCenter, 5000); refreshSecurityCenter();
+})();
+
+// --- GATE CONTROL PANEL LOGIC ---
 let dashboardSelectedSiteId = localStorage.getItem('dashboardSelectedSiteId') || '';
 let dashboardSites = [];
-
-async function loadDashboardCsrf() {
-    try {
-        const response = await fetch('/api/csrf-token');
-        const result = await response.json();
-        if (response.ok && result.status === 'success') {
-            dashboardCsrfToken = result.csrf_token || '';
-        }
-    } catch (error) { console.error('CSRF ERROR:', error); }
-}
+let dashboardCsrfToken = '';
 
 async function loadDashboardSites() {
-    const selector = document.getElementById('dashboardGateSiteSelector');
-    if (!selector) return;
     try {
         const response = await fetch('/api/features/sites');
         const result = await response.json();
-        if (!response.ok || result.status !== 'success') return;
         dashboardSites = result.sites || [];
-        selector.innerHTML = '';
-        dashboardSites.forEach(site => {
-            const opt = document.createElement('option');
-            opt.value = site.site_id;
-            opt.textContent = `${site.site_name} (${site.site_id})`;
-            selector.appendChild(opt);
-        });
-        if (dashboardSites.length > 0 && !dashboardSelectedSiteId) {
-            dashboardSelectedSiteId = String(dashboardSites[0].site_id);
-        }
-        selector.value = dashboardSelectedSiteId;
-    } catch (error) { console.error('SITE ERROR:', error); }
+        const selector = document.getElementById('dashboardGateSiteSelector');
+        selector.innerHTML = '<option value="">-- Pilih Site --</option>';
+        dashboardSites.forEach(s => { selector.innerHTML += `<option value="${s.site_id}">${s.site_name}</option>`; });
+        if (dashboardSelectedSiteId) { selector.value = dashboardSelectedSiteId; updateDashboardSelectedSite(); }
+    } catch(e) {}
 }
+
+function updateDashboardSelectedSite() {
+    const site = dashboardSites.find(s => String(s.site_id) === String(dashboardSelectedSiteId));
+    document.getElementById('dashboardGateSiteName').textContent = site ? site.site_name : '-';
+    document.getElementById('dashboardGateSiteId').textContent = site ? `ID: ${site.site_id}` : 'ID: -';
+    if(site) {
+        document.getElementById('dashboardGateOnline').className = 'badge bg-success rounded-pill px-3 py-2';
+        document.getElementById('dashboardGateOnline').innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> ONLINE';
+    }
+}
+
+async function refreshDashboardGate() {
+    if (!dashboardSelectedSiteId) return;
+    try {
+        const response = await fetch(`/api/gate-status?site_id=${encodeURIComponent(dashboardSelectedSiteId)}`);
+        const result = await response.json();
+        const status = result.gate_status || 'CLOSED';
+        
+        document.getElementById('dashboardGateStatus').textContent = status;
+        document.getElementById('dashboardGateStatusLarge').textContent = status;
+        
+        if(status === 'OPEN') {
+            document.getElementById('dashboardGateStatus').className = 'badge bg-success rounded-pill px-3';
+            document.getElementById('dashboardGateLight').className = 'badge bg-success rounded-circle p-2 mb-2 shadow-sm d-inline-block';
+        } else {
+            document.getElementById('dashboardGateStatus').className = 'badge bg-danger rounded-pill px-3';
+            document.getElementById('dashboardGateLight').className = 'badge bg-danger rounded-circle p-2 mb-2 shadow-sm d-inline-block';
+        }
+        
+        document.getElementById('dashboardGateHealth').textContent = result.gate_health || 'NORMAL';
+        document.getElementById('dashboardGateHealth').className = result.gate_health === 'NORMAL' ? 'badge bg-success rounded-pill' : 'badge bg-danger rounded-pill';
+        document.getElementById('dashboardGateLastUpdate').textContent = new Date().toLocaleTimeString('id-ID');
+        document.getElementById('gateControlMessage').textContent = 'Monitoring aktif.';
+    } catch(e) {}
+}
+
+document.getElementById('dashboardGateSiteSelector').addEventListener('change', function() {
+    dashboardSelectedSiteId = this.value;
+    localStorage.setItem('dashboardSelectedSiteId', dashboardSelectedSiteId);
+    updateDashboardSelectedSite();
+    refreshDashboardGate();
+});
+
+fetch('/api/csrf-token').then(r=>r.json()).then(d => dashboardCsrfToken = d.csrf_token);
 
 async function manualGateOpen() {
-    alert('Perintah Buka Gate dikirim.');
+    if(!dashboardSelectedSiteId) return alert('Pilih site!');
+    if(confirm('Yakin ingin BUKA gate?')) {
+        await fetch('/api/gate/manual-open', {
+            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':dashboardCsrfToken}, body:JSON.stringify({site_id:dashboardSelectedSiteId})
+        });
+        refreshDashboardGate();
+    }
 }
-
 async function manualGateClose() {
-    alert('Perintah Tutup Gate dikirim.');
+    if(!dashboardSelectedSiteId) return alert('Pilih site!');
+    if(confirm('Yakin ingin TUTUP gate?')) {
+        await fetch('/api/gate/manual-close', {
+            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':dashboardCsrfToken}, body:JSON.stringify({site_id:dashboardSelectedSiteId})
+        });
+        refreshDashboardGate();
+    }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadDashboardCsrf();
-    await loadDashboardSites();
+document.addEventListener('DOMContentLoaded', () => {
+    loadDashboardSites();
+    setInterval(refreshDashboardGate, 3000);
 });
 </script>
 

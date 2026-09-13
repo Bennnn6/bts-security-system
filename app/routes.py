@@ -1,3 +1,4 @@
+from urllib.parse import quote
 from sqlalchemy import or_
 from datetime import datetime, timedelta
 from io import BytesIO, StringIO
@@ -4124,14 +4125,8 @@ def generate_qr(data):
 @admin_required
 def qr_code_site(site_id):
     site = BtsSite.query.get_or_404(site_id)
-    site_data = {
-        'site_id': site.site_id,
-        'site_name': site.site_name,
-        'location': f'{site.latitude},{site.longitude}',
-        'access_url': request.host_url + url_for('access_simulation')
-    }
-    import json
-    qr_png = generate_qr(json.dumps(site_data))
+    access_url = request.host_url.rstrip('/') + url_for('access_simulation') + f"?site_id={quote(str(site.site_id))}"
+    qr_png = generate_qr(access_url)
     response = app.response_class(qr_png, mimetype='image/png')
     response.headers['Content-Disposition'] = f'inline; filename="qr-{site.site_id}.png"'
     return response
