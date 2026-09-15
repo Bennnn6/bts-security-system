@@ -25,8 +25,7 @@ from flask import (
 from flask_login import (
     login_user,
     logout_user,
-    current_user,
-    login_required
+    current_user
 )
 
 from app.auth_helpers import (
@@ -1913,11 +1912,13 @@ def totp_setup(
 
     technician = (
         Technician.query
-        .filter_by(
-            technician_id=tech_id
+        .filter(
+            (Technician.technician_id == tech_id) | (Technician.id == tech_id)
         )
         .first_or_404()
     )
+
+    regenerate = request.args.get('regenerate') in ('1', 'true', 'True') or request.args.get('reset') in ('1', 'true', 'True')
 
     if request.method == 'POST':
 
@@ -1952,7 +1953,7 @@ def totp_setup(
             return redirect(
                 url_for(
                     'totp_setup',
-                    tech_id=tech_id
+                    tech_id=technician.technician_id
                 )
             )
 
@@ -1998,19 +1999,15 @@ def totp_setup(
         return redirect(
             url_for(
                 'totp_setup',
-                tech_id=tech_id
+                tech_id=technician.technician_id
             )
         )
 
     # -----------------------------------------------------
-    # CREATE SECRET
+    # CREATE / REGENERATE SECRET
     # -----------------------------------------------------
 
-    if technician.totp_secret:
-
-        secret = technician.totp_secret
-
-    else:
+    if regenerate or not technician.totp_secret:
 
         secret = generate_secret()
 
@@ -2018,7 +2015,36 @@ def totp_setup(
             secret
         )
 
+        db.session.add(
+            ActivityLog(
+                username=current_user.username,
+                action='TOTP_REGENERATE' if regenerate else 'TOTP_SETUP',
+                description=(
+                    f'Regenerate TOTP secret untuk teknisi {technician.name}.'
+                    if regenerate else
+                    f'Inisialisasi TOTP secret untuk teknisi {technician.name}.'
+                ),
+                incident_level='NORMAL'
+            )
+        )
+
         db.session.commit()
+
+        if regenerate:
+            flash(
+                'Secret Key baru berhasil di-generate. Silakan scan ulang QR Code.',
+                'success'
+            )
+            return redirect(
+                url_for(
+                    'totp_setup',
+                    tech_id=technician.technician_id
+                )
+            )
+
+    else:
+
+        secret = technician.totp_secret
 
     # -----------------------------------------------------
     # QR
@@ -2057,13 +2083,53 @@ def totp_setup(
 
     return render_template(
         'totp_setup.html',
-
         technician=technician,
-
         secret=secret,
-
         qr_code=qr_code
     )
+
+
+@app.route(
+    '/technicians/totp/<string:tech_id>/verify',
+    methods=['POST']
+)
+@admin_required
+def totp_verify_test(tech_id):
+    technician = (
+        Technician.query
+        .filter(
+            (Technician.technician_id == tech_id) | (Technician.id == tech_id)
+        )
+        .first_or_404()
+    )
+
+    data = request.get_json(silent=True)
+    if not data:
+        data = request.form
+
+    otp_code = str(data.get('otp_code', '') or '').strip()
+    if not otp_code:
+        return jsonify({
+            'status': 'error',
+            'valid': False,
+            'message': 'Masukkan 6 digit kode OTP.'
+        }), 400
+
+    from app.totp_module import verify_totp
+    is_valid = verify_totp(technician.totp_secret, otp_code)
+
+    if is_valid:
+        return jsonify({
+            'status': 'success',
+            'valid': True,
+            'message': 'Kode OTP Valid! Aplikasi Authenticator tersinkronisasi dengan sukses.'
+        })
+    else:
+        return jsonify({
+            'status': 'fail',
+            'valid': False,
+            'message': 'Kode OTP Salah atau Kadaluarsa! Periksa jam pada HP teknisi atau coba kode berikutnya.'
+        }), 400
 
 
 # =========================================================
@@ -2129,7 +2195,8 @@ def bts_sites():
         'bts_sites.html',
         sites=sites,
         search_query=search_query,
-        site_metrics=site_metrics
+        site_metrics=site_metrics,
+        external_base_url=_get_external_access_base_url()
     )
 
 
@@ -2515,9 +2582,63 @@ def access_simulation():
         .all()
     )
 
+    technicians = (
+        Technician.query
+        .filter_by(status='Active')
+        .order_by(Technician.name.asc())
+        .all()
+    )
+
     return render_template(
         'access_simulation.html',
-        sites=sites
+        sites=sites,
+        technicians=technicians
+    )
+
+
+# =========================================================
+# GATE KIOSK TERMINAL (ON-SITE PHYSICAL ACCESS DEVICE)
+# =========================================================
+
+@app.route('/kiosk', methods=['GET'])
+@app.route('/kiosk/<site_id>', methods=['GET'])
+def gate_kiosk(site_id=None):
+    """
+    Antarmuka Terminal Fisik Gerbang BTS (Kiosk Mode).
+    Digunakan pada perangkat layar sentuh / tablet yang terpasang langsung di gerbang.
+    """
+    # Tandai sesi sebagai kiosk terminal
+    session['is_kiosk'] = True
+
+    selected_site = None
+    if site_id:
+        selected_site = BtsSite.query.filter(
+            (BtsSite.site_id == site_id) | (BtsSite.site_id.ilike(site_id))
+        ).first()
+
+    sites = BtsSite.query.order_by(BtsSite.site_name.asc()).all()
+    if not selected_site and sites:
+        selected_site = sites[0]
+
+    if selected_site:
+        session['kiosk_site_id'] = selected_site.site_id
+
+    technicians = (
+        Technician.query
+        .filter_by(status='Active')
+        .order_by(Technician.name.asc())
+        .all()
+    )
+
+    from app.api import get_csrf_token
+    csrf_token = get_csrf_token()
+
+    return render_template(
+        'kiosk.html',
+        site=selected_site,
+        sites=sites,
+        technicians=technicians,
+        csrf_token=csrf_token,
     )
 
 
@@ -3877,10 +3998,8 @@ def export_work_orders_format(format):
     elif format == 'pdf':
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
         output = BytesIO()
         doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20)
         styles = getSampleStyleSheet()
@@ -4108,6 +4227,34 @@ def admin_cleanup_logs():
     return redirect(url_for('access_logs'))
 
 
+def _get_external_access_base_url():
+    """
+    Jika server diakses via localhost atau 127.0.0.1, gunakan IP LAN lokal PC
+    agar QR Code dapat langsung di-scan dan dibuka oleh smartphone di Wi-Fi yang sama.
+    """
+    import os
+    from config import Config
+    custom_base = getattr(Config, 'SERVER_BASE_URL', None) or os.environ.get('SERVER_BASE_URL', '').strip()
+    if custom_base:
+        return custom_base.rstrip('/')
+
+    host_url = request.host_url.rstrip('/')
+    if 'localhost' in host_url or '127.0.0.1' in host_url:
+        try:
+            import socket
+            from urllib.parse import urlparse
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(('8.8.8.8', 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+            parsed = urlparse(host_url)
+            port_part = f":{parsed.port}" if parsed.port else ""
+            return f"{parsed.scheme}://{local_ip}{port_part}"
+        except Exception:
+            pass
+    return host_url
+
+
 def generate_qr(data):
     import qrcode
     from io import BytesIO
@@ -4121,14 +4268,96 @@ def generate_qr(data):
     return buf.getvalue()
 
 
+def generate_site_badge_qr(site, access_url):
+    """
+    Menghasilkan gambar Stiker/Plat Gerbang resmi beresolusi tinggi (PNG)
+    khusus untuk site ini lengkap dengan Nama Site, Site ID, Lokasi, dan QR Code.
+    """
+    import qrcode
+    from io import BytesIO
+    from PIL import Image, ImageDraw, ImageFont
+    import os
+
+    def _get_font(size, bold=False):
+        candidates = [
+            'C:/Windows/Fonts/segoeuib.ttf' if bold else 'C:/Windows/Fonts/segoeui.ttf',
+            'C:/Windows/Fonts/arialbd.ttf' if bold else 'C:/Windows/Fonts/arial.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' if bold else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                try:
+                    return ImageFont.truetype(p, size)
+                except Exception:
+                    pass
+        return ImageFont.load_default()
+
+    qr = qrcode.QRCode(version=1, box_size=8, border=2)
+    qr.add_data(access_url)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color='#0B1F35', back_color='white').convert('RGB')
+
+    W, H = 520, 680
+    card = Image.new('RGB', (W, H), color='#FFFFFF')
+    draw = ImageDraw.Draw(card)
+
+    # Outer border
+    draw.rectangle([0, 0, W - 1, H - 1], outline='#CBD5E1', width=2)
+
+    # Header Plaque
+    draw.rectangle([2, 2, W - 3, 85], fill='#0B1F35')
+    draw.text((W // 2, 32), 'BTS SECURITY SYSTEM', fill='#FFFFFF', anchor='mm', font=_get_font(20, True))
+    draw.text((W // 2, 60), 'OFFICIAL GATE ACCESS TAG', fill='#38BDF8', anchor='mm', font=_get_font(13, True))
+
+    # Site Info
+    draw.text((W // 2, 120), str(site.site_name or site.site_id).upper(), fill='#0F172A', anchor='mm', font=_get_font(22, True))
+
+    # Pill badge for Site ID (dynamic width)
+    id_text = f'SITE ID: {site.site_id}'
+    id_font = _get_font(14, True)
+    bbox = draw.textbbox((0, 0), id_text, font=id_font)
+    pill_w = max(bbox[2] - bbox[0] + 36, 160)
+    pill_x1 = (W - pill_w) // 2
+    pill_x2 = pill_x1 + pill_w
+    draw.rounded_rectangle([pill_x1, 146, pill_x2, 178], radius=16, fill='#EDE9FE', outline='#7C3AED', width=2)
+    draw.text((W // 2, 162), id_text, fill='#6D28D9', anchor='mm', font=id_font)
+
+    loc_display = str(site.location or 'Shelter BTS Site')[:50]
+    draw.text((W // 2, 198), loc_display, fill='#64748B', anchor='mm', font=_get_font(13, False))
+
+    # QR Code Frame
+    qr_w, qr_h = qr_img.size
+    qr_x = (W - qr_w) // 2
+    qr_y = 225
+    draw.rounded_rectangle([qr_x - 12, qr_y - 12, qr_x + qr_w + 12, qr_y + qr_h + 12], radius=16, outline='#E2E8F0', width=2)
+    card.paste(qr_img, (qr_x, qr_y))
+
+    # Footer Notice
+    footer_y = H - 85
+    draw.rectangle([2, footer_y, W - 3, H - 3], fill='#F8FAFC')
+    draw.line([(2, footer_y), (W - 3, footer_y)], fill='#E2E8F0', width=1)
+    draw.text((W // 2, footer_y + 28), 'Pindai dengan kamera smartphone saat di lokasi', fill='#0F172A', anchor='mm', font=_get_font(13, True))
+    draw.text((W // 2, footer_y + 55), '2FA + Face ID Multi-Factor Gate Access', fill='#64748B', anchor='mm', font=_get_font(12, False))
+
+    buf = BytesIO()
+    card.save(buf, format='PNG')
+    return buf.getvalue()
+
+
 @app.route('/sites/<int:site_id>/qr-code')
 @admin_required
 def qr_code_site(site_id):
     site = BtsSite.query.get_or_404(site_id)
-    access_url = request.host_url.rstrip('/') + url_for('access_simulation') + f"?site_id={quote(str(site.site_id))}"
-    qr_png = generate_qr(access_url)
+    base_url = _get_external_access_base_url()
+    access_url = base_url + url_for('access_simulation') + f"?site_id={quote(str(site.site_id))}&from_qr=1"
+    
+    if request.args.get('raw') == '1':
+        qr_png = generate_qr(access_url)
+    else:
+        qr_png = generate_site_badge_qr(site, access_url)
+
     response = app.response_class(qr_png, mimetype='image/png')
-    response.headers['Content-Disposition'] = f'inline; filename="qr-{site.site_id}.png"'
+    response.headers['Content-Disposition'] = f'inline; filename="qr-tag-{site.site_id}.png"'
     return response
 
 
@@ -4187,4 +4416,15 @@ def sse_events():
             unsubscribe(sid)
 
     return Response(event_stream(), mimetype='text/event-stream')
+
+
+# =========================================================
+# PWA OFFLINE FALLBACK
+# =========================================================
+
+@app.route('/offline')
+@app.route('/offline.html')
+def offline():
+    return render_template('offline.html')
+
 

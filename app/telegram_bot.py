@@ -104,13 +104,13 @@ def handle_telegram_command(app, token, message):
                 ).count()
 
                 lines = [
-                    f"📊 <b>STATUS SISTEM BTS TELECOM NOC</b>",
+                    "📊 <b>STATUS SISTEM BTS TELECOM NOC</b>",
                     f"⏱️ <i>{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</i>\n",
                     f"🚨 <b>Emergency Mode:</b> {em_badge}{em_reason}",
                     f"📡 <b>Total Site:</b> {active_sites}/{total_sites} Aktif",
                     f"🎫 <b>Work Order Aktif:</b> {active_wo} tiket",
                     f"🚪 <b>Akses Hari Ini:</b> 🟢 {granted_today} Diterima | 🔴 {denied_today} Ditolak\n",
-                    f"🏢 <b>Status Site Lapangan:</b>"
+                    "🏢 <b>Status Site Lapangan:</b>"
                 ]
 
                 for s in sites:
@@ -123,7 +123,7 @@ def handle_telegram_command(app, token, message):
                         f"  Gerbang: {g_badge} | Suhu: {temp} | Daya: {pwr}"
                     )
 
-                lines.append(f"\n🛡️ <i>Gunakan /open &lt;site_id&gt; untuk remote control.</i>")
+                lines.append("\n🛡️ <i>Gunakan /open &lt;site_id&gt; untuk remote control.</i>")
                 _send_telegram_reply(token, chat_id, "\n".join(lines))
 
             elif cmd in ("/wo", "/workorders", "/tiket"):
@@ -184,13 +184,13 @@ def handle_telegram_command(app, token, message):
                     "🚪 <b>5 RIWAYAT AKSES GERBANG TERAKHIR</b>\n"
                 ]
 
-                for l in logs:
-                    is_granted = str(l.access_result).upper() == "GRANTED"
+                for log_item in logs:
+                    is_granted = str(log_item.access_result).upper() == "GRANTED"
                     badge = "🟢" if is_granted else "🔴"
-                    time_str = l.timestamp.strftime("%d/%m %H:%M") if l.timestamp else "-"
-                    tech_name = html.escape(str(l.technician_name or l.technician_id or "Unknown"))
-                    site_str = html.escape(str(l.site_name or l.site_id or "-"))
-                    res_str = "DIIJINKAN" if is_granted else f"DITOLAK ({html.escape(str(l.reason_code or '-'))})"
+                    time_str = log_item.timestamp.strftime("%d/%m %H:%M") if log_item.timestamp else "-"
+                    tech_name = html.escape(str(log_item.technician_name or log_item.technician_id or "Unknown"))
+                    site_str = html.escape(str(log_item.site_name or log_item.site_id or "-"))
+                    res_str = "DIIJINKAN" if is_granted else f"DITOLAK ({html.escape(str(log_item.reason_code or '-'))})"
 
                     lines.append(
                         f"{badge} <b>{time_str}</b> — <b>{tech_name}</b>\n"
@@ -307,13 +307,21 @@ def handle_telegram_command(app, token, message):
                     _send_telegram_reply(
                         token,
                         chat_id,
-                        f"⛔ <b>Gagal Membuka Gerbang</b>\n"
-                        f"Mode Darurat (Emergency Lockdown) sedang aktif!\n"
-                        f"Harap nonaktifkan mode darurat terlebih dahulu dengan <code>/unlock</code>."
+                        "⛔ <b>Gagal Membuka Gerbang</b>\n"
+                        "Mode Darurat (Emergency Lockdown) sedang aktif!\n"
+                        "Harap nonaktifkan mode darurat terlebih dahulu dengan <code>/unlock</code>."
                     )
                     return
 
                 opened = force_open_gate(device_id="TELEGRAM_REMOTE", site_id=site.site_id)
+                if not opened:
+                    _send_telegram_reply(
+                        token,
+                        chat_id,
+                        f"❌ <b>Gagal Membuka Gerbang</b>: Kendala teknis pada site {html.escape(site.site_name)}."
+                    )
+                    return
+
                 open_seconds = app.config.get("GATE_OPEN_SECONDS", 10)
 
                 audit(

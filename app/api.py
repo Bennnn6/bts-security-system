@@ -8,12 +8,9 @@ from flask import (
     request,
     jsonify,
     session,
-    current_app,
 )
 
 from flask_login import current_user
-
-from sqlalchemy import or_
 
 from app import db
 from app.models import (
@@ -43,6 +40,10 @@ from app.access_control import (
     get_gate_last_action,
     get_gate_device_id,
     check_gate_health,
+    record_kiosk_heartbeat,
+    get_kiosk_status,
+    update_door_sensor,
+    get_door_sensor_status,
 )
 
 
@@ -89,7 +90,7 @@ LIVENESS_CHALLENGE_TIMEOUT = 60
 # Rate limit sederhana untuk demo/local.
 # key = IP + endpoint
 RATE_LIMIT_WINDOW = 60
-RATE_LIMIT_MAX_REQUESTS = 30
+RATE_LIMIT_MAX_REQUESTS = 120
 
 _rate_limit_store = {}
 
@@ -122,33 +123,21 @@ def api_success(message=None, **data):
 
     result.update(data)
 
-    return jsonify(result)
+    return jsonify(result), 200
 
 
 # =========================================================
-# DEVICE / IP
+# CLIENT INFO
 # =========================================================
 
 def get_request_device():
-    forwarded = (
-        request.headers.get("X-Forwarded-For")
-        or ""
-    ).strip()
-
-    if forwarded:
-        client_ip = forwarded.split(",")[0].strip()
-    else:
-        client_ip = (
-            request.remote_addr
-            or "UNKNOWN"
-        )
+    client_ip = get_client_ip()
 
     user_agent = (
         request.headers.get("User-Agent")
         or "UNKNOWN"
-    ).strip()
+    )
 
-    # Batasi panjang agar tidak memenuhi database.
     return (
         f"{client_ip} | {user_agent[:450]}"
     )[:500]
@@ -176,7 +165,11 @@ def get_client_ip():
 def check_rate_limit():
     """
     Rate limiting sederhana berbasis IP + endpoint.
+    Polling status gerbang dan status keamanan dikecualikan agar UI tidak terkunci.
     """
+    path = request.path or ""
+    if path.endswith("/gate-status") or path.endswith("/security-status") or path.endswith("/stream-status"):
+        return True
 
     now = time.time()
 
@@ -371,6 +364,7 @@ def is_authenticated_api_user():
     API dapat digunakan oleh:
     - Admin melalui Flask-Login session
     - Teknisi melalui worker_id session
+    - Kiosk Terminal fisik gerbang
     """
 
     try:
@@ -385,6 +379,9 @@ def is_authenticated_api_user():
 
     except Exception:
         pass
+
+    if session.get("is_kiosk") or session.get("kiosk_site_id"):
+        return True
 
     return bool(
         get_logged_worker_id()
@@ -1477,45 +1474,166 @@ def verify_face():
         )
 
     # =====================================================
-    # FACE SUCCESS -> PENDING OTP
+    # GATE COOLDOWN
     # =====================================================
 
-    pending_log = save_access_log(
-        technician_id=(
-            best_technician.technician_id
-        ),
+    if gate_is_in_cooldown(site.site_id):
+
+        save_access_log(
+            technician_id=best_technician.technician_id,
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="MATCHED",
+            face_distance=best_distance,
+            otp_result="SKIPPED",
+            access_result="DENIED",
+            reason_code="GATE_COOLDOWN",
+            incident_level="WARNING",
+            description="Gate masih dalam cooldown.",
+            evidence_image=image,
+        )
+
+        return api_error(
+            "Gate masih dalam cooldown.",
+            429,
+            reason_code="GATE_COOLDOWN",
+        )
+
+    # =====================================================
+    # WORK ORDER CHECK (TELCO GRADE)
+    # =====================================================
+
+    try:
+        from flask import current_app
+        if current_app.config.get("ENABLE_WORK_ORDER_CHECK", False) and access_type != "KELUAR":
+            from app.models import WorkOrder
+            from sqlalchemy import or_
+            today = datetime.utcnow().date()
+            active_wo = WorkOrder.query.filter(
+                WorkOrder.technician_id == best_technician.technician_id,
+                WorkOrder.site_id == site.site_id,
+                WorkOrder.status.in_(["APPROVED", "IN_PROGRESS"])
+            ).filter(
+                or_(
+                    WorkOrder.scheduled_date == today,
+                    WorkOrder.status == "IN_PROGRESS"
+                )
+            ).first()
+
+            if not active_wo:
+                save_access_log(
+                    technician_id=best_technician.technician_id,
+                    site_id=site.site_id,
+                    access_type=access_type,
+                    face_result="MATCHED",
+                    face_distance=best_distance,
+                    otp_result="SKIPPED",
+                    access_result="DENIED",
+                    reason_code="NO_ACTIVE_WORK_ORDER",
+                    incident_level="WARNING",
+                    description=(
+                        f"Teknisi {best_technician.name} tidak memiliki Surat Perintah Kerja "
+                        f"(Work Order) aktif/disetujui untuk site {site.site_id} hari ini."
+                    ),
+                    evidence_image=image,
+                )
+                return api_error(
+                    "Akses Masuk Ditolak: Anda tidak memiliki Surat Perintah Kerja (Work Order) "
+                    "aktif berstatus APPROVED / IN_PROGRESS untuk site ini hari ini.",
+                    403,
+                    reason_code="NO_ACTIVE_WORK_ORDER",
+                )
+            elif active_wo.status == "APPROVED":
+                active_wo.status = "IN_PROGRESS"
+                active_wo.updated_at = datetime.utcnow()
+                db.session.commit()
+    except Exception as wo_err:
+        print("[WORK ORDER CHECK ERROR]", wo_err)
+
+    # =====================================================
+    # OPEN GATE VIA FACE RECOGNITION (PRIMARY METHOD)
+    # =====================================================
+
+    device_id = get_request_device()
+
+    try:
+        gate_opened = open_gate(
+            device_id=device_id,
+            site_id=site.site_id
+        )
+    except Exception as exc:
+        print("[GATE OPEN ERROR]", exc)
+        gate_opened = False
+
+    if not gate_opened:
+        save_access_log(
+            technician_id=best_technician.technician_id,
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="MATCHED",
+            face_distance=best_distance,
+            otp_result="SKIPPED",
+            access_result="DENIED",
+            reason_code="GATE_OPEN_ERROR",
+            incident_level="CRITICAL",
+            description="Verifikasi wajah cocok tetapi gate gagal dibuka.",
+            evidence_image=image,
+        )
+        return api_error(
+            "Gate gagal dibuka.",
+            503,
+            reason_code="GATE_OPEN_ERROR",
+        )
+
+    opened_at = get_gate_opened_at(site.site_id) or datetime.utcnow()
+
+    access_log = save_access_log(
+        technician_id=best_technician.technician_id,
         site_id=site.site_id,
         access_type=access_type,
         face_result="MATCHED",
         face_distance=best_distance,
-        otp_result="PENDING",
-        access_result="PENDING",
-        reason_code="FACE_MATCHED",
+        otp_result="SKIPPED",
+        access_result="GRANTED",
+        reason_code="ACCESS_GRANTED",
         incident_level="NORMAL",
-        description=(
-            "Face recognition berhasil. "
-            "Menunggu OTP."
-        ),
+        description="Verifikasi wajah berhasil. Gate dibuka langsung.",
         evidence_image=image,
+    )
+    access_log.gate_status = "OPEN"
+    access_log.gate_opened_at = opened_at
+    access_log.gate_closed_at = None
+
+    db.session.commit()
+
+    try:
+        from app.notifications import send_gate_access_notification
+        send_gate_access_notification(access_log)
+    except Exception:
+        pass
+
+    create_activity_log(
+        action="ACCESS_GRANTED",
+        description=(
+            f"Akses diberikan via verifikasi wajah ke site {site.site_id} "
+            f"untuk {best_technician.name} ({access_type})."
+        ),
+        incident_level="NORMAL",
     )
 
     return api_success(
-        message=(
-            "Wajah berhasil dikenali. "
-            "Silakan masukkan OTP."
-        ),
-        tech_id=(
-            best_technician.technician_id
-        ),
-        technician_name=(
-            best_technician.name
-        ),
+        message="Verifikasi wajah berhasil. Gerbang dibuka!",
+        access_granted=True,
+        gate_opened=True,
+        tech_id=best_technician.technician_id,
+        technician_name=best_technician.name,
         face_result="MATCHED",
         face_distance=best_distance,
-        pending_log_id=pending_log.id,
+        access_log_id=access_log.id,
         site_id=site.site_id,
         access_type=access_type,
-        otp_required=True,
+        gate_open_duration=GATE_OPEN_SECONDS,
+        gate_open_seconds=GATE_OPEN_SECONDS,
     )
 
 
@@ -1726,36 +1844,20 @@ def verify_otp():
             .first()
         )
 
-    if not pending_log:
-
-        return api_error(
-            "Tidak ditemukan proses face verification "
-            "yang menunggu OTP.",
-            409,
-            reason_code="PENDING_ACCESS_NOT_FOUND",
-        )
-
-    # Jangan gunakan pending log yang terlalu lama.
-    if (
-        datetime.utcnow()
-        - pending_log.timestamp
-        > timedelta(minutes=2)
+    if not pending_log or (
+        datetime.utcnow() - pending_log.timestamp > timedelta(minutes=5)
     ):
-
-        pending_log.access_result = "DENIED"
-        pending_log.otp_result = "EXPIRED"
-        pending_log.reason_code = (
-            "OTP_SESSION_EXPIRED"
-        )
-        pending_log.incident_level = "WARNING"
-
-        db.session.commit()
-
-        return api_error(
-            "Sesi OTP telah kedaluwarsa. "
-            "Silakan ulangi face verification.",
-            410,
-            reason_code="OTP_SESSION_EXPIRED",
+        # Standalone / Fallback OTP Verification (teknisi memilih akses via OTP tanpa / setelah gagal scan wajah)
+        pending_log = save_access_log(
+            technician_id=technician.technician_id,
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="SKIPPED",
+            otp_result="PENDING",
+            access_result="PENDING",
+            reason_code="OTP_FALLBACK_STARTED",
+            incident_level="NORMAL",
+            description="Verifikasi akses via kode OTP alternatif/cadangan dimulai.",
         )
 
     # =====================================================
@@ -1907,15 +2009,18 @@ def verify_otp():
 
     try:
         from flask import current_app
-        if current_app.config.get("ENABLE_WORK_ORDER_CHECK", False):
+        if current_app.config.get("ENABLE_WORK_ORDER_CHECK", False) and access_type != "KELUAR":
             from app.models import WorkOrder
+            from sqlalchemy import or_
             today = datetime.utcnow().date()
             active_wo = WorkOrder.query.filter(
                 WorkOrder.technician_id == technician.technician_id,
                 WorkOrder.site_id == site.site_id,
-                WorkOrder.scheduled_date == today,
-                WorkOrder.status.in_(
-                    ["APPROVED", "IN_PROGRESS", "COMPLETED", "VERIFIED"]
+                WorkOrder.status.in_(["APPROVED", "IN_PROGRESS"])
+            ).filter(
+                or_(
+                    WorkOrder.scheduled_date == today,
+                    WorkOrder.status == "IN_PROGRESS"
                 )
             ).first()
 
@@ -1926,7 +2031,7 @@ def verify_otp():
                 pending_log.incident_level = "WARNING"
                 pending_log.description = (
                     f"Teknisi {technician.name} tidak memiliki Surat Perintah Kerja "
-                    f"(Work Order) aktif untuk site {site.site_id} hari ini."
+                    f"(Work Order) aktif/disetujui untuk site {site.site_id} hari ini."
                 )
                 db.session.commit()
 
@@ -1937,11 +2042,16 @@ def verify_otp():
                     pass
 
                 return api_error(
-                    "Akses ditolak: Tidak ada Surat Perintah Kerja (Work Order) "
-                    "aktif untuk Anda di site ini hari ini.",
+                    "Akses Masuk Ditolak: Anda tidak memiliki Surat Perintah Kerja (Work Order) "
+                    "aktif berstatus APPROVED / IN_PROGRESS untuk site ini hari ini.",
                     403,
                     reason_code="NO_ACTIVE_WORK_ORDER",
                 )
+            elif active_wo.status == "APPROVED":
+                # Otomatis update status WO ke IN_PROGRESS saat teknisi berhasil masuk site
+                active_wo.status = "IN_PROGRESS"
+                active_wo.updated_at = datetime.utcnow()
+                db.session.commit()
     except Exception as wo_err:
         print("[WORK ORDER CHECK ERROR]", wo_err)
 
@@ -2013,11 +2123,12 @@ def verify_otp():
 
     pending_log.otp_result = "VERIFIED"
     pending_log.access_result = "GRANTED"
-    pending_log.reason_code = "ACCESS_GRANTED"
+    pending_log.reason_code = "ACCESS_GRANTED_OTP"
     pending_log.incident_level = "NORMAL"
     pending_log.description = (
-        "Face recognition dan OTP valid. "
-        "Gate dibuka."
+        "Kode OTP valid (cadangan). Gate dibuka."
+        if pending_log.face_result in ("SKIPPED", None, "FAILED")
+        else "Face recognition dan OTP valid. Gate dibuka."
     )
     pending_log.gate_status = "OPEN"
     pending_log.gate_opened_at = opened_at
@@ -2034,7 +2145,7 @@ def verify_otp():
     create_activity_log(
         action="ACCESS_GRANTED",
         description=(
-            f"Akses {access_type} diberikan "
+            f"Akses {access_type} diberikan via OTP "
             f"untuk teknisi {technician.name} "
             f"di site {site.site_id}."
         ),
@@ -2042,7 +2153,9 @@ def verify_otp():
     )
 
     return api_success(
-        message="Akses diterima. Gate dibuka.",
+        message="Kode OTP valid. Gate dibuka!",
+        access_granted=True,
+        gate_opened=True,
         tech_id=technician.technician_id,
         technician_name=technician.name,
         site_id=site.site_id,
@@ -2767,38 +2880,164 @@ def features_sites():
 
 
 # =========================================================
-# GATE MANUAL CONTROL
+# KIOSK HEARTBEAT & STATUS
 # =========================================================
 
 @bp.route(
-    "/gate/manual-open",
+    "/kiosk/heartbeat",
     methods=["POST"],
 )
-@api_login_required
-@api_admin_required
-def gate_manual_open():
-    from app.access_control import force_open_gate
-    site_id = request.json.get('site_id') if request.json else None
-    device_id = (request.json.get('device_id') if request.json else None) or get_request_device()
-    description = (request.json.get('description') if request.json else None) or 'Manual gate open from dashboard'
-    result = force_open_gate(site_id=site_id, device_id=device_id, description=description, username=current_user.username if current_user.is_authenticated else 'admin')
-    if not result:
-        return api_error('Gagal membuka gerbang.', 500)
-    return api_success(message='Gerbang berhasil dibuka.', gate_status=result)
+def kiosk_heartbeat():
+    """
+    Heartbeat ping dari terminal fisik gerbang BTS.
+    Dapat dipanggil oleh terminal perangkat tanpa login admin.
+    """
+    data = request.get_json(silent=True) or {}
+    site_id = str(data.get("site_id") or "").strip()
+    device_id = str(data.get("device_id") or "KIOSK_TERMINAL").strip()
+
+    if not site_id:
+        return api_error("Site ID wajib dikirim.", 400, reason_code="SITE_REQUIRED")
+
+    record_kiosk_heartbeat(site_id=site_id, device_id=device_id)
+    kiosk_info = get_kiosk_status(site_id=site_id)
+
+    return api_success(
+        message="Heartbeat diterima.",
+        kiosk=kiosk_info,
+        gate_status=get_gate_status(site_id=site_id),
+    )
 
 
 @bp.route(
-    "/gate/manual-close",
+    "/kiosk/status",
+    methods=["GET"],
+)
+def kiosk_status_endpoint():
+    """
+    Mengambil status liveness terminal kiosk untuk Site BTS tertentu.
+    """
+    site_id = request.args.get("site_id", "").strip()
+    if not site_id:
+        return api_error("Parameter site_id wajib diisi.", 400, reason_code="SITE_REQUIRED")
+
+    kiosk_info = get_kiosk_status(site_id=site_id)
+    return api_success(kiosk=kiosk_info)
+
+
+# =========================================================
+# DOOR SENSOR & FORCED ENTRY ALARM
+# =========================================================
+
+@bp.route(
+    "/gate/sensor-event",
     methods=["POST"],
 )
-@api_login_required
-@api_admin_required
-def gate_manual_close():
-    from app.access_control import force_close_gate
-    site_id = request.json.get('site_id') if request.json else None
-    device_id = (request.json.get('device_id') if request.json else None) or get_request_device()
-    description = (request.json.get('description') if request.json else None) or 'Manual gate close from dashboard'
-    result = force_close_gate(site_id=site_id, device_id=device_id, description=description, username=current_user.username if current_user.is_authenticated else 'admin')
-    if not result:
-        return api_error('Gagal menutup gerbang.', 500)
-    return api_success(message='Gerbang berhasil ditutup.', gate_status=result)
+def gate_sensor_event():
+    """
+    Menerima event dari sensor magnetik pintu gerbang BTS
+    (misal: DOOR_CLOSED, DOOR_OPENED, DOOR_FORCED, DOOR_AJAR).
+    """
+    data = request.get_json(silent=True) or {}
+    site_id = str(data.get("site_id") or "").strip()
+    event = str(data.get("event") or "").strip().upper()
+    device_id = str(data.get("device_id") or "DOOR_SENSOR").strip()
+
+    if not site_id:
+        return api_error("Site ID wajib dikirim.", 400, reason_code="SITE_REQUIRED")
+
+    valid_events = ("DOOR_CLOSED", "DOOR_OPENED", "DOOR_FORCED", "DOOR_AJAR")
+    if event not in valid_events:
+        return api_error(
+            f"Event sensor tidak valid. Pilihan: {', '.join(valid_events)}",
+            400,
+            reason_code="INVALID_SENSOR_EVENT",
+        )
+
+    update_door_sensor(site_id=site_id, event=event, device_id=device_id)
+
+    # Tangani insiden pembobolan gerbang
+    if event == "DOOR_FORCED":
+        try:
+            from app.models import AccessLog
+            access_log = save_access_log(
+                technician_id=None,
+                site_id=site_id,
+                access_type="MASUK",
+                face_result="NOT_CHECKED",
+                otp_result="NOT_CHECKED",
+                access_result="DENIED",
+                reason_code="DOOR_FORCED_BREACH",
+                incident_level="CRITICAL",
+                description="ALARM! Sensor magnet mendeteksi gerbang dibuka paksa (pembobolan)!",
+                device_id=device_id,
+            )
+            create_activity_log(
+                action="SECURITY_ALARM",
+                description=f"ALARM! Sensor mendeteksi gerbang pada site {site_id} dibuka paksa!",
+                incident_level="CRITICAL",
+                device_id=device_id,
+            )
+        except Exception as exc:
+            print("[SENSOR FORCED LOG ERROR]", exc)
+
+        try:
+            from app.notifications import send_telegram_alert
+            send_telegram_alert(
+                title="🚨 ALARM PEMBOBOLAN GERBANG BTS!",
+                message=(
+                    f"⚠️ <b>PERINGATAN KEAMANAN TINGGI</b>\n\n"
+                    f"Sensor magnetik mendeteksi gerbang pada site <code>{site_id}</code> "
+                    f"<b>DIBUKA PAKSA (FORCED BREACH)</b> tanpa otentikasi resmi!\n\n"
+                    f"Periksa lokasi atau kamera CCTV sekarang juga!"
+                ),
+                incident_level="CRITICAL",
+                site_id=site_id,
+                header_badge="🚨 [ALARM GERBANG DIBOBOL]",
+            )
+        except Exception as exc:
+            print("[TELEGRAM SENSOR ALARM ERROR]", exc)
+
+        return api_success(
+            alarm=True,
+            event=event,
+            site_id=site_id,
+            sensor=get_door_sensor_status(site_id),
+            message="ALARM DIAKTIFKAN: Pembobolan pintu terdeteksi!",
+        )
+
+    elif event == "DOOR_AJAR":
+        create_activity_log(
+            action="DOOR_AJAR_WARNING",
+            description=f"Peringatan: Gerbang pada site {site_id} dibiarkan terbuka terlalu lama.",
+            incident_level="WARNING",
+            device_id=device_id,
+        )
+
+    return api_success(
+        alarm=False,
+        event=event,
+        site_id=site_id,
+        sensor=get_door_sensor_status(site_id),
+        message=f"Event sensor {event} berhasil diproses.",
+    )
+
+
+@bp.route(
+    "/gate/sensor-status",
+    methods=["GET"],
+)
+def gate_sensor_status():
+    """
+    Mengambil status sensor kontak pintu saat ini.
+    """
+    site_id = request.args.get("site_id", "").strip()
+    if not site_id:
+        return api_error("Parameter site_id wajib diisi.", 400, reason_code="SITE_REQUIRED")
+
+    return api_success(
+        sensor=get_door_sensor_status(site_id),
+        kiosk=get_kiosk_status(site_id),
+    )
+
+

@@ -407,8 +407,22 @@
                              <span id="dashboardGateLight" class="badge bg-danger rounded-circle p-2 mb-2 shadow-sm d-inline-block" style="width: 24px; height: 24px;"></span><br>
                             <span id="dashboardGateStatusLarge" class="fs-2 fw-bold" style="color: var(--jk-text-dark);">CLOSED</span>
                         </div>
-                        <div class="mb-4">
+                        <div class="mb-2">
                             <span id="dashboardGateStatus" class="badge bg-danger rounded-pill px-3">CLOSED</span>
+                        </div>
+
+                        <!-- AUTO-CLOSE COUNTDOWN & PROGRESS BAR -->
+                        <div id="gateCountdownContainer" class="mb-3 d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-1 px-1">
+                                <small class="text-muted fw-bold" style="font-size: 0.75rem;"><i class="bi bi-clock-history me-1"></i> Auto-Close Timer</small>
+                                <span id="gateCountdownText" class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill font-monospace fw-bold" style="font-size: 0.8rem;">10.0s</span>
+                            </div>
+                            <div class="progress" style="height: 6px; border-radius: 10px; background-color: #E2E8F0;">
+                                <div id="gateCountdownProgress" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 100%; transition: width 0.3s ease;"></div>
+                            </div>
+                        </div>
+                        <div id="gateLockedMessage" class="small text-muted mb-3">
+                            <i class="bi bi-shield-lock-fill text-secondary me-1"></i> Gerbang terkunci rapat.
                         </div>
                         
                         <!-- ACTION BUTTONS -->
@@ -625,25 +639,28 @@
 </div>
 
 
-    <!-- =====================================================
+   <!-- =====================================================
          STATUS TEKNISI
     ====================================================== -->
 
     <div class="card mb-4 border-0">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <!-- 🔑 Perbaikan Header agar tidak jadi gelap (dipaksa background putih) -->
+        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #FFFFFF !important; border-bottom: 1px solid var(--jk-bg-subtle) !important;">
             <div>
-                <h5 class="section-title">Status Teknisi</h5>
-                <div class="section-subtitle">Status keberadaan teknisi berdasarkan akses terakhir yang berhasil.</div>
+                <h5 class="section-title mb-1" style="color: var(--jk-primary) !important;">Status Teknisi</h5>
+                <div class="section-subtitle" style="color: #64748B !important;">Status keberadaan teknisi berdasarkan akses terakhir yang berhasil.</div>
             </div>
-            <a href="/technicians/register" class="btn btn-sm btn-primary">
+            <!-- Tombol Tambah Teknisi (Dipaksa Ungu) -->
+            <a href="/technicians/register" class="btn btn-sm px-3 shadow-sm" style="background-color: var(--jk-primary) !important; color: #FFFFFF !important; border: none;">
                 Tambah Teknisi
             </a>
         </div>
 
-        <div class="card-body p-0">
+        <div class="card-body p-0" style="background-color: #FFFFFF !important;">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 border-0">
-                    <thead style="background-color: var(--jk-bg-main);">
+                    <!-- 🔑 Perbaikan Header Tabel agar serasi dengan tema -->
+                    <thead style="background-color: var(--jk-bg-main) !important;">
                         <tr>
                             <th class="ps-4 text-muted small text-uppercase border-0">ID</th>
                             <th class="text-muted small text-uppercase border-0">Teknisi</th>
@@ -659,7 +676,7 @@
                         {% for tech in techs %}
                             {% set state = (technician_states.get(tech.technician_id) if technician_states is defined else None) %}
                             <tr>
-                                <td class="ps-4 border-light"><span class="text-primary" style="font-family: monospace;">{{ tech.technician_id }}</span></td>
+                                <td class="ps-4 border-light"><span class="text-primary fw-semibold" style="font-family: monospace;">{{ tech.technician_id }}</span></td>
                                 <td class="border-light">
                                     <div class="fw-bold" style="color: var(--jk-text-dark);">{{ tech.name }}</div>
                                     <small class="text-muted">@{{ tech.username or '-' }}</small>
@@ -697,19 +714,29 @@
                                         <span class="text-muted small">Belum ada akses</span>
                                     {% endif %}
                                 </td>
+                                
+                                <!-- 🔑 KOLOM AKSI (Ditambahkan tombol Hapus) -->
                                 <td class="border-light text-center">
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ url_for('edit_technician', tech_id=tech.technician_id) }}" class="btn btn-outline-primary" title="Edit Teknisi">
-                                            <i class="bi bi-pencil"></i> Edit
+                                        <a href="{{ url_for('edit_technician', tech_id=tech.technician_id) }}" class="btn btn-outline-primary" title="Edit">
+                                            Edit
                                         </a>
-                                        <a href="{{ url_for('face_enrollment', tech_id=tech.technician_id) }}" class="btn btn-outline-success" title="Enroll Wajah">
-                                            <i class="bi bi-camera"></i> Wajah
+                                        <a href="{{ url_for('face_enrollment', tech_id=tech.technician_id) }}" class="btn btn-outline-success" title="Wajah">
+                                            Wajah
                                         </a>
-                                        <a href="{{ url_for('totp_setup', tech_id=tech.technician_id) }}" class="btn btn-outline-info" title="Setup TOTP">
-                                            <i class="bi bi-key"></i> TOTP
+                                        <a href="{{ url_for('totp_setup', tech_id=tech.technician_id) }}" class="btn btn-outline-info" title="TOTP">
+                                            TOTP
+                                        </a>
+                                        <!-- TOMBOL HAPUS BARU -->
+                                        <a href="{{ url_for('delete_technician', tech_id=tech.technician_id) }}" 
+                                           class="btn btn-outline-danger" 
+                                           title="Hapus"
+                                           onclick="return confirm('Hapus teknisi {{ tech.name }}? Tindakan ini tidak dapat dibatalkan.')">
+                                            Hapus
                                         </a>
                                     </div>
                                 </td>
+                                
                             </tr>
                         {% endfor %}
                     {% else %}
@@ -984,19 +1011,36 @@ async function loadDashboardSites() {
         const result = await response.json();
         dashboardSites = result.sites || [];
         const selector = document.getElementById('dashboardGateSiteSelector');
+        if (!selector) return;
         selector.innerHTML = '<option value="">-- Pilih Site --</option>';
         dashboardSites.forEach(s => { selector.innerHTML += `<option value="${s.site_id}">${s.site_name}</option>`; });
-        if (dashboardSelectedSiteId) { selector.value = dashboardSelectedSiteId; updateDashboardSelectedSite(); }
+        if (!dashboardSelectedSiteId && dashboardSites.length > 0) {
+            dashboardSelectedSiteId = String(dashboardSites[0].site_id);
+            localStorage.setItem('dashboardSelectedSiteId', dashboardSelectedSiteId);
+        }
+        if (dashboardSelectedSiteId) {
+            selector.value = dashboardSelectedSiteId;
+            updateDashboardSelectedSite();
+            refreshDashboardGate();
+        }
     } catch(e) {}
 }
 
 function updateDashboardSelectedSite() {
     const site = dashboardSites.find(s => String(s.site_id) === String(dashboardSelectedSiteId));
-    document.getElementById('dashboardGateSiteName').textContent = site ? site.site_name : '-';
-    document.getElementById('dashboardGateSiteId').textContent = site ? `ID: ${site.site_id}` : 'ID: -';
-    if(site) {
-        document.getElementById('dashboardGateOnline').className = 'badge bg-success rounded-pill px-3 py-2';
-        document.getElementById('dashboardGateOnline').innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> ONLINE';
+    const nameEl = document.getElementById('dashboardGateSiteName');
+    const idEl = document.getElementById('dashboardGateSiteId');
+    const onlineEl = document.getElementById('dashboardGateOnline');
+    if (nameEl) nameEl.textContent = site ? site.site_name : '-';
+    if (idEl) idEl.textContent = site ? `ID: ${site.site_id}` : 'ID: -';
+    if (onlineEl) {
+        if (site) {
+            onlineEl.className = 'badge bg-success rounded-pill px-3 py-2';
+            onlineEl.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> ONLINE';
+        } else {
+            onlineEl.className = 'badge bg-secondary rounded-pill px-3 py-2';
+            onlineEl.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> OFFLINE';
+        }
     }
 }
 
@@ -1010,12 +1054,38 @@ async function refreshDashboardGate() {
         document.getElementById('dashboardGateStatus').textContent = status;
         document.getElementById('dashboardGateStatusLarge').textContent = status;
         
+        const countdownContainer = document.getElementById('gateCountdownContainer');
+        const countdownText = document.getElementById('gateCountdownText');
+        const countdownProgress = document.getElementById('gateCountdownProgress');
+        const lockedMessage = document.getElementById('gateLockedMessage');
+
         if(status === 'OPEN') {
             document.getElementById('dashboardGateStatus').className = 'badge bg-success rounded-pill px-3';
             document.getElementById('dashboardGateLight').className = 'badge bg-success rounded-circle p-2 mb-2 shadow-sm d-inline-block';
+
+            if (countdownContainer) countdownContainer.classList.remove('d-none');
+            if (lockedMessage) lockedMessage.classList.add('d-none');
+
+            const remaining = typeof result.remaining_seconds === 'number' ? result.remaining_seconds : 0;
+            if (countdownText) countdownText.textContent = remaining.toFixed(1) + 's';
+            
+            if (countdownProgress) {
+                const percent = Math.max(0, Math.min(100, (remaining / 10.0) * 100));
+                countdownProgress.style.width = percent + '%';
+                if (remaining <= 3) {
+                    countdownProgress.className = 'progress-bar progress-bar-striped progress-bar-animated bg-danger';
+                } else if (remaining <= 6) {
+                    countdownProgress.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
+                } else {
+                    countdownProgress.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
+                }
+            }
         } else {
             document.getElementById('dashboardGateStatus').className = 'badge bg-danger rounded-pill px-3';
             document.getElementById('dashboardGateLight').className = 'badge bg-danger rounded-circle p-2 mb-2 shadow-sm d-inline-block';
+
+            if (countdownContainer) countdownContainer.classList.add('d-none');
+            if (lockedMessage) lockedMessage.classList.remove('d-none');
         }
         
         document.getElementById('dashboardGateHealth').textContent = result.gate_health || 'NORMAL';

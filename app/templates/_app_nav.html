@@ -28,9 +28,15 @@
         <a href="{{ url_for('security_features_page') }}" class="nav-link {% if request.endpoint in ('security_features_page', 'security_alerts', 'security_incidents') %}active{% endif %}">
             <i class="bi bi-shield-lock-fill"></i> Security
         </a>
+        <a href="{{ url_for('gate_kiosk') }}" target="_blank" class="nav-link {% if request.endpoint == 'gate_kiosk' %}active{% endif %}">
+            <i class="bi bi-display"></i> Terminal Kiosk
+        </a>
         {% else %}
         <a href="{{ url_for('access_simulation') }}" class="nav-link {% if request.endpoint == 'access_simulation' %}active{% endif %}">
             <i class="bi bi-door-open-fill"></i> Access Gate
+        </a>
+        <a href="{{ url_for('gate_kiosk') }}" target="_blank" class="nav-link {% if request.endpoint == 'gate_kiosk' %}active{% endif %}">
+            <i class="bi bi-display"></i> Terminal Kiosk
         </a>
         {% endif %}
     </nav>

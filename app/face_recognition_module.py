@@ -601,13 +601,13 @@ def compare_faces(
         threshold = float(
             current_app.config.get(
                 'FACE_MATCH_THRESHOLD',
-                0.45
+                0.52
             )
         )
 
     except Exception:
 
-        threshold = 0.45
+        threshold = 0.52
 
     # -----------------------------------------------------
     # Face distance

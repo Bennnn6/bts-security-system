@@ -44,7 +44,7 @@ class Config:
     FACE_MATCH_THRESHOLD = float(
         os.environ.get(
             'FACE_MATCH_THRESHOLD',
-            '0.45'
+            '0.52'
         )
     )
 
@@ -164,3 +164,5 @@ class Config:
     # =====================================================
 
     GATE_WEBHOOK_URL = os.environ.get('GATE_WEBHOOK_URL', '').strip()
+    GATE_WEBHOOK_SECRET = os.environ.get('GATE_WEBHOOK_SECRET', '').strip()
+

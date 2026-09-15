@@ -3,6 +3,7 @@ import sys
 import os
 import ipaddress
 
+
 def generate_self_signed_cert(cert_file='cert.pem', key_file='key.pem'):
     from cryptography import x509
     from cryptography.x509.oid import NameOID
@@ -65,7 +66,31 @@ def generate_self_signed_cert(cert_file='cert.pem', key_file='key.pem'):
     
     return cert_file, key_file
 
+def check_face_recognition_env():
+    try:
+        from app.face_recognition_module import face_recognition, cv2, np
+        if face_recognition is None or cv2 is None or np is None:
+            print("\n" + "=" * 65)
+            print("[ PERINGATAN KRUSIAL - FACE RECOGNITION TIDAK AKTIF ]")
+            print(f"Python saat ini : {sys.executable}")
+            print("Library 'face_recognition' tidak terdeteksi pada environment ini.")
+            print("Pastikan Anda menjalankan server dengan Virtual Environment resmi:")
+            print(r"  .\venv\Scripts\activate")
+            print(r"  python run.py")
+            print("  atau langsung:")
+            print(r"  .\venv\Scripts\python.exe run.py")
+            print("=" * 65 + "\n")
+        else:
+            print("\n" + "=" * 65)
+            print("[ OK ] Face Recognition Engine AKTIF & SIAP DIGUNAKAN")
+            print(f"Interpreter: {sys.executable}")
+            print("=" * 65 + "\n")
+    except Exception as exc:
+        print(f"[WARNING] Gagal mengecek modul face_recognition: {exc}")
+
+
 if __name__ == '__main__':
+    check_face_recognition_env()
     use_https = '--https' in sys.argv
     
     if use_https:
@@ -82,7 +107,7 @@ if __name__ == '__main__':
                 print('Install pyopenssl and cryptography for HTTPS support.')
                 sys.exit(1)
         
-        print(f'Starting HTTPS server on https://0.0.0.0:5000')
+        print('Starting HTTPS server on https://0.0.0.0:5000')
         print('Note: Browser will show security warning for self-signed certificate.')
         print('Click "Advanced" -> "Proceed to localhost" to access.')
         app.run(

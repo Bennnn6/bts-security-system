@@ -278,12 +278,23 @@
                                             Edit
                                         </a>
                                         <a
-                                            href="{{ url_for('qr_code_site', site_id=site.id) }}"
-                                            class="btn btn-sm btn-outline-primary"
+                                            href="{{ url_for('gate_kiosk', site_id=site.site_id) }}"
                                             target="_blank"
+                                            class="btn btn-sm btn-dark fw-bold"
+                                            style="background: #0B1120; border: 1px solid #06B6D4; color: #38BDF8;"
+                                            title="Buka Terminal Fisik Gerbang BTS ini"
                                         >
-                                            QR
+                                            <i class="bi bi-display me-1"></i>Kiosk
                                         </a>
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#qrModal{{ site.id }}"
+                                            title="Lihat & Cetak QR Tag Gerbang"
+                                        >
+                                            <i class="bi bi-qr-code me-1"></i>QR Tag
+                                        </button>
                                         <a
                                             href="{{ url_for('delete_bts_site', site_id=site.id) }}"
                                             class="btn btn-sm btn-outline-danger"
@@ -494,6 +505,112 @@
                 </div>
             </div>
         </div>
+
+        <!-- =========================================================
+             MODAL QR TAG GERBANG RESMI PER SITE
+        ========================================================== -->
+        <div class="modal fade" id="qrModal{{ site.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: var(--jk-radius-card);">
+                    <div class="modal-header border-bottom bg-light">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3 text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                                <i class="bi bi-qr-code fs-4"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-primary mb-0">QR Tag Gerbang Resmi</h5>
+                                <div class="small text-muted">{{ site.site_name }} &bull; <span class="badge bg-dark">{{ site.site_id }}</span></div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body p-4">
+                        <div class="row g-4 align-items-center">
+                            <div class="col-md-6 text-center">
+                                <div class="p-2 border rounded-3 bg-white shadow-sm d-inline-block">
+                                    <img src="{{ url_for('qr_code_site', site_id=site.id) }}" 
+                                         class="img-fluid rounded" 
+                                         alt="Plat Gerbang QR {{ site.site_name }}" 
+                                         style="max-height: 380px; width: auto; object-fit: contain;">
+                                </div>
+                                <div class="mt-2 text-muted small">
+                                    <i class="bi bi-shield-check text-success me-1"></i>Stiker Plat Gerbang Beresolusi Tinggi
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light border-0 p-3 mb-3" style="border-radius: 12px;">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-primary me-2">LOKASI GERBANG</span>
+                                        <span class="fw-bold text-dark">{{ site.site_name }}</span>
+                                    </div>
+                                    <div class="small text-secondary mb-1">
+                                        <strong>Site ID:</strong> <code>{{ site.site_id }}</code>
+                                    </div>
+                                    <div class="small text-secondary mb-1">
+                                        <strong>Alamat:</strong> {{ site.location or 'BTS Shelter Site' }}
+                                    </div>
+                                    <div class="small text-secondary">
+                                        <strong>Status:</strong> 
+                                        <span class="badge {{ 'bg-success' if site.status == 'ACTIVE' else 'bg-warning' }}">{{ site.status }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-info py-2 px-3 small mb-3 border-0" style="border-radius: 8px;">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    <strong>Fungsi QR Tag:</strong> Cetak dan tempel di pagar/pintu BTS. Saat teknisi scan di lokasi, aplikasi langsung membuka form akses dengan Site ID terkunci otomatis.
+                                </div>
+
+                                <div class="mb-2">
+                                    <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-qr-code-scan me-1"></i>URL Akses Teknisi (HP / QR Tag Gerbang):</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control font-monospace" id="qrUrl{{ site.id }}" value="{{ external_base_url or request.host_url.rstrip('/') }}{{ url_for('access_simulation', site_id=site.site_id, from_qr=1) }}" readonly>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="copySiteUrl(document.getElementById('qrUrl{{ site.id }}').value, this)">
+                                            <i class="bi bi-clipboard me-1"></i> Salin
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold text-primary mb-1"><i class="bi bi-display me-1"></i>URL Khusus Terminal Kiosk Gerbang (Tablet Fisik):</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control font-monospace text-primary bg-light border-primary-subtle" id="kioskUrl{{ site.id }}" value="{{ external_base_url or request.host_url.rstrip('/') }}{{ url_for('gate_kiosk', site_id=site.site_id) }}" readonly>
+                                        <button class="btn btn-outline-primary" type="button" onclick="copySiteUrl(document.getElementById('kioskUrl{{ site.id }}').value, this)">
+                                            <i class="bi bi-clipboard me-1"></i> Salin Kiosk
+                                        </button>
+                                    </div>
+                                    <div class="form-text text-muted" style="font-size: 0.72rem;">Buka link ini pada tablet/layar sentuh gerbang untuk mengunci perangkat ke site ini secara otomatis.</div>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-primary" onclick="printSiteQr('{{ url_for('qr_code_site', site_id=site.id) }}', '{{ site.site_name }}')">
+                                        <i class="bi bi-printer me-1"></i> Cetak Stiker Gerbang
+                                    </button>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('qr_code_site', site_id=site.id) }}" download="qr-tag-{{ site.site_id }}.png" class="btn btn-outline-primary">
+                                            <i class="bi bi-download me-1"></i> Unduh Plakat PNG
+                                        </a>
+                                        <a href="{{ url_for('qr_code_site', site_id=site.id, raw=1) }}" download="qr-raw-{{ site.site_id }}.png" class="btn btn-outline-secondary">
+                                            <i class="bi bi-qr-code me-1"></i> QR Polos
+                                        </a>
+                                    </div>
+                                    <a href="{{ url_for('access_simulation', site_id=site.site_id, from_qr=1) }}" target="_blank" class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i> Uji Buka Simulasi Akses
+                                    </a>
+                                    <a href="{{ url_for('gate_kiosk', site_id=site.site_id) }}" target="_blank" class="btn btn-dark btn-sm fw-bold shadow-sm" style="background: #0F172A; border-color: #38BDF8; color: #38BDF8;">
+                                        <i class="bi bi-display me-1"></i> Buka Terminal Kiosk Gerbang
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer border-top bg-light" style="border-radius: 0 0 var(--jk-radius-card) var(--jk-radius-card);">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     {% endfor %}
 {% endif %}
 
@@ -532,4 +649,80 @@
     {% endfor %}
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function printSiteQr(imgUrl, siteName) {
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+        alert('Gagal membuka jendela cetak. Pastikan pop-up diizinkan.');
+        return;
+    }
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Cetak Plat QR Gerbang - ${siteName}</title>
+            <style>
+                body {
+                    margin: 0;
+                    padding: 24px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: Arial, sans-serif;
+                    background: #fff;
+                }
+                .print-container {
+                    text-align: center;
+                    max-width: 520px;
+                }
+                img {
+                    width: 100%;
+                    max-width: 480px;
+                    height: auto;
+                    border: 2px solid #0f172a;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                }
+                .instructions {
+                    margin-top: 16px;
+                    font-size: 13px;
+                    color: #475569;
+                }
+                @media print {
+                    body { padding: 0; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-container">
+                <img src="${imgUrl}" alt="QR Tag Gerbang" onload="window.print(); window.close();" />
+                <div class="instructions no-print">
+                    <p>Mempersiapkan dokumen cetak...</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+function copySiteUrl(url, btn) {
+    navigator.clipboard.writeText(url).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Tersalin!';
+        btn.classList.replace('btn-outline-secondary', 'btn-success');
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.replace('btn-success', 'btn-outline-secondary');
+        }, 2000);
+    }).catch(() => {
+        alert('URL: ' + url);
+    });
+}
+</script>
 {% endblock %}

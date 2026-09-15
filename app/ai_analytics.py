@@ -7,7 +7,6 @@ try:
 except Exception:
     HAS_SKLEARN = False
 import numpy as np
-from app import app, db
 from app.models import AccessLog, BtsSite, Technician
 
 

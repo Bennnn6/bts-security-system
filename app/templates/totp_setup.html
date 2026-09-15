@@ -1,309 +1,487 @@
 {% extends "base.html" %}
 
+{% block title %}Setup TOTP Teknisi | BTS Security System{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --totp-primary: #7C3AED;
+        --totp-primary-hover: #6D28D9;
+        --totp-primary-light: #EDE9FE;
+        --totp-bg-card: #FFFFFF;
+        --totp-border: #E2E8F0;
+        --totp-text-dark: #0F172A;
+        --totp-text-muted: #64748B;
+        --totp-success: #10B981;
+        --totp-danger: #EF4444;
+    }
+
+    .setup-hero {
+        background: var(--totp-bg-card);
+        border-radius: 16px;
+        border: 1px solid var(--totp-border);
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+        border-left: 6px solid var(--totp-primary);
+    }
+
+    .totp-card {
+        background: var(--totp-bg-card);
+        border: 1px solid var(--totp-border);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+        overflow: hidden;
+    }
+
+    .totp-card-header {
+        background: #FAF5FF;
+        border-bottom: 1px solid var(--totp-primary-light);
+        padding: 1.25rem 1.5rem;
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: var(--totp-primary);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+
+    .qr-frame {
+        background: #FFFFFF;
+        padding: 18px;
+        border-radius: 16px;
+        border: 2px dashed #CBD5E1;
+        display: inline-block;
+        transition: all 0.2s ease;
+    }
+    .qr-frame:hover {
+        border-color: var(--totp-primary);
+        box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12);
+    }
+
+    .secret-key-box {
+        background: #F8FAFC;
+        border: 1px solid var(--totp-border);
+        border-radius: 10px;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--totp-text-dark);
+        text-align: center;
+    }
+
+    .otp-test-input {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: 8px;
+        text-align: center;
+        max-width: 260px;
+        margin: 0 auto;
+        border: 2px solid var(--totp-primary-light);
+        border-radius: 12px;
+        color: var(--totp-primary);
+        transition: border-color 0.2s;
+    }
+    .otp-test-input:focus {
+        border-color: var(--totp-primary);
+        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+    }
+
+    .btn-totp-primary {
+        background-color: var(--totp-primary);
+        border-color: var(--totp-primary);
+        color: #FFFFFF;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.6rem 1.25rem;
+        transition: all 0.2s;
+    }
+    .btn-totp-primary:hover, .btn-totp-primary:focus {
+        background-color: var(--totp-primary-hover);
+        border-color: var(--totp-primary-hover);
+        color: #FFFFFF;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+    }
+
+    .btn-totp-outline {
+        border-color: #CBD5E1;
+        color: var(--totp-text-dark);
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.6rem 1.25rem;
+    }
+    .btn-totp-outline:hover {
+        background-color: #F1F5F9;
+        color: var(--totp-text-dark);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="container py-4">
 
-<div class="row justify-content-center">
+    <!-- BREADCRUMB / NAV -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" class="text-decoration-none">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('bts_sites') }}" class="text-decoration-none">Sistem</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Setup 2FA TOTP</li>
+            </ol>
+        </nav>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+    </div>
 
-    <div class="col-md-7">
-
-        <div class="card shadow">
-
-            <!-- HEADER -->
-            <div class="card-header bg-dark text-white text-center">
-                <h4 class="mb-0">
-                    Setup TOTP Teknisi
-                </h4>
+    <!-- HERO PROFILE TEKNISI -->
+    <div class="setup-hero p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div style="width: 56px; height: 56px; border-radius: 14px; background: #EDE9FE; color: #7C3AED; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
+                    <i class="bi bi-person-badge"></i>
+                </div>
+                <div>
+                    <h3 class="fw-bold mb-1" style="color: var(--totp-text-dark);">
+                        {{ technician.name }}
+                    </h3>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="badge bg-light text-dark border">
+                            <i class="bi bi-hash"></i> ID: <strong>{{ technician.technician_id }}</strong>
+                        </span>
+                        <span class="badge bg-light text-dark border">
+                            <i class="bi bi-briefcase"></i> {{ technician.position or 'Teknisi Lapangan' }}
+                        </span>
+                        {% if technician.status == 'Active' %}
+                        <span class="badge bg-success rounded-pill px-2">
+                            <i class="bi bi-check-circle"></i> Aktif
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary rounded-pill px-2">
+                            {{ technician.status }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
+            <div class="d-flex align-items-center gap-2">
+                <a
+                    href="{{ url_for('totp_setup', tech_id=technician.technician_id, regenerate=1) }}"
+                    class="btn btn-outline-danger btn-sm"
+                    onclick="return confirm('PERINGATAN: Membuat Secret Key baru akan membatalkan pairing Google Authenticator yang lama. Teknisi harus scan ulang QR Code.\n\nLanjutkan regenerasi key?');"
+                    title="Buat Kunci Baru / Reset TOTP"
+                >
+                    <i class="bi bi-arrow-repeat me-1"></i> Reset / Kunci Baru
+                </a>
+            </div>
+        </div>
+    </div>
 
-            <div class="card-body">
+    <!-- STEP-BY-STEP SETUP CARD -->
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
 
-
-                <!-- DATA TEKNISI -->
-                <div class="text-center mb-4">
-
-                    <h5 class="fw-bold">
-                        {{ technician.name }}
-                    </h5>
-
-                    <p class="text-muted mb-0">
-                        ID Teknisi:
-                        <strong>
-                            {{ technician.technician_id }}
-                        </strong>
-                    </p>
-
+            <div class="totp-card mb-4">
+                <div class="totp-card-header d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="step-number">1</span>
+                        <h5 class="fw-bold mb-0" style="color: var(--totp-primary);">
+                            Pindai QR Code
+                        </h5>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill">
+                        Google / MS Authenticator
+                    </span>
                 </div>
 
-
-                <!-- INFORMASI -->
-                <div class="alert alert-info">
-
-                    <strong>Setup Authenticator</strong>
-
-                    <p class="mb-0 mt-2">
-                        Buka Google Authenticator atau
-                        Microsoft Authenticator, lalu scan
-                        QR Code di bawah.
+                <div class="card-body p-4 text-center">
+                    <p class="text-muted mb-4">
+                        Buka aplikasi <strong>Google Authenticator</strong>, <strong>Microsoft Authenticator</strong>, atau aplikasi TOTP kompatibel di smartphone teknisi, lalu pindai kode di bawah ini:
                     </p>
 
-                </div>
-
-
-                <!-- =========================================
-                     QR CODE
-                ========================================== -->
-
-                {% if qr_code %}
-
-                <div class="text-center mb-4">
-
-                    <p class="fw-bold">
-                        Scan QR Code
-                    </p>
-
-                    <div class="d-flex justify-content-center">
-
-                        <div
-                            style="
-                                background: white;
-                                padding: 15px;
-                                border-radius: 12px;
-                                border: 1px solid #ddd;
-                                display: inline-block;
-                            "
-                        >
-
+                    {% if qr_code %}
+                    <div class="d-flex justify-content-center mb-3">
+                        <div class="qr-frame" id="qrContainer">
                             <img
-                                src="data:image/svg+xml;base64,{{ qr_code }}"
-                                alt="QR Code TOTP"
-                                width="250"
-                                height="250"
+                                id="qrImage"
+                                src="{% if qr_code.startswith('data:') %}{{ qr_code }}{% elif qr_code.startswith('iVBOR') %}data:image/png;base64,{{ qr_code }}{% else %}data:image/svg+xml;base64,{{ qr_code }}{% endif %}"
+                                alt="QR Code TOTP {{ technician.name }}"
+                                width="240"
+                                height="240"
+                                style="max-width: 100%; height: auto; display: block;"
                             >
-
                         </div>
-
                     </div>
 
-                    <p class="text-muted mt-2 mb-0">
-                        Arahkan kamera aplikasi Authenticator
-                        ke QR Code tersebut.
+                    <div class="mb-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="downloadQrCode()">
+                            <i class="bi bi-download me-1"></i> Download QR Code
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger py-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        QR Code gagal di-generate. Pastikan modul <code>totp_module.py</code> telah terkonfigurasi dengan benar.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- STEP 2: SECRET KEY MANUAL -->
+            <div class="totp-card mb-4">
+                <div class="totp-card-header d-flex align-items-center gap-2">
+                    <span class="step-number">2</span>
+                    <h5 class="fw-bold mb-0" style="color: var(--totp-primary);">
+                        Secret Key Alternatif (Input Manual)
+                    </h5>
+                </div>
+
+                <div class="card-body p-4">
+                    <p class="text-muted mb-3">
+                        Jika kamera smartphone tidak dapat memindai QR Code di atas, masukkan kode rahasia (Secret Key) berikut secara manual ke aplikasi authenticator:
                     </p>
 
-                </div>
-
-                {% else %}
-
-                <div class="alert alert-danger">
-
-                    QR Code gagal dibuat.
-
-                    <br>
-
-                    Periksa konfigurasi
-                    <strong>totp_module.py</strong>.
-
-                </div>
-
-                {% endif %}
-
-
-                <!-- =========================================
-                     SECRET KEY
-                ========================================== -->
-
-                {% if secret %}
-
-                <div class="mb-4">
-
-                    <label
-                        for="secretKey"
-                        class="form-label fw-bold"
-                    >
-                        Secret Key
-                    </label>
-
-
-                    <div class="input-group">
-
+                    <div class="input-group mb-2">
                         <input
                             type="text"
                             id="secretKey"
-                            class="form-control"
+                            class="form-control secret-key-box py-2"
                             value="{{ secret }}"
                             readonly
+                            aria-label="Secret Key TOTP"
                         >
-
-
                         <button
                             type="button"
-                            class="btn btn-outline-secondary"
-                            onclick="copySecret()"
+                            id="copyBtn"
+                            class="btn btn-totp-primary px-3"
+                            onclick="copySecretKey()"
                         >
-                            Copy
+                            <i class="bi bi-clipboard me-1" id="copyIcon"></i>
+                            <span id="copyText">Salin Key</span>
                         </button>
-
                     </div>
-
-
                     <small class="text-muted">
-                        Gunakan secret ini sebagai alternatif
-                        jika QR Code tidak dapat dipindai.
+                        <i class="bi bi-info-circle me-1"></i> Rahasiakan key ini. Key ini berfungsi sebagai kunci autentikasi 2FA saat membuka gerbang site BTS.
                     </small>
+                </div>
+            </div>
 
+            <!-- STEP 3: LIVE VERIFICATION TEST -->
+            <div class="totp-card mb-4">
+                <div class="totp-card-header d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="step-number">3</span>
+                        <h5 class="fw-bold mb-0" style="color: var(--totp-primary);">
+                            Uji Sinkronisasi Kode OTP (Real-Time)
+                        </h5>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">
+                        Validasi Langsung
+                    </span>
                 </div>
 
-                {% endif %}
+                <div class="card-body p-4">
+                    <p class="text-muted mb-3 text-center">
+                        Masukkan 6 digit angka yang saat ini tampil pada aplikasi Authenticator teknisi untuk memastikan sinkronisasi waktu dan kode berhasil:
+                    </p>
 
-
-                <!-- =========================================
-                     SIMPAN TOTP
-                ========================================== -->
-
-                <form
-                    method="POST"
-                    action="{{ url_for(
-                        'totp_setup',
-                        tech_id=technician.technician_id
-                    ) }}"
-                >
-
-                    <div class="mb-3">
-
-                        <label
-                            for="totp_secret"
-                            class="form-label fw-bold"
-                        >
-                            Secret TOTP
-                        </label>
-
-
-                        <input
-                            type="text"
-                            id="totp_secret"
-                            name="totp_secret"
-                            class="form-control"
-                            value="{{ secret }}"
-                            readonly
-                            required
-                        >
-
-                    </div>
-
-
-                    <div class="d-grid gap-2">
-
+                    <div class="text-center mb-3">
+                        <div class="mb-3">
+                            <input
+                                type="text"
+                                id="testOtpCode"
+                                class="form-control otp-test-input"
+                                placeholder="000000"
+                                maxlength="6"
+                                autocomplete="one-time-code"
+                                inputmode="numeric"
+                            >
+                        </div>
                         <button
-                            type="submit"
-                            class="btn btn-success btn-lg"
+                            type="button"
+                            id="verifyBtn"
+                            class="btn btn-totp-primary px-4 py-2"
+                            onclick="testVerifyOtp()"
                         >
-                            Simpan TOTP
+                            <i class="bi bi-shield-check me-1"></i> Tes Verifikasi Kode
                         </button>
-
-
-                        <a
-                            href="{{ url_for('dashboard') }}"
-                            class="btn btn-outline-secondary"
-                        >
-                            ← Kembali ke Dashboard
-                        </a>
-
                     </div>
 
-                </form>
+                    <!-- HASIL VERIFIKASI -->
+                    <div id="verifyResult" class="d-none mt-3"></div>
+                </div>
+            </div>
 
+            <!-- STEP 4: FORM SIMPAN -->
+            <div class="totp-card mb-4">
+                <div class="card-body p-4">
+                    <form
+                        method="POST"
+                        action="{{ url_for('totp_setup', tech_id=technician.technician_id) }}"
+                    >
+                        <input
+                            type="hidden"
+                            name="totp_secret"
+                            value="{{ secret }}"
+                        >
+
+                        <div class="d-flex flex-column flex-sm-row gap-2 justify-content-between align-items-center">
+                            <a
+                                href="{{ url_for('dashboard') }}"
+                                class="btn btn-totp-outline w-100 w-sm-auto"
+                            >
+                                <i class="bi bi-arrow-left me-1"></i> Kembali ke Dashboard
+                            </a>
+
+                            <button
+                                type="submit"
+                                class="btn btn-success btn-lg px-4 py-2 w-100 w-sm-auto fw-bold"
+                            >
+                                <i class="bi bi-check-lg me-1"></i> Simpan & Selesai
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
         </div>
-
     </div>
 
 </div>
+{% endblock %}
 
-
+{% block extra_js %}
+<!-- SCRIPT UNTUK INTERAKTIFISASI -->
 <script>
+// 1. COPY SECRET KEY DENGAN INLINE FEEDBACK
+function copySecretKey() {
+    const input = document.getElementById("secretKey");
+    const copyBtn = document.getElementById("copyBtn");
+    const copyText = document.getElementById("copyText");
+    const copyIcon = document.getElementById("copyIcon");
+    if (!input) return;
 
-function copySecret() {
+    function showSuccess() {
+        if (copyBtn) copyBtn.classList.replace("btn-totp-primary", "btn-success");
+        if (copyText) copyText.textContent = "✓ Disalin!";
+        if (copyIcon) copyIcon.className = "bi bi-check-lg me-1";
+        setTimeout(() => {
+            if (copyBtn) copyBtn.classList.replace("btn-success", "btn-totp-primary");
+            if (copyText) copyText.textContent = "Salin Key";
+            if (copyIcon) copyIcon.className = "bi bi-clipboard me-1";
+        }, 2000);
+    }
 
-    const input =
-        document.getElementById("secretKey");
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(input.value)
+            .then(showSuccess)
+            .catch(() => fallbackCopy(input, showSuccess));
+    } else {
+        fallbackCopy(input, showSuccess);
+    }
+}
 
+function fallbackCopy(input, callback) {
+    input.focus();
+    input.select();
+    input.setSelectionRange(0, input.value.length);
+    try {
+        const ok = document.execCommand("copy");
+        if (ok && callback) callback();
+    } catch (e) {
+        prompt("Silakan salin Secret Key secara manual (Ctrl+C):", input.value);
+    }
+}
 
-    if (!input) {
+// 2. DOWNLOAD QR CODE
+function downloadQrCode() {
+    const img = document.getElementById("qrImage");
+    if (!img) return;
+    const a = document.createElement("a");
+    a.href = img.src;
+    a.download = "QR_TOTP_{{ technician.technician_id }}.svg";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// 3. TES VERIFIKASI KODE OTP REAL-TIME
+async function testVerifyOtp() {
+    const input = document.getElementById("testOtpCode");
+    const resultBox = document.getElementById("verifyResult");
+    const verifyBtn = document.getElementById("verifyBtn");
+    if (!input || !resultBox) return;
+
+    const code = input.value.trim();
+    if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+        resultBox.className = "alert alert-warning py-3 text-center mb-0";
+        resultBox.innerHTML = '<i class="bi bi-exclamation-circle-fill me-2"></i> Harap masukkan 6 digit angka kode OTP dari Authenticator.';
+        resultBox.classList.remove("d-none");
+        input.focus();
         return;
     }
 
-
-    // Browser modern
-    if (
-        navigator.clipboard &&
-        window.isSecureContext
-    ) {
-
-        navigator.clipboard.writeText(
-            input.value
-        )
-
-        .then(function () {
-
-            alert(
-                "Secret Key berhasil disalin."
-            );
-
-        })
-
-        .catch(function () {
-
-            fallbackCopy(input);
-
-        });
-
+    if (verifyBtn) {
+        verifyBtn.disabled = true;
+        verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Memverifikasi...';
     }
-
-    // Browser lama / HTTP
-    else {
-
-        fallbackCopy(input);
-
-    }
-
-}
-
-
-function fallbackCopy(input) {
-
-    input.focus();
-
-    input.select();
-
-    input.setSelectionRange(
-        0,
-        input.value.length
-    );
-
 
     try {
+        const response = await fetch("{{ url_for('totp_verify_test', tech_id=technician.technician_id) }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify({ otp_code: code })
+        });
 
-        document.execCommand(
-            "copy"
-        );
+        const data = await response.json();
 
-        alert(
-                "Secret Key berhasil disalin."
-        );
-
+        if (response.ok && data.valid) {
+            resultBox.className = "alert alert-success py-3 text-center mb-0";
+            resultBox.innerHTML = '<i class="bi bi-check-circle-fill me-2 fs-5 align-middle"></i> <strong>SUKSES!</strong> ' + (data.message || 'Kode OTP Valid! Aplikasi Authenticator tersinkronisasi sempurna.');
+        } else {
+            resultBox.className = "alert alert-danger py-3 text-center mb-0";
+            resultBox.innerHTML = '<i class="bi bi-x-circle-fill me-2 fs-5 align-middle"></i> <strong>GAGAL!</strong> ' + (data.message || 'Kode OTP Salah atau Kadaluarsa. Coba kode 30 detik berikutnya.');
+        }
+    } catch (err) {
+        resultBox.className = "alert alert-danger py-3 text-center mb-0";
+        resultBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> Gagal menghubungi server. Periksa koneksi jaringan.';
+    } finally {
+        resultBox.classList.remove("d-none");
+        if (verifyBtn) {
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = '<i class="bi bi-shield-check me-1"></i> Tes Verifikasi Kode';
+        }
     }
-
-    catch (error) {
-
-        alert(
-                "Secret Key tidak dapat disalin otomatis. Silakan copy manual."
-        );
-
-    }
-
 }
 
+// Auto submit test saat mengetik 6 digit
+document.addEventListener("DOMContentLoaded", function() {
+    const input = document.getElementById("testOtpCode");
+    if (input) {
+        input.addEventListener("input", function() {
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length === 6) {
+                testVerifyOtp();
+            }
+        });
+        input.addEventListener("keyup", function(e) {
+            if (e.key === "Enter") {
+                testVerifyOtp();
+            }
+        });
+    }
+});
 </script>
 
 {% endblock %}

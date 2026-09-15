@@ -36,14 +36,14 @@ login_manager.login_message_category = "info"
 # IMPORT MODEL
 # =========================================================
 
-from app import models
+from app import models  # noqa: F401, E402
 
 
 # =========================================================
 # IMPORT API UTAMA
 # =========================================================
 
-from app import api
+from app import api  # noqa: E402
 
 if api.bp.name not in app.blueprints:
     app.register_blueprint(
@@ -56,7 +56,7 @@ if api.bp.name not in app.blueprints:
 # IMPORT ROUTES UTAMA
 # =========================================================
 
-from app import routes
+from app import routes  # noqa: F401, E402
 
 
 # =========================================================
@@ -77,7 +77,7 @@ def set_security_headers(response):
 # IMPORT SECURITY FEATURES
 # =========================================================
 
-from app import feature_routes
+from app import feature_routes  # noqa: F401, E402
 
 
 # =========================================================
@@ -105,7 +105,7 @@ if "security_features_page" not in app.view_functions:
 # TELEGRAM BOT (BACKGROUND POLLING)
 # =========================================================
 
-from app.telegram_bot import start_telegram_bot
+from app.telegram_bot import start_telegram_bot  # noqa: E402
 
 start_telegram_bot(app)
 
@@ -115,4 +115,4 @@ start_telegram_bot(app)
 # =========================================================
 
 with app.app_context():
-    db.create_all()
+    db.create_all()

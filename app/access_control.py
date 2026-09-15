@@ -9,7 +9,7 @@ import threading
 def _send_gate_hardware_webhook(event, site_id, device_id):
     """
     Kirim sinyal trigger ke hardware fisik (ESP32 / Relay Solenoid) via Webhook
-    secara asinkron agar tidak memblokir sistem.
+    secara asinkron dengan enkripsi HMAC-SHA256 agar tidak memblokir sistem.
     """
     def _worker():
         try:
@@ -18,18 +18,37 @@ def _send_gate_hardware_webhook(event, site_id, device_id):
             if not webhook_url:
                 return
 
+            import json
+            import hmac
+            import hashlib
             import requests
+
+            webhook_secret = app.config.get("GATE_WEBHOOK_SECRET", "").strip()
             payload = {
                 "event": event,
                 "site_id": site_id,
                 "device_id": device_id,
                 "timestamp": datetime.utcnow().isoformat(),
             }
-            requests.post(webhook_url, json=payload, timeout=3)
+            body_bytes = json.dumps(payload, separators=(',', ':')).encode("utf-8")
+            headers = {
+                "Content-Type": "application/json",
+            }
+            if webhook_secret:
+                signature = hmac.new(
+                    webhook_secret.encode("utf-8"),
+                    body_bytes,
+                    hashlib.sha256
+                ).hexdigest()
+                headers["X-Gate-Signature"] = f"sha256={signature}"
+                headers["X-Gate-Secret"] = webhook_secret
+
+            requests.post(webhook_url, data=body_bytes, headers=headers, timeout=3)
         except Exception as err:
             print("[HARDWARE WEBHOOK ERROR]", err)
 
     threading.Thread(target=_worker, daemon=True).start()
+
 
 
 # =========================================================
@@ -105,6 +124,11 @@ def _get_state(site_id=None):
             "last_action": "SYSTEM_STARTUP",
 
             "device_id": "LOCAL_SIMULATION",
+
+            "kiosk_online": False,
+            "last_heartbeat": None,
+            "door_sensor": "CLOSED",
+            "sensor_updated_at": datetime.utcnow(),
         }
 
     return _gate_states[site_id]
@@ -645,3 +669,102 @@ def get_all_gate_states():
         }
 
     return result
+
+
+# =========================================================
+# KIOSK HEARTBEAT & MONITORING
+# =========================================================
+
+def record_kiosk_heartbeat(
+    site_id=None,
+    device_id="KIOSK_TERMINAL"
+):
+    """
+    Mencatat heartbeat (ping) dari terminal fisik gerbang BTS.
+    """
+    site_id = _normalize_site_id(site_id)
+    state = _get_state(site_id)
+
+    state["kiosk_online"] = True
+    state["last_heartbeat"] = datetime.utcnow()
+    state["device_id"] = _normalize_device_id(device_id)
+    return True
+
+
+def get_kiosk_status(site_id=None):
+    """
+    Mengambil status liveness terminal kiosk untuk Site BTS.
+    Jika tidak ada ping dalam 60 detik, status dianggap OFFLINE.
+    """
+    site_id = _normalize_site_id(site_id)
+    state = _get_state(site_id)
+
+    last_hb = state.get("last_heartbeat")
+    is_online = False
+    seconds_ago = None
+
+    if last_hb:
+        delta = (datetime.utcnow() - last_hb).total_seconds()
+        seconds_ago = int(delta)
+        is_online = delta <= 60
+
+    state["kiosk_online"] = is_online
+
+    return {
+        "site_id": site_id,
+        "is_online": is_online,
+        "status": "ONLINE" if is_online else "OFFLINE",
+        "last_heartbeat": last_hb.isoformat() if last_hb else None,
+        "seconds_since_ping": seconds_ago,
+        "gate_status": state.get("status", "CLOSED"),
+        "door_sensor": state.get("door_sensor", "CLOSED"),
+        "device_id": state.get("device_id", "LOCAL_SIMULATION"),
+    }
+
+
+# =========================================================
+# DOOR SENSOR / REED SWITCH HANDLER
+# =========================================================
+
+def update_door_sensor(
+    site_id=None,
+    event="DOOR_CLOSED",
+    device_id="KIOSK_TERMINAL"
+):
+    """
+    Memperbarui status sensor magnetik kontak pintu pada gerbang BTS.
+    event:
+    - DOOR_CLOSED   : Pintu ditutup rapat secara normal
+    - DOOR_OPENED   : Pintu terbuka secara normal
+    - DOOR_FORCED   : Pintu dibuka paksa / didobrak (FORCED ENTRY ALARM)
+    - DOOR_AJAR     : Pintu dibiarkan terbuka terlalu lama (DOOR AJAR ALERT)
+    """
+    site_id = _normalize_site_id(site_id)
+    state = _get_state(site_id)
+
+    event_upper = str(event).strip().upper()
+    state["door_sensor"] = event_upper
+    state["sensor_updated_at"] = datetime.utcnow()
+
+    if event_upper == "DOOR_FORCED":
+        state["health"] = "WARNING"
+        state["last_error"] = "Sensor pintu mendeteksi pembobolan / paksa buka!"
+    elif event_upper == "DOOR_CLOSED" and state["health"] != "ERROR":
+        state["health"] = "NORMAL"
+        state["last_error"] = None
+
+    _send_gate_hardware_webhook(event_upper, site_id, device_id)
+    return True
+
+
+def get_door_sensor_status(site_id=None):
+    """
+    Mengambil status sensor magnet pintu gerbang.
+    """
+    site_id = _normalize_site_id(site_id)
+    state = _get_state(site_id)
+    return {
+        "site_id": site_id,
+        "sensor_status": state.get("door_sensor", "CLOSED"),
+        "updated_at": state.get("sensor_updated_at", datetime.utcnow()).isoformat(),
+    }

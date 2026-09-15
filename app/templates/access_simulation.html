@@ -251,6 +251,26 @@
 
 
             <!-- ================================================= -->
+            <!-- QR GATE VERIFICATION NOTICE -->
+            <!-- ================================================= -->
+            <div id="qrScanNotice" class="alert alert-primary d-none mb-3 py-2 px-3 shadow-sm border-primary" style="border-radius: 12px; background: rgba(13, 110, 253, 0.08);">
+                <div class="d-flex align-items-center">
+                    <div class="fs-3 me-3 text-primary"><i class="bi bi-qr-code-scan"></i></div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold text-primary" style="font-size: 0.95rem;">
+                            📍 Verifikasi Fisik di Gerbang: <span id="qrSiteNameDisplay">Site BTS</span>
+                        </div>
+                        <div class="small text-muted">
+                            Lokasi terdeteksi via QR Tag Resmi Gerbang BTS. Site otomatis terpilih untuk verifikasi keamanan.
+                        </div>
+                    </div>
+                    <div class="ms-2 d-flex align-items-center gap-1">
+                        <span class="badge bg-primary text-uppercase px-2 py-1"><i class="bi bi-lock-fill me-1"></i> Terkunci</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================================================= -->
             <!-- SITE -->
             <!-- ================================================= -->
 
@@ -452,25 +472,27 @@
                               Verifikasi Wajah
                           </button>
 
-
                           <button
                               type="button"
-                              id="btnUploadPhoto"
-                              class="btn btn-outline-secondary"
-                              onclick="document.getElementById('photoUploadInput').click()"
+                              id="btnSwitchToOtp"
+                              class="btn btn-outline-warning text-dark fw-semibold"
+                              onclick="showOtpFallbackPanel()"
+                              title="Gunakan jika kamera bermasalah atau wajah tidak cocok"
                           >
-                              📁 Upload Foto
+                              🔑 Masuk via Kode OTP
                           </button>
 
-                          <input
-                              type="file"
-                              id="photoUploadInput"
-                              accept="image/*"
-                              capture="environment"
-                              style="display: none;"
-                              onchange="handlePhotoUpload(event)"
-                          >
+                     </div>
 
+                     <!-- Alert jika scan wajah bermasalah/gagal -->
+                     <div id="faceFailedOtpPrompt" class="alert alert-warning mt-3 py-2 px-3 d-none d-flex align-items-center justify-content-between shadow-sm border-warning" style="border-radius: 10px;">
+                         <div class="small">
+                             <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                             <strong>Wajah belum terdeteksi / cocok?</strong> Buka gerbang menggunakan Kode OTP cadangan.
+                         </div>
+                         <button type="button" class="btn btn-sm btn-warning text-dark fw-bold ms-2 flex-shrink-0" onclick="showOtpFallbackPanel()">
+                             Gunakan OTP
+                         </button>
                      </div>
 
 
@@ -574,48 +596,83 @@
                     <!-- OTP -->
                     <!-- ================================================= -->
 
+                    <!-- ================================================= -->
+                    <!-- OTP (METODE ALTERNATIF / CADANGAN) -->
+                    <!-- ================================================= -->
+
                     <div
                         id="otpSection"
-                        class="otp-section status-card mb-3"
+                        class="otp-section status-card mb-3 shadow-sm"
+                        style="display: none; border-left: 4px solid #f59e0b;"
                     >
 
-                        <h5>
-                            🔢 Verifikasi OTP
-                        </h5>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0 text-dark">
+                                🔑 Masuk via Kode OTP
+                            </h5>
+                            <button type="button" class="btn-close btn-sm" onclick="hideOtpFallbackPanel()" title="Tutup / Kembali ke Kamera"></button>
+                        </div>
 
-
-                        <p class="tech-info">
-
-                            Masukkan kode 6 digit dari
-                            aplikasi authenticator teknisi.
-
+                        <p class="tech-info small text-muted mb-3">
+                            Gunakan metode ini jika verifikasi wajah tidak dapat digunakan (seperti PIN di smartphone).
                         </p>
 
+                        <div class="mb-3" id="otpTechSelectionGroup">
+                            <label for="otpTechSelect" class="form-label small fw-bold mb-1">
+                                Identitas Teknisi:
+                            </label>
+                            <select id="otpTechSelect" class="form-select">
+                                <option value="">-- Pilih ID / Nama Teknisi --</option>
+                                {% if technicians %}
+                                    {% for tech in technicians %}
+                                        <option value="{{ tech.technician_id }}">
+                                            {{ tech.technician_id }} - {{ tech.name }} ({{ tech.position or 'Teknisi' }})
+                                        </option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
 
-                        <input
-                            type="text"
-                            id="otpInput"
-                            class="form-control form-control-lg text-center"
-                            placeholder="000000"
-                            maxlength="6"
-                            inputmode="numeric"
-                            autocomplete="one-time-code"
-                        >
+                        <div class="mb-3">
+                            <label for="otpInput" class="form-label small fw-bold mb-1">
+                                Kode OTP 6 Digit:
+                            </label>
+                            <input
+                                type="text"
+                                id="otpInput"
+                                class="form-control form-control-lg text-center fw-bold font-monospace"
+                                placeholder="000000"
+                                maxlength="6"
+                                inputmode="numeric"
+                                autocomplete="one-time-code"
+                                style="letter-spacing: 6px; font-size: 1.4rem;"
+                            >
+                            <div class="form-text small text-muted text-center mt-1">
+                                Buka aplikasi Google Authenticator di HP Anda.
+                            </div>
+                        </div>
 
-
-                        <button
-                            type="button"
-                            id="btnVerifyOtp"
-                            class="btn btn-success w-100 mt-3"
-                            onclick="verifyOtp()"
-                        >
-                            Verifikasi OTP
-                        </button>
-
+                        <div class="d-grid gap-2">
+                            <button
+                                type="button"
+                                id="btnVerifyOtp"
+                                class="btn btn-warning fw-bold text-dark"
+                                onclick="verifyOtp()"
+                            >
+                                🔓 Verifikasi OTP & Buka Gerbang
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                onclick="hideOtpFallbackPanel()"
+                            >
+                                📷 Kembali ke Kamera Wajah
+                            </button>
+                        </div>
 
                         <div
                             id="otpInfo"
-                            class="mt-3 tech-info"
+                            class="mt-2 tech-info"
                         ></div>
 
                     </div>
@@ -1286,11 +1343,21 @@ async function startCamera() {
             stopCamera();
         }
 
-        stream =
-            await navigator.mediaDevices.getUserMedia({
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
+        } catch (mediaErr) {
+            stream = await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: false
             });
+        }
 
         video.srcObject = stream;
         video.muted = true;
@@ -1526,37 +1593,6 @@ function captureImage() {
 
 
 // =========================================================
-// PHOTO UPLOAD FALLBACK
-// =========================================================
-
-let uploadDataUrl = null;
-
-function handlePhotoUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-        setStatus('File bukan gambar. Pilih foto JPEG/PNG.', 'danger');
-        return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-        setStatus('Foto terlalu besar (max 5MB).', 'danger');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        uploadDataUrl = e.target.result;
-        setStatus('Foto berhasil dimuat. Klik "Verifikasi Wajah" untuk lanjut.', 'success');
-        btnVerifyFace.disabled = false;
-        btnVerifyFace.textContent = 'Verifikasi Wajah (via Upload)';
-    };
-    reader.readAsDataURL(file);
-}
-
-
-// =========================================================
 // VERIFY FACE
 // =========================================================
 
@@ -1612,11 +1648,10 @@ async function verifyFace() {
         video.videoHeight > 0
     );
 
-    // Gunakan upload foto jika kamera tidak tersedia
-    if (!cameraReady && !uploadDataUrl) {
+    if (!cameraReady) {
 
         setStatus(
-            'Kamera belum siap. Klik "📁 Upload Foto" untuk upload manual, atau tunggu preview kamera tampil.',
+            'Kamera belum aktif. Silakan klik "Nyalakan Kamera" dan posisikan wajah Anda di depan kamera.',
             'warning'
         );
 
@@ -1631,11 +1666,7 @@ async function verifyFace() {
 
     try {
 
-        if (uploadDataUrl) {
-            image = uploadDataUrl;
-        } else {
-            image = captureImage();
-        }
+        image = captureImage();
 
     } catch (error) {
 
@@ -1708,17 +1739,15 @@ async function verifyFace() {
 
 
         // =====================================================
-        // DATA TEKNISI
+        // DATA TEKNISI & BUKA GERBANG LANGSUNG
         // =====================================================
 
         activeTechId =
             result.tech_id;
 
-
         pendingLogId =
-            result.pending_log_id ||
+            result.access_log_id ||
             null;
-
 
         document.getElementById(
             'techName'
@@ -1727,13 +1756,11 @@ async function verifyFace() {
             result.name ||
             '-';
 
-
         document.getElementById(
             'techId'
         ).textContent =
             result.tech_id ||
             '-';
-
 
         document.getElementById(
             'faceDistance'
@@ -1744,48 +1771,29 @@ async function verifyFace() {
                 ).toFixed(4)
                 : '-';
 
-
-        // =====================================================
-        // SHOW FACE
-        // =====================================================
-
+        // Tampilkan informasi teknisi
         faceResult.style.display =
             'block';
 
-
-        otpSection.style.display =
-            'block';
-
-
-        document.getElementById(
-            'otpInput'
-        ).value =
-            '';
-
-
-        document.getElementById(
-            'otpInput'
-        ).focus();
-
-
-        document.getElementById(
-            'otpInfo'
-        ).textContent =
-            'Masukkan OTP untuk melanjutkan.';
-
-
-        document.getElementById(
-            'otpInfo'
-        ).className =
-            'mt-3 tech-info';
-
+        // Sembunyikan panel OTP jika terbuka
+        if (otpSection) {
+            otpSection.style.display = 'none';
+        }
+        const failedPrompt = document.getElementById('faceFailedOtpPrompt');
+        if (failedPrompt) {
+            failedPrompt.classList.add('d-none');
+        }
 
         setStatus(
             result.message ||
-            'Wajah berhasil dikenali. Silakan masukkan OTP.',
+            'Verifikasi wajah berhasil. Gerbang dibuka!',
             'success'
         );
 
+        // Buka gerbang langsung via verifikasi wajah!
+        if (result.access_granted || result.gate_opened) {
+            showGateOpen(result);
+        }
 
     } catch (error) {
 
@@ -1794,13 +1802,15 @@ async function verifyFace() {
             error
         );
 
-
         setStatus(
-            error.message ||
-            'Verifikasi wajah gagal.',
+            (error.message || 'Verifikasi wajah gagal.') + ' Anda dapat membuka gerbang menggunakan Kode OTP sebagai alternatif.',
             'danger'
         );
 
+        const failedPrompt = document.getElementById('faceFailedOtpPrompt');
+        if (failedPrompt) {
+            failedPrompt.classList.remove('d-none');
+        }
 
     } finally {
 
@@ -1814,42 +1824,98 @@ async function verifyFace() {
 
 
 // =========================================================
-// VERIFY OTP
+// OTP FALLBACK PANEL CONTROLS
+// =========================================================
+
+function showOtpFallbackPanel() {
+    if (!selectedSiteId) {
+        alert('Pilih Site BTS terlebih dahulu.');
+        const siteSel = document.getElementById('siteSelect');
+        if (siteSel) siteSel.focus();
+        return;
+    }
+    if (!selectedAccessType) {
+        alert('Pilih jenis akses MASUK atau KELUAR terlebih dahulu.');
+        return;
+    }
+
+    const otpSec = document.getElementById('otpSection');
+    if (otpSec) {
+        otpSec.style.display = 'block';
+        otpSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    const techSelect = document.getElementById('otpTechSelect');
+    if (techSelect && activeTechId) {
+        techSelect.value = activeTechId;
+    }
+
+    const otpInp = document.getElementById('otpInput');
+    if (otpInp) {
+        otpInp.focus();
+    }
+
+    setStatus('Mode Masuk via Kode OTP aktif. Pilih Teknisi dan masukkan 6 digit OTP.', 'info');
+}
+
+function hideOtpFallbackPanel() {
+    const otpSec = document.getElementById('otpSection');
+    if (otpSec) {
+        otpSec.style.display = 'none';
+    }
+    const failedPrompt = document.getElementById('faceFailedOtpPrompt');
+    if (failedPrompt) {
+        failedPrompt.classList.add('d-none');
+    }
+    setStatus('Kembali ke mode verifikasi wajah. Silakan nyalakan kamera.', 'secondary');
+}
+
+
+// =========================================================
+// VERIFY OTP (METODE ALTERNATIF / CADANGAN)
 // =========================================================
 
 async function verifyOtp() {
 
-    if (!activeTechId) {
-
-        alert(
-            'Verifikasi wajah terlebih dahulu.'
-        );
-
+    if (!selectedSiteId) {
+        alert('Pilih Site BTS terlebih dahulu.');
+        const siteSel = document.getElementById('siteSelect');
+        if (siteSel) siteSel.focus();
         return;
-
     }
 
+    if (!selectedAccessType) {
+        alert('Pilih jenis akses MASUK atau KELUAR terlebih dahulu.');
+        return;
+    }
+
+    const techSelect = document.getElementById('otpTechSelect');
+    let techIdToVerify = activeTechId;
+    if (!techIdToVerify && techSelect) {
+        techIdToVerify = techSelect.value;
+    }
+
+    if (!techIdToVerify) {
+        alert('Pilih identitas Teknisi terlebih dahulu.');
+        if (techSelect) techSelect.focus();
+        return;
+    }
 
     if (!csrfToken) {
 
         const loaded =
             await loadCSRFToken();
 
-
         if (!loaded) {
-
             return;
-
         }
 
     }
-
 
     const otp =
         document.getElementById(
             'otpInput'
         ).value.trim();
-
 
     if (!/^\d{6}$/.test(otp)) {
 
@@ -1858,28 +1924,23 @@ async function verifyOtp() {
         ).textContent =
             'OTP harus terdiri dari 6 digit angka.';
 
-
         document.getElementById(
             'otpInfo'
         ).className =
             'mt-3 text-danger fw-semibold';
 
-
         return;
 
     }
-
 
     showLoading(
         'Memverifikasi OTP...'
     );
 
-
     document.getElementById(
         'btnVerifyOtp'
     ).disabled =
         true;
-
 
     try {
 
@@ -1898,7 +1959,7 @@ async function verifyOtp() {
                     body: JSON.stringify({
 
                         tech_id:
-                            activeTechId,
+                            techIdToVerify,
 
                         otp:
                             otp,
@@ -1917,10 +1978,8 @@ async function verifyOtp() {
                 }
             );
 
-
         const result =
             await response.json();
-
 
         // =====================================================
         // LOCKOUT
@@ -1939,12 +1998,10 @@ async function verifyOtp() {
                 result.message ||
                 'OTP terkunci sementara.';
 
-
             document.getElementById(
                 'otpInfo'
             ).className =
                 'mt-3 text-danger fw-semibold';
-
 
             setStatus(
                 result.message ||
@@ -1952,11 +2009,9 @@ async function verifyOtp() {
                 'danger'
             );
 
-
             return;
 
         }
-
 
         // =====================================================
         // ERROR
@@ -1970,12 +2025,10 @@ async function verifyOtp() {
                 result.message ||
                 'OTP tidak valid.';
 
-
             document.getElementById(
                 'otpInfo'
             ).className =
                 'mt-3 text-danger fw-semibold';
-
 
             setStatus(
                 result.message ||
@@ -1983,39 +2036,43 @@ async function verifyOtp() {
                 'danger'
             );
 
-
             return;
 
         }
 
+        // =====================================================
+        // SUCCESS OTP -> BUKA GERBANG
+        // =====================================================
 
-        // =====================================================
-        // SUCCESS
-        // =====================================================
+        activeTechId = result.tech_id;
+
+        document.getElementById('techName').textContent =
+            result.technician_name || result.name || '-';
+        document.getElementById('techId').textContent =
+            result.tech_id || '-';
+        document.getElementById('faceDistance').textContent =
+            'Lewat OTP (Cadangan)';
+        faceResult.style.display = 'block';
 
         setStatus(
             result.message ||
-            'Akses berhasil diberikan.',
+            'Kode OTP valid. Gerbang dibuka!',
             'success'
         );
-
 
         document.getElementById(
             'otpInfo'
         ).textContent =
-            'OTP berhasil diverifikasi.';
-
+            'OTP berhasil diverifikasi. Gerbang dibuka.';
 
         document.getElementById(
             'otpInfo'
         ).className =
             'mt-3 text-success fw-semibold';
 
-
         showGateOpen(
             result
         );
-
 
     } catch (error) {
 
@@ -2024,18 +2081,15 @@ async function verifyOtp() {
             error
         );
 
-
         setStatus(
             error.message ||
             'Terjadi kesalahan saat menghubungi server.',
             'danger'
         );
 
-
     } finally {
 
         hideLoading();
-
 
         document.getElementById(
             'btnVerifyOtp'
@@ -2513,6 +2567,10 @@ function resetVerification() {
     otpSection.style.display =
         'none';
 
+    const failedOtpPrompt = document.getElementById('faceFailedOtpPrompt');
+    if (failedOtpPrompt) {
+        failedOtpPrompt.classList.add('d-none');
+    }
 
     gateSection.style.display =
         'none';
@@ -2633,9 +2691,26 @@ loadCSRFToken()
                 const urlParams = new URLSearchParams(window.location.search);
                 const preSite = urlParams.get('site_id');
                 const preType = urlParams.get('access_type');
+                const fromQr = urlParams.get('from_qr');
+
                 if (preSite && siteSelect) {
                     siteSelect.value = preSite;
                     siteSelect.dispatchEvent(new Event('change'));
+
+                    // Show QR Gate Verification Notice
+                    const selectedOpt = siteSelect.options[siteSelect.selectedIndex];
+                    const qrNotice = document.getElementById('qrScanNotice');
+                    const qrSiteNameDisplay = document.getElementById('qrSiteNameDisplay');
+
+                    if (qrNotice && selectedOpt && selectedOpt.value) {
+                        if (qrSiteNameDisplay) {
+                            qrSiteNameDisplay.textContent = selectedOpt.textContent.trim();
+                        }
+                        qrNotice.classList.remove('d-none');
+                        if (fromQr === '1') {
+                            siteSelect.classList.add('border-primary', 'bg-light');
+                        }
+                    }
                 }
                 if (preType && typeof selectAccessType === 'function') {
                     selectAccessType(preType.toUpperCase());

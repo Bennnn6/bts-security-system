@@ -5,7 +5,6 @@ from flask import (
     Blueprint,
     jsonify,
     request,
-    render_template,
     send_file,
 )
 
@@ -1667,6 +1666,26 @@ def access_logs_api():
                         log.face_distance,
                     "otp_result":
                         log.otp_result,
+                    "method": (
+                        "WAJAH + OTP"
+                        if (str(log.face_result or "").upper() in ("SUCCESS", "MATCHED") and str(log.otp_result or "").upper() in ("SUCCESS", "VALID"))
+                        else "WAJAH"
+                        if (str(log.face_result or "").upper() in ("SUCCESS", "MATCHED"))
+                        else "OTP"
+                        if (str(log.otp_result or "").upper() in ("SUCCESS", "VALID"))
+                        else "MANUAL / SENSOR"
+                        if (str(log.reason_code or "").upper().startswith("DOOR_") or "MANUAL" in str(log.reason_code or "").upper())
+                        else "-"
+                    ),
+                    "verification_method": (
+                        "WAJAH + OTP"
+                        if (str(log.face_result or "").upper() in ("SUCCESS", "MATCHED") and str(log.otp_result or "").upper() in ("SUCCESS", "VALID"))
+                        else "WAJAH"
+                        if (str(log.face_result or "").upper() in ("SUCCESS", "MATCHED"))
+                        else "OTP"
+                        if (str(log.otp_result or "").upper() in ("SUCCESS", "VALID"))
+                        else "-"
+                    ),
                     "access_result":
                         log.access_result,
                     "result":

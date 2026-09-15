@@ -1,0 +1,27 @@
+{
+    "include": [
+        "app",
+        "run.py",
+        "config.py",
+        "test_system.py",
+        "check_links.py"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        ".venv",
+        "venv",
+        "instance",
+        "migrations"
+    ],
+    "ignore": [
+        ".venv",
+        "venv"
+    ],
+    "venvPath": ".",
+    "venv": "venv",
+    "reportMissingImports": "none",
+    "reportMissingTypeStubs": false,
+    "pythonVersion": "3.10",
+    "pythonPlatform": "Windows"
+}

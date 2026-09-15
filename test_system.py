@@ -18,11 +18,6 @@ Script ini melakukan:
 10. Cek struktur security feature
 """
 
-import sys
-import traceback
-
-from flask import session
-
 from app import app, db
 from app.models import (
     Admin,
@@ -735,6 +730,30 @@ with app.app_context():
             bool(
                 technician.totp_secret
             )
+        )
+
+        import base64
+        from app.totp_module import get_qr_code_base64
+        qr_b64 = get_qr_code_base64(technician.name, technician.totp_secret)
+        is_valid_qr = False
+        if qr_b64:
+            decoded_qr = base64.b64decode(qr_b64)
+            is_valid_qr = (
+                (decoded_qr.startswith(b'<svg') or decoded_qr.startswith(b'<?xml') or decoded_qr.startswith(b'\x89PNG'))
+                and not decoded_qr.startswith(b"b'")
+            )
+
+        test(
+            'TOTP QR Code format valid',
+            is_valid_qr
+        )
+
+        import pyotp
+        from app.totp_module import verify_totp
+        test_otp = pyotp.TOTP(technician.totp_secret).now()
+        test(
+            'TOTP verification module valid',
+            verify_totp(technician.totp_secret, test_otp)
         )
 
     else:

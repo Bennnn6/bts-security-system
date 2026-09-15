@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terminal Gerbang BTS | {{ site.site_name if site else 'Site Kiosk' }}</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        :root {
+            --bg-base: #070B12;
+            --bg-surface: #0E1626;
+            --bg-surface-elevated: #162238;
+            --border-subtle: rgba(56, 189, 248, 0.15);
+            --border-highlight: rgba(56, 189, 248, 0.4);
+            --accent-cyan: #06B6D4;
+            --accent-emerald: #10B981;
+            --accent-amber: #F59E0B;
+            --accent-rose: #EF4444;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --font-display: 'Chakra Petch', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Scanline Overlay Effect for Cyber Terminal Look */
+        body::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 9999;
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        /* Header Bar */
+        .kiosk-header {
+            background: linear-gradient(180deg, rgba(14, 22, 38, 0.95) 0%, rgba(7, 11, 18, 0.95) 100%);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+        }
+
+        .terminal-brand {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #E2E8F0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .terminal-brand .badge-pulse {
+            width: 12px;
+            height: 12px;
+            background-color: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--accent-emerald);
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-ring {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.6; }
+        }
+
+        .site-badge {
+            background: rgba(6, 182, 212, 0.12);
+            border: 1px solid rgba(6, 182, 212, 0.35);
+            color: var(--accent-cyan);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .digital-clock {
+            font-family: var(--font-mono);
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #38BDF8;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+
+        /* Main Workspace Layout */
+        .kiosk-main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1.25fr 1fr;
+            gap: 1.25rem;
+            padding: 1.25rem;
+            overflow: hidden;
+        }
+
+        @media (max-width: 992px) {
+            .kiosk-main {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+                overflow-y: auto;
+            }
+        }
+
+        /* Cards and Containers */
+        .kiosk-panel {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .panel-header {
+            padding: 0.85rem 1.25rem;
+            background: rgba(22, 34, 56, 0.6);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--font-display);
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* Camera Scanner Viewport */
+        .scanner-viewport {
+            flex: 1;
+            position: relative;
+            background: #020408;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 0 0 16px 16px;
+        }
+
+        #kioskVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror for natural face interaction */
+        }
+
+        /* Target HUD Overlay */
+        .hud-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .target-box {
+            width: 280px;
+            height: 360px;
+            border: 2px dashed rgba(6, 182, 212, 0.45);
+            border-radius: 24px;
+            position: relative;
+            box-shadow: inset 0 0 40px rgba(6, 182, 212, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .target-box.matched {
+            border: 3px solid var(--accent-emerald) !important;
+            box-shadow: 0 0 45px rgba(16, 185, 129, 0.4), inset 0 0 40px rgba(16, 185, 129, 0.2) !important;
+        }
+
+        .target-box.denied {
+            border: 3px solid var(--accent-rose) !important;
+            box-shadow: 0 0 45px rgba(239, 68, 68, 0.4), inset 0 0 40px rgba(239, 68, 68, 0.2) !important;
+        }
+
+        /* Scanner Laser */
+        .scan-laser {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #38BDF8, #06B6D4, transparent);
+            box-shadow: 0 0 15px #06B6D4;
+            animation: scan-vertical 2.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes scan-vertical {
+            0% { top: 5%; opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { top: 92%; opacity: 0.3; }
+        }
+
+        /* Target Corner Brackets */
+        .bracket {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-color: #38BDF8;
+            border-style: solid;
+        }
+        .bracket.tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 12px; }
+        .bracket.tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 12px; }
+        .bracket.bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 12px; }
+        .bracket.br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 12px; }
+
+        /* Scanner Status Banner */
+        .scanner-status-banner {
+            position: absolute;
+            bottom: 1.25rem;
+            left: 1.25rem;
+            right: 1.25rem;
+            background: rgba(14, 22, 38, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-highlight);
+            border-radius: 14px;
+            padding: 0.85rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 20;
+            transition: all 0.3s ease;
+        }
+
+        .status-pill {
+            font-family: var(--font-display);
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        /* Gate Open Countdown Modal / Overlay */
+        .gate-open-curtain {
+            position: absolute;
+            inset: 0;
+            background: rgba(7, 11, 18, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .gate-open-curtain.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .gate-countdown-circle {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 6px solid var(--accent-emerald);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--accent-emerald);
+            box-shadow: 0 0 50px rgba(16, 185, 129, 0.4);
+            margin-bottom: 1.5rem;
+            animation: pulse-countdown 1s infinite alternate;
+        }
+
+        @keyframes pulse-countdown {
+            from { transform: scale(1); }
+            to { transform: scale(1.06); }
+        }
+
+        /* Numeric Keypad Panel */
+        .keypad-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.25rem;
+            justify-content: space-between;
+        }
+
+        .tech-select-container {
+            margin-bottom: 1rem;
+        }
+
+        .tech-select-container label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+
+        .kiosk-select {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            border-radius: 12px;
+            padding: 0.65rem 1rem;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .kiosk-select:focus {
+            background-color: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+        }
+
+        .otp-display-box {
+            background: #020408;
+            border: 2px solid var(--border-highlight);
+            border-radius: 14px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.7);
+        }
+
+        .otp-digit-slot {
+            width: 44px;
+            height: 52px;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #38BDF8;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            transition: all 0.15s ease;
+        }
+
+        .otp-digit-slot.filled {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.15);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+        }
+
+        /* Touch Keypad Grid */
+        .keypad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .keypad-btn {
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            color: #F8FAFC;
+            font-family: var(--font-display);
+            font-size: 1.75rem;
+            font-weight: 700;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-height: 58px;
+        }
+
+        .keypad-btn:active, .keypad-btn.touch-active {
+            transform: scale(0.94);
+            background: #38BDF8 !important;
+            color: #070B12 !important;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+        }
+
+        .keypad-btn.action-clear {
+            background: rgba(239, 68, 68, 0.15);
+            color: #F87171;
+            border-color: rgba(239, 68, 68, 0.3);
+            font-size: 1.25rem;
+        }
+        .keypad-btn.action-clear:active {
+            background: var(--accent-rose) !important;
+            color: white !important;
+        }
+
+        .keypad-btn.action-enter {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34D399;
+            border-color: rgba(16, 185, 129, 0.4);
+            font-size: 1.35rem;
+        }
+        .keypad-btn.action-enter:active {
+            background: var(--accent-emerald) !important;
+            color: #070B12 !important;
+        }
+
+        /* Access Type Switcher */
+        .access-type-switch {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            background: var(--bg-surface-elevated);
+            padding: 0.35rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .switch-opt {
+            padding: 0.5rem 0.75rem;
+            text-align: center;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 0.95rem;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+        }
+
+        .switch-opt.active {
+            background: #0284C7;
+            color: #FFFFFF;
+            box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4);
+        }
+
+        /* Footer Status Bar */
+        .kiosk-footer {
+            background: #0A0F1D;
+            border-top: 1px solid var(--border-subtle);
+            padding: 0.65rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            z-index: 100;
+        }
+
+        .hardware-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Fullscreen Alarm Flash Effect */
+        .alarm-breach-mode {
+            animation: alarm-flasher 0.8s infinite alternate !important;
+        }
+
+        @keyframes alarm-flasher {
+            from { background-color: #070B12; }
+            to { background-color: #450A0A; }
+        }
+    </style>
+</head>
+<body id="kioskBody">
+
+    <!-- =====================================================
+         HEADER BAR
+    ====================================================== -->
+    <header class="kiosk-header">
+        <div class="terminal-brand">
+            <div class="badge-pulse" id="liveHeartbeatDot" title="Terminal Heartbeat Active"></div>
+            <span>BTS GATE TERMINAL</span>
+            <span class="site-badge ms-2" id="headerSiteBadge">
+                <i class="bi bi-broadcast me-1"></i>
+                {{ site.site_id if site else 'NO_SITE' }} - {{ site.site_name if site else 'Site Tidak Terpilih' }}
+            </span>
+            <button class="btn btn-sm btn-outline-secondary py-0 px-2 ms-2 text-info border-secondary-subtle" onclick="openDeviceConfigModal()" title="Konfigurasi & Kunci Lokasi Site Perangkat Ini">
+                <i class="bi bi-gear-fill me-1"></i> Kunci Site
+            </button>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="digital-clock" id="digitalClock">00:00:00</div>
+            <button class="btn btn-sm btn-outline-info rounded-pill px-3 fw-bold" id="btnToggleFullscreen" title="Layar Penuh (F11)">
+                <i class="bi bi-arrows-fullscreen me-1"></i> FULLSCREEN
+            </button>
+        </div>
+    </header>
+
+    <!-- =====================================================
+         MODAL PENGATURAN & KUNCI PERANGKAT KE SITE (DEVICE PROVISIONING)
+    ====================================================== -->
+    <div class="modal fade" id="deviceConfigModal" tabindex="-1" aria-hidden="true" style="z-index: 99999;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: #0F172A; border: 1px solid var(--border-highlight); color: #F1F5F9; border-radius: 16px;">
+                <div class="modal-header border-bottom border-secondary-subtle">
+                    <h5 class="modal-title font-display fw-bold text-info">
+                        <i class="bi bi-gear-wide-connected me-2"></i> Konfigurasi Terminal Gerbang
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">
+                        Kunci perangkat tablet / layar sentuh ini ke lokasi Site BTS tertentu agar tidak tertukar dengan gerbang site lain saat perangkat dinyalakan ulang.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Pilih Site BTS Lokasi Perangkat Ini:</label>
+                        <select class="form-select kiosk-select" id="configSiteSelect">
+                            {% for s in sites %}
+                            <option value="{{ s.site_id }}" {% if site and site.site_id == s.site_id %}selected{% endif %}>
+                                {{ s.site_id }} - {{ s.site_name }} ({{ s.location }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Nama / ID Unit Terminal Ini:</label>
+                        <input type="text" class="form-control kiosk-select font-monospace" id="configDeviceId" placeholder="Contoh: KIOSK-GERBANG-BOJONG-01" value="KIOSK-{{ site.site_id if site else 'TERMINAL' }}-01">
+                        <div class="form-text text-secondary" style="font-size: 0.75rem;">ID unik perangkat ini untuk monitoring heartbeat di dashboard.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">PIN Otorisasi Admin (Security Lock):</label>
+                        <input type="password" class="form-control kiosk-select font-monospace" id="configAdminPin" placeholder="Masukkan PIN Admin (default: admin)">
+                    </div>
+
+                    <div id="configFeedback" class="small text-danger mb-2" style="display: none;"></div>
+                </div>
+                <div class="modal-footer border-top border-secondary-subtle">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary fw-bold" onclick="saveDeviceProvisioning()" style="background: linear-gradient(135deg, #0284C7, #06B6D4); border: none;">
+                        <i class="bi bi-lock-fill me-1"></i> Simpan & Kunci Perangkat
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         MAIN TERMINAL WORKSPACE
+    ====================================================== -->
+    <main class="kiosk-main">
+
+        <!-- =================================================
+             LEFT PANEL: FACE SCANNER (TOUCH TO SCAN)
+        ================================================== -->
+        <section class="kiosk-panel">
+            <div class="panel-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-camera-video-fill text-info"></i>
+                    <span>PEMINDAI WAJAH (FACE SCANNER)</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="camStatusBadge">
+                        <i class="bi bi-record-circle-fill me-1"></i> KAMERA AKTIF
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="btnSwitchCamera" title="Ganti Kamera">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scanner Viewport -->
+            <div class="scanner-viewport" id="scannerViewport" onclick="triggerManualScan()" style="cursor: pointer;" title="Sentuh area kamera untuk memindai wajah">
+                <video id="kioskVideo" autoplay playsinline muted></video>
+                <canvas id="kioskCanvas" style="display: none;"></canvas>
+
+                <!-- HUD Target Reticle -->
+                <div class="hud-overlay">
+                    <div class="target-box" id="targetBox">
+                        <div class="bracket tl"></div>
+                        <div class="bracket tr"></div>
+                        <div class="bracket bl"></div>
+                        <div class="bracket br"></div>
+                        <div class="scan-laser" id="scanLaser" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Status Banner -->
+                <div class="scanner-status-banner" id="scannerStatusBanner">
+                    <div class="status-pill text-info" id="scannerStatusText">
+                        <div class="spinner-grow spinner-grow-sm text-info" role="status" id="scanSpinner" style="display: none;"></div>
+                        <span>Posisikan Wajah lalu Tekan Tombol di Bawah</span>
+                    </div>
+                    <div class="text-secondary small font-monospace" id="scanStats">
+                        <span class="badge bg-info text-dark">SIAP PINDAI</span>
+                    </div>
+                </div>
+
+                <!-- Gate Open Success Curtain (Animated) -->
+                <div class="gate-open-curtain" id="gateOpenCurtain">
+                    <div class="gate-countdown-circle" id="countdownNumber">5</div>
+                    <h2 class="text-white fw-bold mb-2 font-display" id="grantedWelcomeTitle">AKSES DITERIMA</h2>
+                    <p class="text-info fs-5 mb-4 text-center" id="grantedTechName">Selamat datang, Teknisi</p>
+                    <div class="badge bg-success fs-6 py-2 px-4 rounded-pill shadow">
+                        <i class="bi bi-door-open-fill me-2"></i> RELAY SOLENOID TERBUKA
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Scan Action Button -->
+            <div class="p-3 border-top" style="background: rgba(22, 34, 56, 0.7); border-color: var(--border-subtle) !important;">
+                <button class="btn btn-primary btn-lg w-100 py-3 fw-bold fs-5 shadow-lg d-flex align-items-center justify-content-center gap-2" id="btnTriggerScan" onclick="triggerManualScan()" style="background: linear-gradient(135deg, #0284C7 0%, #06B6D4 100%); border: none; border-radius: 12px; letter-spacing: 0.5px;">
+                    <i class="bi bi-camera-fill fs-4" id="btnScanIcon"></i>
+                    <span id="btnScanLabel">SCAN WAJAH SEKARANG</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- =================================================
+             RIGHT PANEL: ON-SCREEN TOUCH KEYPAD (OTP FALLBACK)
+        ================================================== -->
+        <section class="kiosk-panel">
+            <div class="panel-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock-fill text-warning"></i>
+                    <span>KEYPAD CADANGAN (KODE OTP)</span>
+                </div>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2">
+                    PIN ALTERNATIF
+                </span>
+            </div>
+
+            <div class="keypad-container">
+                <!-- Access Type Selector (Masuk / Keluar) -->
+                <div class="access-type-switch">
+                    <div class="switch-opt active" id="optMasuk" onclick="setAccessType('MASUK')">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> MASUK (CHECK-IN)
+                    </div>
+                    <div class="switch-opt" id="optKeluar" onclick="setAccessType('KELUAR')">
+                        <i class="bi bi-box-arrow-right me-1"></i> KELUAR (CHECK-OUT)
+                    </div>
+                </div>
+
+                <!-- Technician Selector (Quick Touch or Select) -->
+                <div class="tech-select-container">
+                    <label><i class="bi bi-person-badge me-1"></i> Pilih ID Teknisi</label>
+                    <select class="form-select kiosk-select" id="keypadTechId">
+                        {% for tech in technicians %}
+                            <option value="{{ tech.technician_id }}">{{ tech.technician_id }} - {{ tech.name }} ({{ tech.position }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- OTP 6-Digit Display Slots -->
+                <div class="otp-display-box" id="otpDisplayBox">
+                    <div class="otp-digit-slot" id="slot0">-</div>
+                    <div class="otp-digit-slot" id="slot1">-</div>
+                    <div class="otp-digit-slot" id="slot2">-</div>
+                    <div class="otp-digit-slot" id="slot3">-</div>
+                    <div class="otp-digit-slot" id="slot4">-</div>
+                    <div class="otp-digit-slot" id="slot5">-</div>
+                </div>
+
+                <!-- Industrial Touch Keypad (0-9, Clear, Enter) -->
+                <div class="keypad-grid">
+                    <button class="keypad-btn" onclick="pressDigit('1')">1</button>
+                    <button class="keypad-btn" onclick="pressDigit('2')">2</button>
+                    <button class="keypad-btn" onclick="pressDigit('3')">3</button>
+
+                    <button class="keypad-btn" onclick="pressDigit('4')">4</button>
+                    <button class="keypad-btn" onclick="pressDigit('5')">5</button>
+                    <button class="keypad-btn" onclick="pressDigit('6')">6</button>
+
+                    <button class="keypad-btn" onclick="pressDigit('7')">7</button>
+                    <button class="keypad-btn" onclick="pressDigit('8')">8</button>
+                    <button class="keypad-btn" onclick="pressDigit('9')">9</button>
+
+                    <button class="keypad-btn action-clear" onclick="pressClear()" title="Hapus Digit">
+                        <i class="bi bi-backspace"></i>
+                    </button>
+                    <button class="keypad-btn" onclick="pressDigit('0')">0</button>
+                    <button class="keypad-btn action-enter" onclick="submitKioskOtp()" title="Verifikasi OTP & Buka Gerbang">
+                        <i class="bi bi-arrow-right-circle-fill"></i>
+                    </button>
+                </div>
+
+                <!-- Quick Help / Information -->
+                <div class="mt-3 text-center text-secondary small">
+                    <i class="bi bi-info-circle me-1"></i> Buka aplikasi Google Authenticator di HP Anda untuk melihat kode TOTP 6-digit.
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =====================================================
+         FOOTER: HARDWARE STATUS & IOT SENSOR SIMULATION
+    ====================================================== -->
+    <footer class="kiosk-footer">
+        <div class="d-flex align-items-center gap-3">
+            <!-- Solenoid Relay Indicator -->
+            <div class="hardware-pill" id="relayStatusPill">
+                <i class="bi bi-lock-fill text-warning" id="relayIcon"></i>
+                <span>SOLENOID: <strong id="relayStateText" class="text-warning">TERKUNCI</strong></span>
+            </div>
+
+            <!-- Door Magnetic Sensor Indicator -->
+            <div class="hardware-pill" id="sensorStatusPill">
+                <i class="bi bi-shield-check text-success" id="sensorIcon"></i>
+                <span>SENSOR PINTU: <strong id="sensorStateText" class="text-success">TERTUTUP</strong></span>
+            </div>
+
+            <!-- Audio Voice Toggle -->
+            <button class="btn btn-sm btn-outline-secondary py-1 px-2 text-white" id="btnToggleAudio" onclick="toggleAudioVoice()">
+                <i class="bi bi-volume-up-fill text-info" id="audioIcon"></i>
+                <span id="audioText">SUARA: AKTIF</span>
+            </button>
+        </div>
+
+        <!-- IoT Sensor Trigger Simulation Buttons (For testing / physical verification) -->
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-secondary small d-none d-md-inline">Simulasi Sensor Gerbang:</span>
+            <button class="btn btn-sm btn-outline-success py-1 px-2" onclick="sendSensorEvent('DOOR_OPENED')" title="Simulasi pintu dibuka normal">
+                <i class="bi bi-door-open me-1"></i> Buka Normal
+            </button>
+            <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="sendSensorEvent('DOOR_CLOSED')" title="Simulasi pintu ditutup rapat">
+                <i class="bi bi-door-closed me-1"></i> Tutup Rapat
+            </button>
+            <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="sendSensorEvent('DOOR_FORCED')" title="Simulasi pintu dibobol paksa">
+                <i class="bi bi-exclamation-octagon-fill me-1"></i> Dobrak (Alarm)
+            </button>
+        </div>
+    </footer>
+
+    <!-- Audio Synthesizer & Logic Scripts -->
+    <script>
+        // Global Kiosk Configuration
+        const SITE_ID = "{{ site.site_id if site else 'BOJ-01' }}";
+        const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        let currentAccessType = "MASUK";
+        let enteredOtp = "";
+        let isGateOpen = false;
+        let isScanning = false;
+        let scanPaused = false;
+        let consecutiveFailures = 0;
+        let voiceEnabled = true;
+        let cameraStream = null;
+        let currentFacingMode = "user"; // Front camera default
+
+        // Audio Synthesizer (Web Audio API)
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playBeep(freq, type = 'sine', duration = 0.1, gainVal = 0.15) {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(gainVal, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {
+                console.warn("Audio playBeep error:", e);
+            }
+        }
+
+        function playChordSuccess() {
+            playBeep(523.25, 'triangle', 0.15, 0.2); // C5
+            setTimeout(() => playBeep(659.25, 'triangle', 0.15, 0.2), 80); // E5
+            setTimeout(() => playBeep(783.99, 'triangle', 0.25, 0.25), 160); // G5
+        }
+
+        function playBuzzerDenied() {
+            playBeep(220, 'sawtooth', 0.2, 0.25);
+            setTimeout(() => playBeep(180, 'sawtooth', 0.3, 0.3), 150);
+        }
+
+        function playKeyClick() {
+            playBeep(900, 'sine', 0.04, 0.08);
+        }
+
+        function playAlarmSiren() {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.3);
+                osc.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.6);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.7);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.7);
+            } catch (e) {}
+        }
+
+        // Web Speech API Voice Prompt
+        function speakVoice(text) {
+            if (!voiceEnabled || !('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel(); // Stop current speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'id-ID';
+            utterance.rate = 1.05;
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function toggleAudioVoice() {
+            voiceEnabled = !voiceEnabled;
+            const icon = document.getElementById('audioIcon');
+            const text = document.getElementById('audioText');
+            if (voiceEnabled) {
+                icon.className = 'bi bi-volume-up-fill text-info';
+                text.textContent = 'SUARA: AKTIF';
+                speakVoice("Suara panduan diaktifkan.");
+            } else {
+                icon.className = 'bi bi-volume-mute-fill text-secondary';
+                text.textContent = 'SUARA: BISU';
+            }
+        }
+
+        // Digital Clock
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('digitalClock').textContent = `${h}:${m}:${s}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Fullscreen Toggle
+        document.getElementById('btnToggleFullscreen').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        });
+
+        // Camera Initialization
+        const videoElem = document.getElementById('kioskVideo');
+        const canvasElem = document.getElementById('kioskCanvas');
+
+        async function initCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                    },
+                    audio: false
+                };
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElem.srcObject = cameraStream;
+                document.getElementById('camStatusBadge').className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+                document.getElementById('camStatusBadge').innerHTML = '<i class="bi bi-record-circle-fill me-1"></i> KAMERA AKTIF';
+                setScannerStatus("Posisikan Wajah lalu Tekan Tombol di Bawah", "info", false);
+            } catch (err) {
+                console.error("Gagal menyalakan kamera kiosk:", err);
+                document.getElementById('camStatusBadge').className = 'badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1';
+                document.getElementById('camStatusBadge').innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> KAMERA ERROR';
+                setScannerStatus("Kamera tidak terdeteksi. Gunakan Keypad OTP di kanan.", "danger");
+            }
+        }
+
+        document.getElementById('btnSwitchCamera').addEventListener('click', () => {
+            currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+            initCamera();
+        });
+
+        // Manual Trigger Scan Function
+        async function triggerManualScan() {
+            if (isGateOpen) return;
+            if (isScanning) return;
+
+            if (!videoElem || videoElem.readyState < 2) {
+                playBuzzerDenied();
+                setScannerStatus("Kamera belum siap. Mohon tunggu sesaat...", "warning", false);
+                return;
+            }
+
+            isScanning = true;
+            playBeep(880, 'sine', 0.08, 0.15); // Trigger feedback tone
+
+            const scanLaser = document.getElementById('scanLaser');
+            const btnScan = document.getElementById('btnTriggerScan');
+            const btnScanLabel = document.getElementById('btnScanLabel');
+            const btnScanIcon = document.getElementById('btnScanIcon');
+
+            if (scanLaser) scanLaser.style.display = 'block';
+            if (btnScan) btnScan.disabled = true;
+            if (btnScanLabel) btnScanLabel.textContent = "MEMERIKSA WAJAH...";
+            if (btnScanIcon) btnScanIcon.className = "spinner-border spinner-border-sm";
+
+            setScannerStatus("Memeriksa Wajah...", "info", true);
+
+            try {
+                // Capture snapshot frame from video
+                canvasElem.width = videoElem.videoWidth || 640;
+                canvasElem.height = videoElem.videoHeight || 480;
+                const ctx = canvasElem.getContext('2d');
+                ctx.drawImage(videoElem, 0, 0, canvasElem.width, canvasElem.height);
+
+                const base64Image = canvasElem.toDataURL('image/jpeg', 0.85);
+
+                const resp = await fetch('/api/verify-face', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN,
+                        'X-CSRF-Token': CSRF_TOKEN,
+                    },
+                    body: JSON.stringify({
+                        site_id: SITE_ID,
+                        access_type: currentAccessType,
+                        image: base64Image,
+                        device_id: `KIOSK-${SITE_ID}`,
+                    })
+                });
+
+                const res = await resp.json();
+
+                if (resp.ok && (res.access_granted || res.gate_opened)) {
+                    consecutiveFailures = 0;
+                    onAccessGranted(res.technician_name || "Teknisi", res.gate_open_seconds || 5);
+                } else {
+                    const reason = res.reason_code || "";
+                    markTargetBoxDenied();
+                    playBuzzerDenied();
+
+                    if (reason === "FACE_NOT_DETECTED") {
+                        setScannerStatus("Wajah Tidak Terdeteksi! Posisikan wajah tepat di dalam kotak.", "warning", false);
+                        speakVoice("Wajah tidak terdeteksi. Posisikan wajah Anda di depan kamera.");
+                    } else if (reason === "FACE_UNKNOWN") {
+                        consecutiveFailures++;
+                        if (consecutiveFailures >= 2) {
+                            setScannerStatus("Wajah Tidak Cocok! Gunakan Keypad OTP di Kanan.", "danger", false);
+                            speakVoice("Wajah tidak dikenali. Silakan gunakan kode OTP pada keypad.");
+                        } else {
+                            setScannerStatus("Wajah Tidak Dikenali! Coba lagi atau gunakan OTP.", "danger", false);
+                            speakVoice("Wajah tidak cocok. Silakan coba lagi.");
+                        }
+                    } else {
+                        setScannerStatus(res.message || "Akses Ditolak.", "warning", false);
+                    }
+                }
+            } catch (err) {
+                console.error("Scan face error:", err);
+                playBuzzerDenied();
+                setScannerStatus("Gagal terhubung ke server verifikasi.", "danger", false);
+            } finally {
+                isScanning = false;
+                if (scanLaser) scanLaser.style.display = 'none';
+                if (btnScan) btnScan.disabled = false;
+                if (btnScanLabel) btnScanLabel.textContent = "SCAN WAJAH SEKARANG";
+                if (btnScanIcon) btnScanIcon.className = "bi bi-camera-fill fs-4";
+            }
+        }
+
+        function setScannerStatus(text, level = "info", spinning = false) {
+            const statusElem = document.getElementById('scannerStatusText');
+            const spinner = document.getElementById('scanSpinner');
+            statusElem.className = `status-pill text-${level}`;
+            statusElem.querySelector('span').textContent = text;
+            spinner.style.display = spinning ? 'inline-block' : 'none';
+        }
+
+        function markTargetBoxMatched() {
+            const box = document.getElementById('targetBox');
+            box.className = 'target-box matched';
+        }
+
+        function markTargetBoxDenied() {
+            const box = document.getElementById('targetBox');
+            box.className = 'target-box denied';
+            setTimeout(resetTargetBox, 1500);
+        }
+
+        function resetTargetBox() {
+            const box = document.getElementById('targetBox');
+            box.className = 'target-box';
+        }
+
+        // Gate Opened Flow & Countdown
+        function onAccessGranted(techName, openSeconds = 5) {
+            isGateOpen = true;
+            scanPaused = true;
+            markTargetBoxMatched();
+            playChordSuccess();
+
+            // Speak greeting
+            speakVoice(`Selamat datang, ${techName}. Gerbang dibuka, silakan masuk.`);
+
+            // Update UI indicators
+            document.getElementById('relayIcon').className = 'bi bi-unlock-fill text-success';
+            document.getElementById('relayStateText').className = 'text-success';
+            document.getElementById('relayStateText').textContent = 'TERBUKA (RELAY AKTIF)';
+
+            // Show Gate Open Curtain with Countdown
+            const curtain = document.getElementById('gateOpenCurtain');
+            const countNum = document.getElementById('countdownNumber');
+            document.getElementById('grantedTechName').textContent = `Selamat datang, ${techName}`;
+            curtain.classList.add('active');
+
+            let remaining = openSeconds;
+            countNum.textContent = remaining;
+
+            const timer = setInterval(() => {
+                remaining--;
+                if (remaining > 0) {
+                    countNum.textContent = remaining;
+                    playBeep(440, 'sine', 0.05, 0.1);
+                } else {
+                    clearInterval(timer);
+                    closeGateKiosk();
+                }
+            }, 1000);
+        }
+
+        function closeGateKiosk() {
+            const curtain = document.getElementById('gateOpenCurtain');
+            curtain.classList.remove('active');
+
+            document.getElementById('relayIcon').className = 'bi bi-lock-fill text-warning';
+            document.getElementById('relayStateText').className = 'text-warning';
+            document.getElementById('relayStateText').textContent = 'TERKUNCI';
+
+            resetTargetBox();
+            setScannerStatus("Posisikan Wajah lalu Tekan Tombol di Bawah", "info", false);
+
+            isGateOpen = false;
+            // Delay scan unpause by 2s so person walking past doesn't re-trigger
+            setTimeout(() => {
+                scanPaused = false;
+            }, 2000);
+        }
+
+        // Keypad OTP Logic
+        function pressDigit(num) {
+            playKeyClick();
+            if (enteredOtp.length < 6) {
+                enteredOtp += num;
+                updateOtpSlots();
+                if (enteredOtp.length === 6) {
+                    // Auto submit on 6th digit
+                    setTimeout(submitKioskOtp, 250);
+                }
+            }
+        }
+
+        function pressClear() {
+            playKeyClick();
+            if (enteredOtp.length > 0) {
+                enteredOtp = enteredOtp.slice(0, -1);
+                updateOtpSlots();
+            }
+        }
+
+        function updateOtpSlots() {
+            for (let i = 0; i < 6; i++) {
+                const slot = document.getElementById(`slot${i}`);
+                if (i < enteredOtp.length) {
+                    slot.textContent = enteredOtp[i];
+                    slot.classList.add('filled');
+                } else {
+                    slot.textContent = '-';
+                    slot.classList.remove('filled');
+                }
+            }
+        }
+
+        function setAccessType(type) {
+            currentAccessType = type;
+            playKeyClick();
+            document.getElementById('optMasuk').classList.toggle('active', type === 'MASUK');
+            document.getElementById('optKeluar').classList.toggle('active', type === 'KELUAR');
+        }
+
+        async function submitKioskOtp() {
+            if (enteredOtp.length !== 6) {
+                playBuzzerDenied();
+                speakVoice("Masukkan 6 digit kode OTP lengkap.");
+                return;
+            }
+
+            const techId = document.getElementById('keypadTechId').value;
+            playKeyClick();
+
+            try {
+                const resp = await fetch('/api/verify-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN,
+                        'X-CSRF-Token': CSRF_TOKEN,
+                    },
+                    body: JSON.stringify({
+                        tech_id: techId,
+                        otp: enteredOtp,
+                        site_id: SITE_ID,
+                        access_type: currentAccessType,
+                        device_id: `KIOSK-${SITE_ID}-KEYPAD`,
+                    })
+                });
+
+                const res = await resp.json();
+
+                if (resp.ok && (res.access_granted || res.gate_opened)) {
+                    enteredOtp = "";
+                    updateOtpSlots();
+                    onAccessGranted(res.technician_name || techId, res.gate_open_seconds || 5);
+                } else {
+                    playBuzzerDenied();
+                    speakVoice("Kode OTP salah atau telah kadaluarsa.");
+                    enteredOtp = "";
+                    updateOtpSlots();
+                    alert(res.message || "Kode OTP Tidak Valid!");
+                }
+            } catch (err) {
+                console.error("Gagal verifikasi OTP via kiosk:", err);
+                playBuzzerDenied();
+                alert("Gagal menghubungi server sistem akses.");
+            }
+        }
+
+        // IoT Door Sensor Event Simulation
+        async function sendSensorEvent(event) {
+            playKeyClick();
+            try {
+                const resp = await fetch('/api/gate/sensor-event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN,
+                        'X-CSRF-Token': CSRF_TOKEN,
+                    },
+                    body: JSON.stringify({
+                        site_id: SITE_ID,
+                        event: event,
+                        device_id: `DOOR_SENSOR_${SITE_ID}`,
+                    })
+                });
+
+                const res = await resp.json();
+
+                if (event === "DOOR_FORCED") {
+                    // Trigger Alarm Visual & Siren Audio
+                    document.getElementById('kioskBody').classList.add('alarm-breach-mode');
+                    document.getElementById('sensorIcon').className = 'bi bi-exclamation-diamond-fill text-danger';
+                    document.getElementById('sensorStateText').className = 'text-danger';
+                    document.getElementById('sensorStateText').textContent = '🚨 BOBOL (ALARM AKTIF)';
+
+                    playAlarmSiren();
+                    speakVoice("Peringatan keamanan tingkat tinggi! Sensor mendeteksi pintu dibuka paksa!");
+
+                    setTimeout(() => {
+                        playAlarmSiren();
+                    }, 800);
+                } else if (event === "DOOR_OPENED") {
+                    document.getElementById('kioskBody').classList.remove('alarm-breach-mode');
+                    document.getElementById('sensorIcon').className = 'bi bi-door-open text-warning';
+                    document.getElementById('sensorStateText').className = 'text-warning';
+                    document.getElementById('sensorStateText').textContent = 'TERBUKA NORMAL';
+                } else if (event === "DOOR_CLOSED") {
+                    document.getElementById('kioskBody').classList.remove('alarm-breach-mode');
+                    document.getElementById('sensorIcon').className = 'bi bi-shield-check text-success';
+                    document.getElementById('sensorStateText').className = 'text-success';
+                    document.getElementById('sensorStateText').textContent = 'TERTUTUP';
+                }
+            } catch (err) {
+                console.warn("Sensor event error:", err);
+            }
+        }
+
+        // Periodic Kiosk Heartbeat (every 20 seconds)
+        async function sendKioskHeartbeat() {
+            try {
+                const resp = await fetch('/api/kiosk/heartbeat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN,
+                        'X-CSRF-Token': CSRF_TOKEN,
+                    },
+                    body: JSON.stringify({
+                        site_id: SITE_ID,
+                        device_id: `KIOSK_TERMINAL_${SITE_ID}`,
+                    })
+                });
+                const res = await resp.json();
+                if (res.gate_status === 'OPEN' && !isGateOpen) {
+                    // External remote open triggered (e.g. from Telegram bot or Admin override)
+                    onAccessGranted("Admin Remote", 5);
+                }
+            } catch (err) {
+                console.warn("Heartbeat error:", err);
+            }
+        }
+
+        // Start heartbeat immediately and schedule every 20s
+        sendKioskHeartbeat();
+        setInterval(sendKioskHeartbeat, 20000);
+
+        // =====================================================
+        // DEVICE PROVISIONING & SITE PERSISTENCE LOGIC
+        // =====================================================
+        const CURRENT_SITE_ID = "{{ site.site_id if site else '' }}";
+        const savedLockedSite = localStorage.getItem('kiosk_locked_site_id');
+        const savedDeviceId = localStorage.getItem('kiosk_device_id') || `KIOSK-${CURRENT_SITE_ID || 'DEV'}-01`;
+
+        // Jika membuka /kiosk tanpa site_id spesifik, otomatis arahkan ke site yang sudah terkunci di perangkat ini
+        if (!CURRENT_SITE_ID && savedLockedSite) {
+            window.location.replace(`/kiosk/${savedLockedSite}`);
+        } else if (CURRENT_SITE_ID) {
+            // Catat site saat ini ke memori perangkat
+            localStorage.setItem('kiosk_locked_site_id', CURRENT_SITE_ID);
+        }
+
+        function openDeviceConfigModal() {
+            const modalEl = document.getElementById('deviceConfigModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                if (savedDeviceId) {
+                    document.getElementById('configDeviceId').value = savedDeviceId;
+                }
+                document.getElementById('configFeedback').style.display = 'none';
+                document.getElementById('configAdminPin').value = '';
+                modal.show();
+            }
+        }
+
+        function saveDeviceProvisioning() {
+            const siteSelect = document.getElementById('configSiteSelect');
+            const targetSite = siteSelect.value;
+            const deviceId = document.getElementById('configDeviceId').value.trim() || `KIOSK-${targetSite}-01`;
+            const pin = document.getElementById('configAdminPin').value.trim();
+            const feedback = document.getElementById('configFeedback');
+
+            if (pin !== 'admin' && pin !== '123456') {
+                feedback.textContent = 'PIN Otorisasi Admin salah! (Gunakan password admin)';
+                feedback.style.display = 'block';
+                return;
+            }
+
+            // Simpan ke penyimpanan lokal perangkat
+            localStorage.setItem('kiosk_locked_site_id', targetSite);
+            localStorage.setItem('kiosk_device_id', deviceId);
+
+            speakVoice(`Perangkat berhasil dikunci ke Site ${targetSite}`);
+
+            // Arahkan perangkat ke URL Site terkunci
+            window.location.href = `/kiosk/${targetSite}`;
+        }
+
+        // Start Camera on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initCamera();
+        });
+    </script>
+</body>
+</html>
