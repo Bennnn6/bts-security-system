@@ -134,20 +134,78 @@
 <style>
     .site-popup h6 { margin-bottom: 6px; font-weight: 700; }
     .site-popup .small-row { margin-bottom: 3px; }
-    .site-marker { background: transparent; border: 0; }
-    .marker-dot {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        border: 3px solid #fff;
-        box-shadow: 0 2px 7px rgba(0,0,0,.35);
+    
+    .site-marker-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    .marker-normal { background: #198754; }
-    .marker-warning { background: #ffc107; }
-    .marker-high { background: #fd7e14; }
-    .marker-critical { background: #dc3545; }
-    .marker-maintenance { background: #6c757d; }
-    .marker-down { background: #000; }
+    .bts-gis-tower-pin {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-size: 1.15rem;
+        border: 3px solid #ffffff;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+        position: relative;
+        z-index: 2;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    .bts-gis-tower-pin:hover {
+        transform: scale(1.18);
+    }
+    .marker-normal { background: linear-gradient(135deg, #10B981 0%, #059669 100%); }
+    .marker-warning { background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); }
+    .marker-high { background: linear-gradient(135deg, #F97316 0%, #C2410C 100%); }
+    .marker-critical { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); }
+    .marker-maintenance { background: linear-gradient(135deg, #64748B 0%, #475569 100%); }
+    .marker-down { background: #0F172A; }
+
+    .bts-gis-radar {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        top: -12px;
+        left: -12px;
+        z-index: 1;
+        pointer-events: none;
+        animation: btsRadarWave 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    .radar-normal { border: 2px solid rgba(16, 185, 129, 0.65); background: rgba(16, 185, 129, 0.15); }
+    .radar-warning { border: 2px solid rgba(245, 158, 11, 0.7); background: rgba(245, 158, 11, 0.2); }
+    .radar-high { border: 2px solid rgba(249, 115, 22, 0.75); background: rgba(249, 115, 22, 0.2); }
+    .radar-critical { border: 2px solid rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.25); animation-duration: 1.2s; }
+    .radar-maintenance { border: 2px solid rgba(100, 116, 139, 0.6); background: rgba(100, 116, 139, 0.15); }
+    .radar-down { border: 2px solid rgba(15, 23, 42, 0.8); background: rgba(15, 23, 42, 0.2); }
+
+    @keyframes btsRadarWave {
+        0% { transform: scale(0.35); opacity: 1; }
+        100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    .bts-site-bubble {
+        background: rgba(15, 23, 42, 0.92) !important;
+        backdrop-filter: blur(8px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        color: #ffffff !important;
+        border-radius: 20px !important;
+        padding: 4px 10px !important;
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.35) !important;
+        white-space: nowrap !important;
+    }
+    .bts-site-bubble::before {
+        border-top-color: rgba(15, 23, 42, 0.92) !important;
+    }
+
     @media (max-width: 768px) {
         #btsMap { height: 500px !important; }
     }
@@ -165,7 +223,7 @@
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
     }).addTo(map);
 
     function escapeHtml(value) {
@@ -192,13 +250,31 @@
         return 'marker-normal';
     }
 
+    function radarClass(site) {
+        const status = normalize(site.status);
+        const security = normalize(site.security_status);
+        if (status === 'DOWN') return 'radar-down';
+        if (status === 'MAINTENANCE') return 'radar-maintenance';
+        if (security === 'CRITICAL') return 'radar-critical';
+        if (security === 'HIGH') return 'radar-high';
+        if (security === 'WARNING') return 'radar-warning';
+        return 'radar-normal';
+    }
+
     function makeIcon(site) {
+        const cls = markerClass(site);
+        const rcls = radarClass(site);
         return L.divIcon({
-            className: 'site-marker',
-            html: '<div class="marker-dot ' + markerClass(site) + '"></div>',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
-            popupAnchor: [0, -12]
+            className: 'site-marker-wrap',
+            html: `
+                <div class="bts-gis-radar ${rcls}"></div>
+                <div class="bts-gis-tower-pin ${cls}" title="${escapeHtml(site.site_name)}">
+                    <i class="bi bi-broadcast"></i>
+                </div>
+            `,
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+            popupAnchor: [0, -20]
         });
     }
 
@@ -262,6 +338,12 @@
                 title: site.site_name
             });
             marker.bindPopup(popupHtml(site), { maxWidth: 360 });
+            marker.bindTooltip(`<b>🗼 ${escapeHtml(site.site_name)}</b>`, {
+                permanent: true,
+                direction: 'top',
+                offset: [0, -22],
+                className: 'bts-site-bubble'
+            });
             marker.addTo(markerLayer);
             markerRefs.push({ site, marker });
         });

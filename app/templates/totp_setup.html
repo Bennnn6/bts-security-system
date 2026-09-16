@@ -121,6 +121,28 @@
         background-color: #F1F5F9;
         color: var(--totp-text-dark);
     }
+
+    @media (max-width: 576px) {
+        .setup-hero {
+            padding: 18px 14px !important;
+        }
+        .totp-card-header {
+            padding: 14px 16px;
+        }
+        .totp-card .card-body {
+            padding: 16px !important;
+        }
+        .secret-key-box {
+            font-size: 0.92rem;
+            letter-spacing: 1px;
+            padding: 8px 10px;
+        }
+        .otp-test-input {
+            font-size: 1.4rem;
+            letter-spacing: 6px;
+            max-width: 220px;
+        }
+    }
 </style>
 {% endblock %}
 

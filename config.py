@@ -49,6 +49,32 @@ class Config:
     )
 
     # =====================================================
+    # ANTI-SPOOFING & LIVENESS DETECTION
+    # =====================================================
+    #
+    # Mencegah akses menggunakan foto kertas cetak atau
+    # tayangan layar smartphone/tablet.
+    #
+    # =====================================================
+
+    LIVENESS_DETECTION_ENABLED = os.environ.get(
+        'LIVENESS_DETECTION_ENABLED',
+        'True'
+    ).strip().lower() in ('true', '1', 'yes')
+
+    LIVENESS_MIN_SCORE = float(
+        os.environ.get(
+            'LIVENESS_MIN_SCORE',
+            '0.55'
+        )
+    )
+
+    LIVENESS_STRICT_GLARE = os.environ.get(
+        'LIVENESS_STRICT_GLARE',
+        'True'
+    ).strip().lower() in ('true', '1', 'yes')
+
+    # =====================================================
     # MAX IMAGE SIZE
     # =====================================================
 
@@ -165,4 +191,21 @@ class Config:
 
     GATE_WEBHOOK_URL = os.environ.get('GATE_WEBHOOK_URL', '').strip()
     GATE_WEBHOOK_SECRET = os.environ.get('GATE_WEBHOOK_SECRET', '').strip()
+
+    # =====================================================
+    # GPS GEOFENCING SECURITY
+    # =====================================================
+    #
+    # Memvalidasi koordinat teknisi saat meminta akses gate
+    # terhadap koordinat BTS Site tujuan.
+    # Radius default: 150 meter dari tower BTS.
+    #
+    GEOFENCE_ENABLED = (
+        os.environ.get('GEOFENCE_ENABLED', 'True').strip().lower()
+        in ('true', '1', 'yes')
+    )
+
+    GEOFENCE_RADIUS_METERS = int(
+        os.environ.get('GEOFENCE_RADIUS_METERS', '150')
+    )
 

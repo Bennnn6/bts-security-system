@@ -2,10 +2,14 @@
 {% set is_admin = current_user.is_authenticated %}
 {% if is_admin or is_worker %}
 
-<!-- SIDEBAR KIRI (DESAIN MODERN ROUNDED) -->
-<aside class="modern-sidebar">
+<!-- ============================================== -->
+<!-- 1. DESKTOP SIDEBAR (HANYA MUNCUL DI DESKTOP >=992px) -->
+<!-- ============================================== -->
+<aside class="modern-sidebar d-none d-lg-flex">
     <div class="sidebar-brand">
-        <i class="bi bi-shield-check"></i>
+        <div class="brand-icon-box">
+            <i class="bi bi-shield-check"></i>
+        </div>
         <span>Smart BTS</span>
     </div>
 
@@ -18,6 +22,9 @@
         {% if is_admin %}
         <a href="{{ url_for('bts_sites') }}" class="nav-link {% if request.endpoint in ('bts_sites', 'edit_bts_site') %}active{% endif %}">
             <i class="bi bi-hdd-network-fill"></i> Sites
+        </a>
+        <a href="{{ url_for('bts_map') }}" class="nav-link {% if request.endpoint == 'bts_map' %}active{% endif %}">
+            <i class="bi bi-geo-alt-fill"></i> GIS Map
         </a>
         <a href="{{ url_for('work_orders') }}" class="nav-link {% if request.endpoint == 'work_orders' %}active{% endif %}">
             <i class="bi bi-card-checklist"></i> Work Orders
@@ -32,6 +39,13 @@
             <i class="bi bi-display"></i> Terminal Kiosk
         </a>
         {% else %}
+        <!-- MENU TERPISAH UNTUK TEKNISI -->
+        <a href="{{ url_for('worker_work_orders') }}" class="nav-link {% if request.endpoint == 'worker_work_orders' %}active{% endif %}">
+            <i class="bi bi-card-checklist"></i> Tugas & Work Order
+        </a>
+        <a href="{{ url_for('worker_access_logs') }}" class="nav-link {% if request.endpoint == 'worker_access_logs' %}active{% endif %}">
+            <i class="bi bi-journal-text"></i> Riwayat Akses
+        </a>
         <a href="{{ url_for('access_simulation') }}" class="nav-link {% if request.endpoint == 'access_simulation' %}active{% endif %}">
             <i class="bi bi-door-open-fill"></i> Access Gate
         </a>
@@ -48,21 +62,206 @@
     </div>
 </aside>
 
-<!-- TOPBAR ATAS (SEARCH & PROFILE) -->
-<header class="modern-topbar">
+<!-- ============================================== -->
+<!-- 2. DESKTOP TOPBAR (HANYA MUNCUL DI DESKTOP >=992px) -->
+<!-- ============================================== -->
+<header class="modern-topbar d-none d-lg-flex">
     <div class="topbar-search">
         <i class="bi bi-search"></i>
-        <input type="text" placeholder="Search...">
+        <input type="text" placeholder="Cari data, site, teknisi...">
     </div>
     
     <div class="topbar-user">
+        <button id="themeToggle" class="btn-theme-toggle" type="button" title="Ganti Mode Terang/Gelap">
+            <i class="bi bi-moon-fill"></i>
+        </button>
         <div class="user-greeting">
             <span class="greeting-text">Hello, <b>{{ session.get('auth_username') or ('Admin' if is_admin else 'Teknisi') }}!</b></span>
-            <span class="greeting-sub">Sistem berjalan normal.</span>
+            <span class="greeting-sub"><span class="pulse-dot"></span> Sistem berjalan normal</span>
         </div>
         <div class="user-avatar">
             <i class="bi bi-person-fill"></i>
         </div>
     </div>
 </header>
+
+<!-- ============================================== -->
+<!-- 3. MOBILE TOPBAR (ESTETIK FROSTED GLASS DI HP) -->
+<!-- ============================================== -->
+<header class="mobile-topbar d-flex d-lg-none">
+    <div class="mobile-brand">
+        <div class="mobile-brand-icon">
+            <i class="bi bi-shield-check"></i>
+        </div>
+        <div class="mobile-brand-info">
+            <span class="mobile-brand-title">Smart BTS</span>
+            <span class="mobile-brand-status"><span class="pulse-dot"></span> Online</span>
+        </div>
+    </div>
+
+    <div class="mobile-topbar-actions">
+        <button id="themeToggleMobile" class="mobile-action-btn" type="button" title="Ganti Tema">
+            <i class="bi bi-moon-fill"></i>
+        </button>
+        <button class="mobile-menu-trigger" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNavDrawer" aria-controls="mobileNavDrawer" aria-label="Buka Menu">
+            <i class="bi bi-list"></i>
+        </button>
+    </div>
+</header>
+
+<!-- ============================================== -->
+<!-- 4. MOBILE OFFCANVAS DRAWER (MENU SLIDE-OUT MEWAH) -->
+<!-- ============================================== -->
+<div class="offcanvas offcanvas-start mobile-offcanvas-drawer" tabindex="-1" id="mobileNavDrawer" aria-labelledby="mobileNavDrawerLabel">
+    <div class="offcanvas-header mobile-drawer-header">
+        <div class="drawer-user-card">
+            <div class="drawer-avatar">
+                <i class="bi bi-person-fill"></i>
+            </div>
+            <div class="drawer-user-meta">
+                <h6 class="drawer-user-name mb-0">{{ session.get('auth_username') or ('Administrator' if is_admin else 'Teknisi') }}</h6>
+                <div class="drawer-user-role">
+                    <span class="badge {{ 'bg-primary' if is_admin else 'bg-success' }}">
+                        {{ 'Admin NOC' if is_admin else 'Teknisi Lapangan' }}
+                    </span>
+                    <span class="drawer-status-pill"><i class="bi bi-circle-fill"></i> Aktif</span>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Tutup"></button>
+    </div>
+
+    <div class="offcanvas-body mobile-drawer-body">
+        <div class="drawer-section-title">NAVIGASI UTAMA</div>
+        <nav class="mobile-drawer-nav">
+            <a href="{{ url_for('dashboard') if is_admin else url_for('worker_dashboard') }}" class="drawer-nav-item {% if request.endpoint in ('dashboard', 'worker_dashboard') %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-grid-1x2-fill"></i></span>
+                <span class="drawer-nav-label">Dashboard Operasional</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+
+            {% if is_admin %}
+            <a href="{{ url_for('bts_sites') }}" class="drawer-nav-item {% if request.endpoint in ('bts_sites', 'edit_bts_site') %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-hdd-network-fill"></i></span>
+                <span class="drawer-nav-label">Kelola Site BTS</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('bts_map') }}" class="drawer-nav-item {% if request.endpoint == 'bts_map' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-geo-alt-fill"></i></span>
+                <span class="drawer-nav-label">Peta Geografis (GIS Map)</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('work_orders') }}" class="drawer-nav-item {% if request.endpoint == 'work_orders' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-card-checklist"></i></span>
+                <span class="drawer-nav-label">Surat Tugas (Work Order)</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('access_logs') }}" class="drawer-nav-item {% if request.endpoint == 'access_logs' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-journal-text"></i></span>
+                <span class="drawer-nav-label">Riwayat Access Log</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('security_features_page') }}" class="drawer-nav-item {% if request.endpoint in ('security_features_page', 'security_alerts', 'security_incidents') %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-shield-lock-fill"></i></span>
+                <span class="drawer-nav-label">Pusat Keamanan & Insiden</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('gate_kiosk') }}" target="_blank" class="drawer-nav-item">
+                <span class="drawer-nav-icon"><i class="bi bi-display"></i></span>
+                <span class="drawer-nav-label">Buka Terminal Kiosk</span>
+                <i class="bi bi-box-arrow-up-right drawer-chevron" style="font-size: 0.8rem;"></i>
+            </a>
+            {% else %}
+            <!-- MENU TERPISAH DRAWER MOBILE UNTUK TEKNISI -->
+            <a href="{{ url_for('worker_work_orders') }}" class="drawer-nav-item {% if request.endpoint == 'worker_work_orders' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-card-checklist"></i></span>
+                <span class="drawer-nav-label">Tugas & Work Order</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('worker_access_logs') }}" class="drawer-nav-item {% if request.endpoint == 'worker_access_logs' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-journal-text"></i></span>
+                <span class="drawer-nav-label">Riwayat Akses</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('access_simulation') }}" class="drawer-nav-item {% if request.endpoint == 'access_simulation' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-door-open-fill"></i></span>
+                <span class="drawer-nav-label">Buka / Simulasi Pintu Gate</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('gate_kiosk') }}" target="_blank" class="drawer-nav-item">
+                <span class="drawer-nav-icon"><i class="bi bi-display"></i></span>
+                <span class="drawer-nav-label">Terminal Kiosk Gerbang</span>
+                <i class="bi bi-box-arrow-up-right drawer-chevron" style="font-size: 0.8rem;"></i>
+            </a>
+            {% endif %}
+        </nav>
+
+        <div class="drawer-section-title mt-4">PENGATURAN</div>
+        <div class="drawer-settings-list">
+            <button type="button" id="themeToggleDrawer" class="drawer-action-btn">
+                <span class="drawer-nav-icon"><i class="bi bi-moon-stars-fill"></i></span>
+                <span class="drawer-nav-label">Mode Gelap</span>
+                <span class="badge bg-secondary-subtle text-secondary" id="themeDrawerStatus">Off</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="offcanvas-footer mobile-drawer-footer">
+        <a href="{{ url_for('logout') }}" class="mobile-drawer-logout" onclick="return confirm('Yakin ingin logout?')">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Keluar Akun</span>
+        </a>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- 5. MOBILE BOTTOM NAVIGATION BAR (APP DOCK) -->
+<!-- ============================================== -->
+<nav class="mobile-bottom-bar d-flex d-lg-none" aria-label="Navigasi Bawah">
+    {% if is_admin %}
+    <a href="{{ url_for('dashboard') }}" class="mobile-bottom-tab {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <div class="tab-icon-wrap"><i class="bi bi-grid-1x2-fill"></i></div>
+        <span class="tab-label">Beranda</span>
+    </a>
+    <a href="{{ url_for('bts_sites') }}" class="mobile-bottom-tab {% if request.endpoint in ('bts_sites', 'edit_bts_site') %}active{% endif %}">
+        <div class="tab-icon-wrap"><i class="bi bi-hdd-network-fill"></i></div>
+        <span class="tab-label">Sites</span>
+    </a>
+    <a href="{{ url_for('access_logs') }}" class="mobile-bottom-tab {% if request.endpoint == 'access_logs' %}active{% endif %}">
+        <div class="tab-icon-wrap"><i class="bi bi-journal-text"></i></div>
+        <span class="tab-label">Logs</span>
+    </a>
+    <a href="{{ url_for('security_features_page') }}" class="mobile-bottom-tab {% if request.endpoint in ('security_features_page', 'security_alerts', 'security_incidents') %}active{% endif %}">
+        <div class="tab-icon-wrap"><i class="bi bi-shield-lock-fill"></i></div>
+        <span class="tab-label">Keamanan</span>
+    </a>
+    <button type="button" class="mobile-bottom-tab border-0 bg-transparent" data-bs-toggle="offcanvas" data-bs-target="#mobileNavDrawer" aria-controls="mobileNavDrawer">
+        <div class="tab-icon-wrap"><i class="bi bi-list"></i></div>
+        <span class="tab-label">Menu</span>
+    </button>
+    {% else %}
+    <!-- DOCK BAWAH KHUSUS TEKNISI -->
+    <a href="{{ url_for('worker_dashboard') }}" class="mobile-bottom-tab {% if request.endpoint == 'worker_dashboard' %}active{% endif %}">
+        <div class="tab-icon-wrap"><i class="bi bi-grid-1x2-fill"></i></div>
+        <span class="tab-label">Beranda</span>
+    </a>
+    <a href="{{ url_for('worker_work_orders') }}" class="mobile-bottom-tab {% if request.endpoint == 'worker_work_orders' %}active{% endif %}">
+        <div class="tab-icon-wrap"><i class="bi bi-card-checklist"></i></div>
+        <span class="tab-label">Tugas</span>
+    </a>
+    <a href="{{ url_for('worker_access_logs') }}" class="mobile-bottom-tab {% if request.endpoint == 'worker_access_logs' %}active{% endif %}">
+        <div class="tab-icon-wrap"><i class="bi bi-journal-text"></i></div>
+        <span class="tab-label">Riwayat</span>
+    </a>
+    <a href="{{ url_for('access_simulation') }}" class="mobile-bottom-tab {% if request.endpoint == 'access_simulation' %}active{% endif %}">
+        <div class="tab-icon-wrap"><i class="bi bi-door-open-fill"></i></div>
+        <span class="tab-label">Buka Pintu</span>
+    </a>
+    <button type="button" class="mobile-bottom-tab border-0 bg-transparent" data-bs-toggle="offcanvas" data-bs-target="#mobileNavDrawer" aria-controls="mobileNavDrawer">
+        <div class="tab-icon-wrap"><i class="bi bi-list"></i></div>
+        <span class="tab-label">Menu</span>
+    </button>
+    {% endif %}
+</nav>
+
 {% endif %}

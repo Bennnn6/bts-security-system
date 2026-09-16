@@ -39,3 +39,6 @@ Thumbs.db
 # SSL certificates
 cert.pem
 key.pem
+
+# Scratch / temporary scripts
+scratch/

@@ -13,6 +13,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Khusus untuk tampilan HP/Mobile (layar di bawah 992px) */
+        @media (max-width: 991.98px) {
+            .app-main {
+                /* Beri ruang sekitar 80px-90px di bawah agar konten bisa di-scroll melewati menu melayang */
+                padding-bottom: 90px !important; 
+            }
+            .app-footer {
+                /* Angkat sedikit footer agar tidak tertutup menu bawah */
+                margin-bottom: 70px;
+            }
+        }
+    </style>
+
     {% block extra_css %}{% endblock %}
 </head>
 <body class="app-body {% block page_class %}{% endblock %}">
@@ -63,22 +77,29 @@
         }
         (function() {
             var saved = localStorage.getItem('theme') || 'light';
-            document.body.setAttribute('data-theme', saved);
-            var icon = document.querySelector('#themeToggle i');
-            if (saved === 'dark') { if(icon){icon.className='bi bi-sun'}; }
-            else { if(icon){icon.className='bi bi-moon'}; }
-            var btn = document.getElementById('themeToggle');
-            if (btn) {
-                btn.addEventListener('click', function() {
-                    var isDark = document.body.getAttribute('data-theme') === 'dark';
-                    var newTheme = isDark ? 'light' : 'dark';
-                    document.body.setAttribute('data-theme', newTheme);
-                    localStorage.setItem('theme', newTheme);
-                    var newIcon = document.querySelector('#themeToggle i');
-                    if (newTheme === 'dark') { if(newIcon){newIcon.className='bi bi-sun'}; }
-                    else { if(newIcon){newIcon.className='bi bi-moon'}; }
+            function applyTheme(theme) {
+                document.body.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+                var isDark = theme === 'dark';
+                document.querySelectorAll('#themeToggle i, #themeToggleMobile i, #themeToggleDrawer i').forEach(function(icon) {
+                    icon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
                 });
+                var drawerStatus = document.getElementById('themeDrawerStatus');
+                if (drawerStatus) {
+                    drawerStatus.textContent = isDark ? 'Aktif' : 'Off';
+                    drawerStatus.className = isDark ? 'badge bg-warning-subtle text-warning-emphasis' : 'badge bg-secondary-subtle text-secondary';
+                }
             }
+            applyTheme(saved);
+            ['themeToggle', 'themeToggleMobile', 'themeToggleDrawer'].forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (btn) {
+                    btn.addEventListener('click', function() {
+                        var current = document.body.getAttribute('data-theme') || 'light';
+                        applyTheme(current === 'dark' ? 'light' : 'dark');
+                    });
+                }
+            });
         })();
     </script>
     {% block extra_js %}{% endblock %}

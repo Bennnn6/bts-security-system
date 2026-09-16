@@ -275,6 +275,25 @@
         </div>
     </div>
 
+    <!-- =====================================================
+         K3 SHELTER OVERSTAY ALERT BANNER (FITUR 3)
+    ====================================================== -->
+    <div id="k3DashboardAlertBanner" class="alert alert-danger border-0 shadow-sm rounded-4 p-3 mb-4 d-none">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <div class="fs-2 text-danger"><i class="bi bi-shield-exclamation"></i></div>
+                <div>
+                    <h6 class="fw-bold mb-1 text-danger">⚠️ PERINGATAN K3: OVERSTAY SHELTER BTS TERDETEKSI!</h6>
+                    <div id="k3DashboardAlertText" class="small text-dark">
+                        Ada teknisi yang berada di dalam shelter BTS melebihi batas aman 120 menit tanpa checkout.
+                    </div>
+                </div>
+            </div>
+            <a href="{{ url_for('security_features_page') }}" class="btn btn-sm btn-danger px-3 shadow-sm">
+                <i class="bi bi-arrow-right-circle me-1"></i> Buka Security Center K3
+            </a>
+        </div>
+    </div>
 
     <!-- =====================================================
          SECURITY CENTER
@@ -291,9 +310,6 @@
                 <a href="{{ url_for('admin_backup_db') }}" class="btn btn-sm btn-outline-success">
                     <i class="bi bi-database-down"></i> Backup DB
                 </a>
-                <button id="btnTestNotification" class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-bell"></i> Test Notifikasi
-                </button>
             </div>
         </div>
 
@@ -365,6 +381,137 @@
                         <div id="scEmergencyReason" class="small text-muted">-</div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         LIVE NOC INTERACTIVE MAP (FITUR ENTERPRISE 2)
+    ====================================================== -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    {# Embedded site data for immediate, zero-latency map rendering #}
+    <script type="application/json" id="nocPreloadedSites">
+    [
+        {% for s in sites %}
+        {
+            "site_id": {{ s.site_id|tojson }},
+            "site_name": {{ s.site_name|tojson }},
+            "location": {{ (s.location or '-')|tojson }},
+            "latitude": {{ (s.latitude or '')|tojson }},
+            "longitude": {{ (s.longitude or '')|tojson }},
+            "status": {{ (s.status or 'Normal (Up)')|tojson }},
+            "temperature": {{ (s.temperature or '-')|tojson }},
+            "power_output": {{ (s.power_output or '-')|tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+    </script>
+
+    <style>
+        .noc-marker-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .noc-gis-tower-pin {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 1.15rem;
+            border: 3px solid #ffffff;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+            position: relative;
+            z-index: 2;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .noc-gis-tower-pin:hover {
+            transform: scale(1.18);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+        }
+        .pin-normal {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        }
+        .pin-active {
+            background: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
+        }
+        .pin-incident {
+            background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);
+        }
+
+        /* Continuous Pulse Radar Wave */
+        .noc-gis-radar {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            top: -12px;
+            left: -12px;
+            z-index: 1;
+            pointer-events: none;
+            animation: nocRadarWave 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        .radar-normal { border: 2px solid rgba(16, 185, 129, 0.65); background: rgba(16, 185, 129, 0.15); }
+        .radar-active { border: 2px solid rgba(56, 189, 248, 0.75); background: rgba(56, 189, 248, 0.2); }
+        .radar-incident { border: 2px solid rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.25); animation-duration: 1.2s; }
+
+        @keyframes nocRadarWave {
+            0% { transform: scale(0.35); opacity: 1; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        /* Permanent Site Name Label above Pin */
+        .noc-site-bubble {
+            background: rgba(15, 23, 42, 0.92) !important;
+            backdrop-filter: blur(8px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+            color: #ffffff !important;
+            border-radius: 20px !important;
+            padding: 4px 10px !important;
+            font-size: 0.8rem !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.35) !important;
+            white-space: nowrap !important;
+        }
+        .noc-site-bubble::before {
+            border-top-color: rgba(15, 23, 42, 0.92) !important;
+        }
+    </style>
+
+    <div class="card mb-4 overflow-hidden shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="section-title"><i class="bi bi-geo-alt-fill me-2 text-primary"></i>Live NOC BTS Interactive Map</h5>
+                <div class="section-subtitle">Peta real-time pengawasan sebaran tower BTS, status operasional, dan personel aktif di shelter.</div>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <span id="nocMapSiteCount" class="badge bg-secondary rounded-pill px-3 py-2">Memuat site...</span>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="fitDashboardNocMap()">
+                    <i class="bi bi-crosshair me-1"></i> Center All
+                </button>
+                <a href="{{ url_for('bts_map') }}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-arrows-fullscreen me-1"></i> Layar Penuh
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0 position-relative">
+            <div id="nocDashboardMap" style="height: 380px; width: 100%; z-index: 1;"></div>
+        </div>
+        <div class="card-footer bg-white border-top py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2 small">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle p-1 bg-success d-inline-block" style="width: 10px; height: 10px;"></span> <span>Normal / Terkunci</span></span>
+                <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle p-1 bg-primary d-inline-block" style="width: 10px; height: 10px;"></span> <span>Teknisi di Lokasi</span></span>
+                <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle p-1 bg-danger d-inline-block" style="width: 10px; height: 10px;"></span> <span>Insiden / Warning</span></span>
+            </div>
+            <div class="text-muted">
+                <span>Klik pin menara untuk melihat status gate & detail.</span>
             </div>
         </div>
     </div>
@@ -1010,6 +1157,8 @@ async function loadDashboardSites() {
         const response = await fetch('/api/features/sites');
         const result = await response.json();
         dashboardSites = result.sites || [];
+        nocSites = dashboardSites;
+        updateDashboardNocMapMarkers();
         const selector = document.getElementById('dashboardGateSiteSelector');
         if (!selector) return;
         selector.innerHTML = '<option value="">-- Pilih Site --</option>';
@@ -1124,9 +1273,202 @@ async function manualGateClose() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    initDashboardNocMap();
     loadDashboardSites();
+    checkDashboardK3Alert();
     setInterval(refreshDashboardGate, 3000);
+    setInterval(checkDashboardK3Alert, 15000);
 });
+
+// --- LIVE NOC INTERACTIVE MAP LOGIC ---
+let nocMap = null;
+let nocMarkerLayer = null;
+let nocSites = [];
+
+function initDashboardNocMap() {
+    const mapEl = document.getElementById('nocDashboardMap');
+    if (!mapEl || nocMap) return;
+
+    nocMap = L.map('nocDashboardMap', { zoomControl: true, scrollWheelZoom: false });
+    nocMarkerLayer = L.layerGroup().addTo(nocMap);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+    }).addTo(nocMap);
+
+    // Initial default center around West Java BTS sites (Bandung area)
+    nocMap.setView([-6.9614, 107.6982], 12);
+
+    // Immediately parse preloaded sites from embedded JSON for instant 0ms rendering
+    const preloadedEl = document.getElementById('nocPreloadedSites');
+    if (preloadedEl) {
+        try {
+            const preloaded = JSON.parse(preloadedEl.textContent || '[]');
+            if (Array.isArray(preloaded) && preloaded.length > 0) {
+                nocSites = preloaded;
+                dashboardSites = preloaded;
+                updateDashboardNocMapMarkers();
+                
+                // Populate gate site selector immediately
+                const selector = document.getElementById('dashboardGateSiteSelector');
+                if (selector && selector.options.length <= 1) {
+                    selector.innerHTML = '<option value="">-- Pilih Site --</option>';
+                    dashboardSites.forEach(s => {
+                        selector.innerHTML += `<option value="${s.site_id}">${s.site_name}</option>`;
+                    });
+                    if (!dashboardSelectedSiteId && dashboardSites.length > 0) {
+                        dashboardSelectedSiteId = String(dashboardSites[0].site_id);
+                        localStorage.setItem('dashboardSelectedSiteId', dashboardSelectedSiteId);
+                    }
+                    if (dashboardSelectedSiteId) {
+                        selector.value = dashboardSelectedSiteId;
+                        updateDashboardSelectedSite();
+                    }
+                }
+            }
+        } catch(e) {
+            console.error('Error parsing preloaded sites:', e);
+        }
+    }
+}
+
+function updateDashboardNocMapMarkers() {
+    if (!nocMap || !nocMarkerLayer) return;
+    nocMarkerLayer.clearLayers();
+
+    const validSites = nocSites.filter(s => {
+        const lat = parseFloat(s.latitude);
+        const lng = parseFloat(s.longitude);
+        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+    });
+
+    const countBadge = document.getElementById('nocMapSiteCount');
+    if (countBadge) {
+        countBadge.className = 'badge bg-success rounded-pill px-3 py-2 fw-bold shadow-sm';
+        countBadge.innerHTML = `<i class="bi bi-broadcast-pin me-1"></i> ${validSites.length} Tower Aktif Terpetakan`;
+    }
+
+    if (validSites.length === 0) return;
+
+    validSites.forEach(site => {
+        const lat = parseFloat(site.latitude);
+        const lng = parseFloat(site.longitude);
+
+        let pinClass = 'pin-normal';
+        let radarClass = 'radar-normal';
+        let statusBadge = '<span class="badge bg-success px-2 py-1"><i class="bi bi-check-circle me-1"></i>Normal</span>';
+
+        const risk = site.risk || {};
+        if (risk.level === 'CRITICAL' || risk.level === 'HIGH' || site.status === 'Down') {
+            pinClass = 'pin-incident';
+            radarClass = 'radar-incident';
+            statusBadge = '<span class="badge bg-danger px-2 py-1"><i class="bi bi-exclamation-octagon me-1"></i>Insiden / Down</span>';
+        } else if (site.status === 'Maintenance') {
+            pinClass = 'pin-active';
+            radarClass = 'radar-active';
+            statusBadge = '<span class="badge bg-primary px-2 py-1"><i class="bi bi-tools me-1"></i>Maintenance</span>';
+        }
+
+        const customIcon = L.divIcon({
+            className: 'noc-marker-wrap',
+            html: `
+                <div class="noc-gis-radar ${radarClass}"></div>
+                <div class="noc-gis-tower-pin ${pinClass}" title="${site.site_name} (${site.site_id})">
+                    <i class="bi bi-broadcast"></i>
+                </div>
+            `,
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+            popupAnchor: [0, -20]
+        });
+
+        const popupContent = `
+            <div style="min-width: 260px; font-family: inherit; padding: 4px;">
+                <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
+                    <div class="bg-primary-subtle text-primary p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="bi bi-broadcast fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark fs-6 mb-0">${site.site_name}</div>
+                        <div class="small text-muted font-monospace">${site.site_id}</div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1 small">
+                    <span class="text-muted">Status Operasional:</span>
+                    ${statusBadge}
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1 small">
+                    <span class="text-muted">Koordinat GPS:</span>
+                    <span class="font-monospace fw-semibold text-primary">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 small">
+                    <span class="text-muted">Alamat:</span>
+                    <span class="text-truncate" style="max-width: 150px;" title="${site.location || '-'}">${site.location || '-'}</span>
+                </div>
+                <div class="d-grid gap-1 pt-2 border-top">
+                    <a href="/access-logs?site_id=${encodeURIComponent(site.site_id)}" class="btn btn-sm btn-outline-primary py-1 d-flex align-items-center justify-content-center gap-1">
+                        <i class="bi bi-journal-text"></i> Buka Access Log
+                    </a>
+                    <a href="/access?site_id=${encodeURIComponent(site.site_id)}" class="btn btn-sm btn-outline-secondary py-1 d-flex align-items-center justify-content-center gap-1">
+                        <i class="bi bi-shield-lock"></i> Simulasi Gate & GPS
+                    </a>
+                </div>
+            </div>
+        `;
+
+        const marker = L.marker([lat, lng], { icon: customIcon }).bindPopup(popupContent, { maxWidth: 320 });
+
+        // Permanent clean label directly visible above the tower pin
+        marker.bindTooltip(`<b>🗼 ${site.site_name}</b>`, {
+            permanent: true,
+            direction: 'top',
+            offset: [0, -22],
+            className: 'noc-site-bubble'
+        });
+
+        nocMarkerLayer.addLayer(marker);
+    });
+
+    fitDashboardNocMap();
+}
+
+window.fitDashboardNocMap = function() {
+    if (!nocMap) return;
+    const validSites = nocSites.filter(s => {
+        const lat = parseFloat(s.latitude);
+        const lng = parseFloat(s.longitude);
+        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+    });
+    if (validSites.length === 1) {
+        nocMap.setView([parseFloat(validSites[0].latitude), parseFloat(validSites[0].longitude)], 14);
+    } else if (validSites.length > 1) {
+        const bounds = L.latLngBounds(validSites.map(s => [parseFloat(s.latitude), parseFloat(s.longitude)]));
+        nocMap.fitBounds(bounds.pad(0.22));
+    }
+    setTimeout(() => {
+        if (nocMap) nocMap.invalidateSize();
+    }, 250);
+};
+
+// --- K3 SHELTER OVERSTAY ALERT CHECK ---
+async function checkDashboardK3Alert() {
+    try {
+        const res = await fetch('/api/features/k3-overstay');
+        const data = await res.json();
+        const banner = document.getElementById('k3DashboardAlertBanner');
+        const bannerText = document.getElementById('k3DashboardAlertText');
+        if (!banner) return;
+
+        if (data.overstay_count > 0) {
+            banner.classList.remove('d-none');
+            const names = data.overstays.map(o => `${o.name} (${o.site_name}, ${o.duration_formatted})`).join(', ');
+            bannerText.textContent = `Peringatan K3: ${data.overstay_count} teknisi overstay di shelter BTS (> 120m): ${names}. Segera lakukan konfirmasi keselamatan.`;
+        } else {
+            banner.classList.add('d-none');
+        }
+    } catch(e) {}
+}
 </script>
 
 {% endblock %}

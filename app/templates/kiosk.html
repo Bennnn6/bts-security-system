@@ -992,7 +992,10 @@
                     markTargetBoxDenied();
                     playBuzzerDenied();
 
-                    if (reason === "FACE_NOT_DETECTED") {
+                    if (reason === "SPOOF_ATTACK_DETECTED") {
+                        setScannerStatus("⚠️ Anti-Spoofing: Foto Layar/Cetak Terdeteksi! Gunakan wajah asli.", "danger", false);
+                        speakVoice("Peringatan anti spoofing. Wajah terindikasi foto atau layar digital. Silakan gunakan wajah asli Anda.");
+                    } else if (reason === "FACE_NOT_DETECTED" || reason === "FACE_NOT_FOUND") {
                         setScannerStatus("Wajah Tidak Terdeteksi! Posisikan wajah tepat di dalam kotak.", "warning", false);
                         speakVoice("Wajah tidak terdeteksi. Posisikan wajah Anda di depan kamera.");
                     } else if (reason === "FACE_UNKNOWN") {

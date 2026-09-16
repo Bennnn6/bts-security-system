@@ -1,80 +1,121 @@
 {% extends "base.html" %}
 
-{% block title %}
-Access Logs per Site
+{% block title %}Access Logs per Site{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --jk-primary: #7C3AED;
+        --jk-primary-hover: #885CF6;
+        --jk-primary-light: #A78BFA;
+        --jk-bg-subtle: #EDE9FE;
+        --jk-bg-main: #F5F3FF;
+        --jk-text-dark: #0F172A;
+        --jk-white: #FFFFFF;
+        
+        --jk-radius-card: 16px;
+        --jk-radius-btn: 10px;
+        --jk-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+    }
+
+    body {
+        background-color: var(--jk-bg-main) !important;
+        color: var(--jk-text-dark);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .card {
+        background-color: var(--jk-white) !important;
+        border: none !important;
+        border-radius: var(--jk-radius-card) !important;
+        box-shadow: var(--jk-shadow) !important;
+    }
+
+    .card-header {
+        background-color: #FFFFFF !important;
+        border-bottom: 1px solid var(--jk-bg-subtle) !important;
+        border-radius: var(--jk-radius-card) var(--jk-radius-card) 0 0 !important;
+    }
+
+    .section-title { color: var(--jk-primary) !important; font-weight: 700; }
+    
+    .btn { border-radius: var(--jk-radius-btn); font-weight: 500; padding: 0.5rem 1rem; }
+    .btn-primary { background-color: var(--jk-primary) !important; border-color: var(--jk-primary) !important; color: var(--jk-white) !important; }
+    .btn-primary:hover { background-color: var(--jk-primary-hover) !important; border-color: var(--jk-primary-hover) !important; }
+    .btn-outline-dark { color: #0F172A !important; border-color: #CBD5E1 !important; background-color: #FFFFFF !important; }
+    .btn-outline-dark:hover { background-color: var(--jk-bg-subtle) !important; color: var(--jk-primary) !important; border-color: var(--jk-primary) !important; }
+    
+    .form-control, .form-select { border-radius: 10px; border: 1px solid var(--jk-bg-subtle); background-color: var(--jk-bg-main); color: var(--jk-text-dark); }
+    .form-control:focus, .form-select:focus { background-color: var(--jk-white); border-color: var(--jk-primary-light); box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15); }
+    
+    /* Active Scope Alert Banner */
+    .active-site-banner-box {
+        background: var(--jk-white);
+        border: 1px solid var(--jk-bg-subtle);
+        border-left: 4px solid var(--jk-primary);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+    }
+
+    .site-nav-icon-box {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--jk-bg-subtle);
+        color: var(--jk-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    /* Status message banner */
+    #pageMessage {
+        border-radius: 10px;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+    
+    footer, .footer-section, #footer { display: none !important; }
+</style>
 {% endblock %}
 
 {% block content %}
-
-<div class="app-page">
+<div class="app-page p-2 p-md-4">
 
     <!-- HEADER -->
-    <div class="app-page-header">
-
-        <div class="app-page-header__copy">
-            <h2 class="fw-bold mb-1">
-                Access Logs
-            </h2>
-
-            <p class="text-muted mb-0">
-                Riwayat akses keamanan gerbang BTS Security System per lokasi
-            </p>
+    <div class="card p-4 mb-4" style="border-left: 6px solid var(--jk-primary) !important;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2 class="section-title mb-1" style="font-size: 1.5rem;">Access Logs</h2>
+                <p class="section-subtitle text-muted mb-0">Riwayat akses keamanan gerbang BTS Security System per lokasi.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <!-- Tombol Dashboard & Refresh Telah Dihapus Sesuai Permintaan -->
+                <a href="{{ url_for('export_access_logs', site_id=filters.site_id if filters and filters.site_id else None) }}" id="exportExcelBtn" class="btn btn-outline-success shadow-sm" title="Ekspor log ke Excel">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Export Excel
+                </a>
+                <button type="button" class="btn btn-outline-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#cleanupLogModal">
+                    <i class="bi bi-trash3 me-1"></i> Bersihkan Log Lama
+                </button>
+            </div>
         </div>
-
-        <div class="app-page-header__actions d-flex flex-wrap gap-2">
-
-            <a
-                href="{{ url_for('dashboard') }}"
-                class="btn btn-outline-secondary"
-            >
-                ← Dashboard
-            </a>
-
-            <button
-                type="button"
-                id="refreshButton"
-                class="btn btn-primary"
-            >
-                🔄 Refresh
-            </button>
-
-            <a
-                href="{{ url_for('export_access_logs', site_id=filters.site_id if filters and filters.site_id else None) }}"
-                id="exportExcelBtn"
-                class="btn btn-outline-success"
-                title="Ekspor log ke file Excel (.xlsx)"
-            >
-                📥 Export Excel
-            </a>
-
-            <button
-                type="button"
-                class="btn btn-outline-danger"
-                data-bs-toggle="modal"
-                data-bs-target="#cleanupLogModal"
-            >
-                🧹 Bersihkan Log Lama
-            </button>
-
-        </div>
-
     </div>
 
     <!-- CLEANUP LOG MODAL -->
     <div class="modal fade" id="cleanupLogModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: var(--jk-radius-card);">
                 <form method="POST" action="{{ url_for('admin_cleanup_logs') }}">
-                    <div class="modal-header">
-                        <h5 class="modal-title fw-bold">🧹 Pembersihan Log Lama</h5>
+                    <div class="modal-header border-bottom">
+                        <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Pembersihan Log Lama</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body">
-                        <p class="text-muted small">
-                            Hapus riwayat log akses lama untuk menghemat ruang penyimpanan database SQLite.
-                        </p>
+                    <div class="modal-body p-4">
+                        <p class="text-muted small mb-4">Hapus riwayat log akses lama untuk menghemat ruang penyimpanan database.</p>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Hapus log yang lebih lama dari:</label>
+                            <label class="form-label fw-semibold text-dark">Hapus log yang lebih lama dari:</label>
                             <select name="days" class="form-select">
                                 <option value="7">7 Hari Terakhir</option>
                                 <option value="30" selected>30 Hari Terakhir (Direkomendasikan)</option>
@@ -82,346 +123,167 @@ Access Logs per Site
                                 <option value="90">90 Hari Terakhir</option>
                             </select>
                         </div>
-                        <div class="alert alert-warning small mb-0">
-                            Tindakan ini permanen. Pastikan Anda telah mengunduh backup data terlebih dahulu.
+                        <div class="alert alert-warning small mb-0 border-0 shadow-sm rounded-3">
+                            <i class="bi bi-info-circle me-2"></i>Tindakan ini permanen. Pastikan Anda telah mengunduh backup data terlebih dahulu.
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-danger">Hapus Log</button>
+                    <div class="modal-footer border-top bg-light" style="border-radius: 0 0 var(--jk-radius-card) var(--jk-radius-card);">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-danger px-4">Hapus Log</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-
     <!-- STATUS MESSAGE -->
-    <div
-        id="pageMessage"
-        class="alert alert-light border shadow-sm py-2 px-3 mb-3 small"
-    >
-        Memuat access log...
+    <div id="pageMessage" class="alert alert-light border shadow-sm py-2 px-3 mb-3 small d-flex align-items-center gap-2">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        <div>Memuat access log...</div>
     </div>
-
-
-    <!-- QUICK SITE SELECTOR TABS / PILLS -->
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body py-2 px-3">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-primary text-white p-2 rounded-circle" style="font-size: 0.9rem;">🏢</span>
-                    <div>
-                        <span class="fw-bold small text-dark d-block">Pilih Site BTS:</span>
-                        <span class="text-muted" style="font-size: 0.75rem;">Isolasi riwayat akses khusus untuk lokasi gerbang tertentu</span>
-                    </div>
-                </div>
-
-                <div class="d-flex flex-wrap gap-1 align-items-center" id="sitePillsContainer">
-                    <button
-                        type="button"
-                        class="btn btn-sm btn-primary site-pill-btn active"
-                        data-site-id=""
-                        onclick="window.selectSite('')"
-                    >
-                        🌐 Semua Site <span class="badge bg-white text-primary ms-1" id="pillCountAll">0</span>
-                    </button>
-
-                    {% for s in sites %}
-                    <button
-                        type="button"
-                        class="btn btn-sm btn-outline-secondary site-pill-btn"
-                        data-site-id="{{ s.site_id }}"
-                        data-site-name="{{ s.site_name }}"
-                        onclick="window.selectSite('{{ s.site_id }}')"
-                    >
-                        🏢 {{ s.site_name }} ({{ s.site_id }})
-                        <span class="badge bg-secondary ms-1 pill-site-count" id="pillCount_{{ loop.index }}">0</span>
-                    </button>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- ACTIVE SITE SCOPE BANNER -->
-    <div
-        id="activeSiteBanner"
-        class="alert alert-info border border-info-subtle shadow-sm d-none align-items-center justify-content-between mb-3 py-2 px-3"
-    >
-        <div class="d-flex align-items-center gap-2">
-            <span class="fs-4">📍</span>
-            <div>
-                <span class="text-muted small text-uppercase fw-semibold d-block">Filter Site Aktif</span>
-                <strong class="text-dark fs-6" id="bannerSiteName">-</strong>
-                <span class="badge bg-dark ms-2" id="bannerSiteId">-</span>
-                <span class="small text-muted ms-2" id="bannerSiteStats"></span>
-            </div>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-            <button
-                type="button"
-                class="btn btn-sm btn-outline-primary"
-                id="bannerKioskLink"
-                onclick="openSiteKiosk()"
-                title="Buka terminal Kiosk untuk site ini"
-            >
-                🖥️ Buka Kiosk
-            </button>
-            <button
-                type="button"
-                class="btn btn-sm btn-outline-dark"
-                onclick="window.selectSite('')"
-            >
-                ✕ Tampilkan Semua Site
-            </button>
-        </div>
-    </div>
-
 
     <!-- SEARCH & FILTER CONTROLS -->
     <div class="card border-0 shadow-sm mb-4">
-
-        <div class="card-body">
-
+        <div class="card-body p-4">
             <div class="row g-3 align-items-end">
-
-                <!-- Site Dropdown -->
                 <div class="col-lg-3 col-md-4">
-                    <label
-                        for="siteFilter"
-                        class="form-label fw-semibold small"
-                    >
-                        🏢 Site BTS
-                    </label>
-                    <select
-                        id="siteFilter"
-                        class="form-select form-select-sm"
-                    >
-                        <option value="">
-                            🌐 Semua Site (Semua Lokasi)
-                        </option>
+                    <label for="siteFilter" class="form-label fw-semibold small text-muted text-uppercase"><i class="bi bi-geo-alt text-primary me-1"></i> Site BTS</label>
+                    <select id="siteFilter" class="form-select form-select-sm px-3 py-2">
+                        <option value="">Semua Site (Semua Lokasi)</option>
                         {% for s in sites %}
-                        <option value="{{ s.site_id }}" {% if filters and filters.site_id == s.site_id %}selected{% endif %}>
-                            🏢 {{ s.site_name }} ({{ s.site_id }})
-                        </option>
+                        <option value="{{ s.site_id }}" {% if filters and filters.site_id == s.site_id %}selected{% endif %}>{{ s.site_name }} ({{ s.site_id }})</option>
                         {% endfor %}
                     </select>
                 </div>
-
-                <!-- Search Input -->
                 <div class="col-lg-3 col-md-4">
-                    <label
-                        for="searchInput"
-                        class="form-label fw-semibold small"
-                    >
-                        🔎 Cari Cepat
-                    </label>
-                    <input
-                        type="text"
-                        id="searchInput"
-                        class="form-control form-control-sm"
-                        placeholder="ID Teknisi, nama, alasan..."
-                    >
+                    <label for="searchInput" class="form-label fw-semibold small text-muted text-uppercase"><i class="bi bi-search text-primary me-1"></i> Cari Cepat</label>
+                    <input type="text" id="searchInput" class="form-control form-control-sm px-3 py-2" placeholder="ID Teknisi, nama, alasan...">
                 </div>
-
-                <!-- Result Filter -->
                 <div class="col-lg-2 col-md-4">
-                    <label
-                        for="resultFilter"
-                        class="form-label fw-semibold small"
-                    >
-                        Hasil Akses
-                    </label>
-                    <select
-                        id="resultFilter"
-                        class="form-select form-select-sm"
-                    >
-                        <option value="">
-                            Semua Status
-                        </option>
-                        <option value="GRANTED">
-                            ✓ GRANTED (Diizinkan)
-                        </option>
-                        <option value="DENIED">
-                            ✕ DENIED (Ditolak)
-                        </option>
+                    <label for="resultFilter" class="form-label fw-semibold small text-muted text-uppercase">Hasil Akses</label>
+                    <select id="resultFilter" class="form-select form-select-sm px-3 py-2">
+                        <option value="">Semua Status</option>
+                        <option value="GRANTED">GRANTED (Diizinkan)</option>
+                        <option value="DENIED">DENIED (Ditolak)</option>
                     </select>
                 </div>
-
-                <!-- Limit Input -->
                 <div class="col-lg-2 col-md-6">
-                    <label
-                        for="limitInput"
-                        class="form-label fw-semibold small"
-                    >
-                        Jumlah Data
-                    </label>
-                    <select
-                        id="limitInput"
-                        class="form-select form-select-sm"
-                    >
+                    <label for="limitInput" class="form-label fw-semibold small text-muted text-uppercase"><i class="bi bi-list-ol text-primary me-1"></i> Jumlah Data</label>
+                    <select id="limitInput" class="form-select form-select-sm px-3 py-2">
                         <option value="25">25 data</option>
-                        <option value="50" selected>50 data</option>
+                        <option value="50" selected>50 data (Default)</option>
                         <option value="100">100 data</option>
                         <option value="200">200 data</option>
-                        <option value="500">500 data (Maksimal)</option>
+                        <option value="500">500 data</option>
+                        <option value="all">Semua Data</option>
                     </select>
                 </div>
-
-                <!-- Reset Button -->
                 <div class="col-lg-2 col-md-6">
-                    <button
-                        type="button"
-                        id="clearFilterButton"
-                        class="btn btn-sm btn-outline-secondary w-100"
-                    >
-                        ↺ Reset Filter
+                    <button type="button" id="clearFilterButton" class="btn btn-sm btn-dark w-100 py-2 shadow-sm" style="background-color: var(--jk-text-dark);">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
                     </button>
                 </div>
-
             </div>
-
         </div>
-
     </div>
 
+    <!-- ACTIVE SITE SCOPE BANNER -->
+    <div id="activeSiteBanner" class="active-site-banner-box shadow-sm d-none align-items-center justify-content-between mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="site-nav-icon-box shadow-sm">
+                <i class="bi bi-broadcast text-primary"></i>
+            </div>
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white" style="font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px;">FILTER AKTIF</span>
+                    <strong class="text-dark fs-6" id="bannerSiteName">-</strong>
+                    <span class="badge bg-light text-dark border font-monospace py-1 px-2" style="font-size: 0.72rem;" id="bannerSiteId">-</span>
+                </div>
+                <div class="small text-muted mt-1" id="bannerSiteStats"></div>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm" id="bannerKioskLink" onclick="openSiteKiosk()" title="Buka terminal Kiosk">
+                <i class="bi bi-display"></i><span>Buka Kiosk</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 bg-white" onclick="window.selectSite('')" title="Hapus filter">
+                <i class="bi bi-x-lg"></i><span>Tampilkan Semua</span>
+            </button>
+        </div>
+    </div>
 
     <!-- SUMMARY STATS -->
     <div class="row g-3 mb-4">
-
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="small text-muted mb-1 d-flex justify-content-between">
+                    <div class="small text-muted mb-1 d-flex justify-content-between text-uppercase fw-semibold">
                         <span>Total Riwayat</span>
-                        <span id="summarySiteScope" class="badge bg-light text-secondary">Semua Site</span>
+                        <span id="summarySiteScope" class="badge bg-light text-secondary border">Semua Site</span>
                     </div>
-                    <div
-                        id="totalLogs"
-                        class="fs-2 fw-bold text-dark"
-                    >
-                        0
-                    </div>
+                    <div id="totalLogs" class="fs-2 fw-bold text-dark">0</div>
                 </div>
             </div>
         </div>
-
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #10B981 !important;">
                 <div class="card-body">
-                    <div class="small text-muted mb-1">
-                        Akses Berhasil (Granted)
-                    </div>
-                    <div
-                        id="grantedLogs"
-                        class="fs-2 fw-bold text-success"
-                    >
-                        0
-                    </div>
+                    <div class="small text-muted mb-1 text-uppercase fw-semibold">Akses Berhasil (Granted)</div>
+                    <div id="grantedLogs" class="fs-2 fw-bold text-success">0</div>
                 </div>
             </div>
         </div>
-
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #EF4444 !important;">
                 <div class="card-body">
-                    <div class="small text-muted mb-1">
-                        Akses Ditolak (Denied)
-                    </div>
-                    <div
-                        id="deniedLogs"
-                        class="fs-2 fw-bold text-danger"
-                    >
-                        0
-                    </div>
+                    <div class="small text-muted mb-1 text-uppercase fw-semibold">Akses Ditolak (Denied)</div>
+                    <div id="deniedLogs" class="fs-2 fw-bold text-danger">0</div>
                 </div>
             </div>
         </div>
-
     </div>
 
-
-    <!-- TABLE -->
+    <!-- TABLE LOGS -->
     <div class="card border-0 shadow-sm">
-
-        <div class="card-header bg-white py-3">
-
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-
-                <div>
-                    <strong class="fs-6">
-                        Riwayat Akses Gerbang BTS
-                    </strong>
-                    <span id="tableSiteSubtitle" class="text-muted small ms-2">
-                        (Semua Site)
-                    </span>
-                </div>
-
-                <div class="d-flex align-items-center gap-2">
-                    <span
-                        id="visibleCount"
-                        class="badge text-bg-secondary"
-                    >
-                        0 data
-                    </span>
-                </div>
-
+        <div class="card-header pt-4 px-4 pb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <strong class="section-title fs-5">Riwayat Akses Gerbang BTS</strong>
+                <span id="tableSiteSubtitle" class="section-subtitle ms-2">(Semua Site)</span>
             </div>
-
+            <span id="visibleCount" class="badge bg-light text-dark border px-3 py-2 shadow-sm">0 data</span>
         </div>
 
-
         <div class="card-body p-0">
-
             <div class="table-responsive">
-
-                <table class="table table-hover align-middle mb-0">
-
-                    <thead class="table-light">
-
+                <table class="table table-hover align-middle mb-0 border-0">
+                    <thead style="background-color: var(--jk-bg-main) !important;">
                         <tr>
-                            <th style="width: 45px;">#</th>
-                            <th style="width: 170px;">Waktu</th>
-                            <th>Site BTS</th>
-                            <th>Teknisi</th>
-                            <th style="width: 110px;">Hasil</th>
-                            <th>Metode Verifikasi</th>
-                            <th>Alasan / Keterangan</th>
+                            <th class="ps-4 text-muted small text-uppercase border-0" style="width: 45px;">#</th>
+                            <th class="text-muted small text-uppercase border-0" style="width: 170px;">Waktu</th>
+                            <th class="text-muted small text-uppercase border-0">Site BTS</th>
+                            <th class="text-muted small text-uppercase border-0">Teknisi</th>
+                            <th class="text-muted small text-uppercase border-0" style="width: 110px;">Hasil</th>
+                            <th class="text-muted small text-uppercase border-0">Metode Verifikasi</th>
+                            <th class="text-muted small text-uppercase border-0">Alasan / Keterangan</th>
+                            <th class="text-muted small text-uppercase border-0 text-end pe-4" style="width: 110px;">Dokumen</th>
                         </tr>
-
                     </thead>
-
                     <tbody id="accessLogTable">
-
                         <tr>
-                            <td
-                                colspan="7"
-                                class="text-center py-5 text-muted"
-                            >
+                            <td colspan="8" class="text-center py-5 text-muted border-0">
                                 <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                 Memuat data access log...
                             </td>
                         </tr>
-
                     </tbody>
-
                 </table>
-
             </div>
-
         </div>
-
     </div>
-
 </div>
 
-
 <script>
-
 (function () {
-
     "use strict";
 
     let allLogs = [];
@@ -432,9 +294,6 @@ Access Logs per Site
         {% endfor %}
     };
 
-    // =====================================================
-    // ESCAPE HTML
-    // =====================================================
     function escapeHtml(value) {
         return String(value ?? "-")
             .replace(/&/g, "&amp;")
@@ -444,59 +303,30 @@ Access Logs per Site
             .replace(/'/g, "&#039;");
     }
 
-    // =====================================================
-    // BADGES
-    // =====================================================
     function resultBadge(value) {
         const result = String(value || "-").toUpperCase();
-
-        if (result === "GRANTED") {
-            return `
-                <span class="badge text-bg-success fw-semibold">
-                    ✓ GRANTED
-                </span>
-            `;
-        }
-
-        if (result === "DENIED") {
-            return `
-                <span class="badge text-bg-danger fw-semibold">
-                    ✕ DENIED
-                </span>
-            `;
-        }
-
-        return `
-            <span class="badge text-bg-secondary">
-                ${escapeHtml(result)}
-            </span>
-        `;
+        if (result === "GRANTED") return `<span class="badge bg-success rounded-pill px-3 shadow-sm"><i class="bi bi-check2-circle me-1"></i>GRANTED</span>`;
+        if (result === "DENIED") return `<span class="badge bg-danger rounded-pill px-3 shadow-sm"><i class="bi bi-x-circle me-1"></i>DENIED</span>`;
+        return `<span class="badge bg-secondary rounded-pill px-3 shadow-sm">${escapeHtml(result)}</span>`;
     }
 
     function siteBadge(siteId, siteName) {
         if (!siteId || siteId === "-" || siteId === "null" || siteId === "None") {
-            return `<span class="badge bg-light text-muted border">Site Belum Ditentukan</span>`;
+            return `<span class="badge bg-light text-muted border px-2">Site Belum Ditentukan</span>`;
         }
-
         const resolvedName = siteName && siteName !== siteId ? siteName : (siteNamesMap[siteId] || siteId);
         const isCurrent = currentSiteId && currentSiteId.toLowerCase() === siteId.toLowerCase();
-
+        
         return `
             <div class="d-inline-flex align-items-center gap-1">
                 <span class="badge ${isCurrent ? 'bg-primary' : 'bg-dark'} text-white fw-bold py-1 px-2 border" style="font-size: 0.8rem;">
-                    🏢 ${escapeHtml(siteId)}
+                    <i class="bi bi-geo-alt-fill me-1"></i>${escapeHtml(siteId)}
                 </span>
                 <span class="small fw-semibold text-dark text-truncate" style="max-width: 150px;" title="${escapeHtml(resolvedName)}">
                     ${escapeHtml(resolvedName)}
                 </span>
-                <button
-                    type="button"
-                    class="btn btn-sm btn-outline-secondary p-0 px-1 border-0"
-                    title="Filter riwayat khusus site ${escapeHtml(siteId)}"
-                    onclick="window.selectSite('${escapeHtml(siteId)}')"
-                    style="font-size: 0.75rem;"
-                >
-                    🔍
+                <button type="button" class="btn btn-sm btn-outline-secondary p-0 px-1 border-0" title="Filter site ini" onclick="window.selectSite('${escapeHtml(siteId)}')" style="font-size: 0.75rem;">
+                    <i class="bi bi-funnel"></i>
                 </button>
             </div>
         `;
@@ -508,41 +338,26 @@ Access Logs per Site
         const otp = String(log.otp_result || "").toUpperCase();
         const reason = String(log.reason_code || "").toUpperCase();
 
-        if (method && method !== "-") {
-            if (method.includes("WAJAH") && method.includes("OTP")) {
-                return `<span class="badge text-white" style="background-color: #6f42c1;">📸 Wajah + 🔢 OTP</span>`;
-            }
-            if (method.includes("WAJAH")) {
-                return `<span class="badge bg-info text-dark">📸 Wajah</span>`;
-            }
-            if (method.includes("OTP")) {
-                return `<span class="badge bg-warning text-dark">🔢 Kode OTP</span>`;
-            }
-            if (method.includes("MANUAL") || method.includes("SENSOR")) {
-                return `<span class="badge bg-secondary">🚪 Sensor Pintu</span>`;
-            }
-            return `<span class="badge bg-light text-dark border">${escapeHtml(method)}</span>`;
-        }
+        const badgeDual = `<span class="badge text-white rounded-pill px-2" style="background-color: #6D28D9;"><i class="bi bi-person-bounding-box me-1"></i>Wajah + <i class="bi bi-123 me-1"></i>OTP</span>`;
+        const badgeFace = `<span class="badge bg-info text-dark rounded-pill px-2"><i class="bi bi-person-bounding-box me-1"></i>Wajah</span>`;
+        const badgeOtp  = `<span class="badge bg-warning text-dark rounded-pill px-2"><i class="bi bi-123 me-1"></i>Kode OTP</span>`;
+        const badgeDoor = `<span class="badge bg-secondary rounded-pill px-2"><i class="bi bi-door-open-fill me-1"></i>Sensor Pintu</span>`;
 
-        // Fallback deteksi dari field
-        if ((face === "SUCCESS" || face === "MATCHED") && (otp === "SUCCESS" || otp === "VALID")) {
-            return `<span class="badge text-white" style="background-color: #6f42c1;">📸 Wajah + 🔢 OTP</span>`;
+        if (method && method !== "-") {
+            if (method.includes("WAJAH") && method.includes("OTP")) return badgeDual;
+            if (method.includes("WAJAH")) return badgeFace;
+            if (method.includes("OTP")) return badgeOtp;
+            if (method.includes("MANUAL") || method.includes("SENSOR")) return badgeDoor;
+            return `<span class="badge bg-light text-dark border rounded-pill px-2">${escapeHtml(method)}</span>`;
         }
-        if (face === "SUCCESS" || face === "MATCHED") {
-            return `<span class="badge bg-info text-dark">📸 Wajah</span>`;
-        }
-        if (otp === "SUCCESS" || otp === "VALID") {
-            return `<span class="badge bg-warning text-dark">🔢 Kode OTP</span>`;
-        }
-        if (reason.startsWith("DOOR_") || reason.includes("FORCED")) {
-            return `<span class="badge bg-secondary">🚪 Sensor Pintu</span>`;
-        }
-        return `<span class="badge bg-light text-muted border">-</span>`;
+        
+        if ((face === "SUCCESS" || face === "MATCHED") && (otp === "SUCCESS" || otp === "VALID")) return badgeDual;
+        if (face === "SUCCESS" || face === "MATCHED") return badgeFace;
+        if (otp === "SUCCESS" || otp === "VALID") return badgeOtp;
+        if (reason.startsWith("DOOR_") || reason.includes("FORCED")) return badgeDoor;
+        return `<span class="badge bg-light text-muted border rounded-pill px-2">-</span>`;
     }
 
-    // =====================================================
-    // GET VALUE HELPER
-    // =====================================================
     function getLogValue(log, keys, fallback = "-") {
         for (const key of keys) {
             if (log[key] !== undefined && log[key] !== null && log[key] !== "") {
@@ -552,13 +367,10 @@ Access Logs per Site
         return fallback;
     }
 
-    // =====================================================
-    // LOAD DATA
-    // =====================================================
     async function loadAccessLogs() {
         const message = document.getElementById("pageMessage");
-        message.className = "alert alert-light border shadow-sm py-2 px-3 mb-3 small";
-        message.innerHTML = `<div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Memuat data access log...`;
+        message.className = "alert alert-light border shadow-sm py-2 px-3 mb-3 small d-flex align-items-center gap-2";
+        message.innerHTML = `<div class="spinner-border spinner-border-sm text-primary" role="status"></div> <div>Memuat data access log...</div>`;
 
         try {
             const limit = document.getElementById("limitInput").value;
@@ -572,9 +384,7 @@ Access Logs per Site
                 method: "GET",
                 credentials: "same-origin",
                 cache: "no-store",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest"
-                }
+                headers: { "X-Requested-With": "XMLHttpRequest" }
             });
 
             if (response.status === 401 || response.status === 403) {
@@ -583,126 +393,50 @@ Access Logs per Site
 
             const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(data.message || "Gagal mengambil access log.");
-            }
+            if (!response.ok) throw new Error(data.message || "Gagal mengambil access log.");
+            if (data.status && data.status !== "success") throw new Error(data.message || "API mengembalikan error.");
 
-            if (data.status && data.status !== "success") {
-                throw new Error(data.message || "API mengembalikan error.");
-            }
+            allLogs = Array.isArray(data.logs) ? data.logs : (Array.isArray(data.access_logs) ? data.access_logs : []);
 
-            allLogs = Array.isArray(data.logs)
-                ? data.logs
-                : (Array.isArray(data.access_logs) ? data.access_logs : []);
-
-            // Hitung distribusi site jika tidak difilter atau perbarui badges
-            updatePillCounts();
             updateSummary();
             renderTable();
 
-            message.className = "alert alert-success border shadow-sm py-2 px-3 mb-3 small";
+            message.className = "alert alert-success bg-white border border-success-subtle shadow-sm py-2 px-3 mb-3 small rounded-3 d-flex align-items-center gap-2";
             const scopeText = currentSiteId ? `khusus site <strong>${escapeHtml(currentSiteId)}</strong>` : "seluruh site";
-            message.innerHTML = `✓ Access log ${scopeText} berhasil dimuat. Total <strong>${allLogs.length}</strong> entri ditemukan.`;
+            const totalInDb = typeof data.total === "number" ? data.total : allLogs.length;
+            
+            if (allLogs.length < totalInDb) {
+                message.innerHTML = `<i class="bi bi-info-circle-fill text-primary fs-5"></i> <div class="text-dark">Menampilkan <strong>${allLogs.length}</strong> dari total <strong>${totalInDb}</strong> riwayat ${scopeText} (ubah opsi <em>Jumlah Data</em> untuk melihat lebih banyak).</div>`;
+            } else {
+                message.innerHTML = `<i class="bi bi-check-circle-fill text-success fs-5"></i> <div class="text-dark">Berhasil memuat seluruh <strong>${allLogs.length}</strong> riwayat log ${scopeText}.</div>`;
+            }
 
         } catch (error) {
             console.error("ACCESS LOG ERROR:", error);
             allLogs = [];
             updateSummary();
             renderTable();
-
-            message.className = "alert alert-danger border shadow-sm py-2 px-3 mb-3 small";
-            message.textContent = "Gagal memuat access log: " + error.message;
+            message.className = "alert alert-danger bg-white border border-danger-subtle shadow-sm py-2 px-3 mb-3 small rounded-3 d-flex align-items-center gap-2";
+            message.innerHTML = `<i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i> <div class="text-dark">Gagal memuat access log: ${escapeHtml(error.message)}</div>`;
         }
     }
 
-    // =====================================================
-    // UPDATE PILL COUNTS
-    // =====================================================
-    function updatePillCounts() {
-        // Hitung log per site dari data yang dimuat
-        const counts = {};
-        allLogs.forEach(log => {
-            const sId = String(log.site_id || "");
-            counts[sId] = (counts[sId] || 0) + 1;
-        });
-
-        const pillAll = document.getElementById("pillCountAll");
-        if (pillAll) {
-            pillAll.textContent = allLogs.length;
-        }
-
-        // Cari tombol-tombol pill site
-        const pillButtons = document.querySelectorAll(".site-pill-btn[data-site-id]");
-        pillButtons.forEach(btn => {
-            const sId = btn.getAttribute("data-site-id");
-            if (!sId) return;
-
-            const badge = btn.querySelector(".badge");
-            if (badge) {
-                if (currentSiteId && currentSiteId.toLowerCase() === sId.toLowerCase()) {
-                    badge.textContent = allLogs.length;
-                } else if (!currentSiteId) {
-                    badge.textContent = counts[sId] || 0;
-                }
-            }
-        });
-    }
-
-    // =====================================================
-    // SELECT SITE
-    // =====================================================
     window.selectSite = function (siteId) {
         currentSiteId = (siteId || "").trim();
-
-        // 1. Sinkronisasi Dropdown
         const siteSelect = document.getElementById("siteFilter");
-        if (siteSelect) {
-            siteSelect.value = currentSiteId;
-        }
+        if (siteSelect) siteSelect.value = currentSiteId;
 
-        // 2. Sinkronisasi Tab Pills
-        const pillButtons = document.querySelectorAll(".site-pill-btn");
-        pillButtons.forEach(btn => {
-            const btnSiteId = btn.getAttribute("data-site-id") || "";
-            if (btnSiteId.toLowerCase() === currentSiteId.toLowerCase()) {
-                btn.className = "btn btn-sm btn-primary site-pill-btn active";
-                const b = btn.querySelector(".badge");
-                if (b) {
-                    b.className = "badge bg-white text-primary ms-1";
-                }
-            } else {
-                btn.className = "btn btn-sm btn-outline-secondary site-pill-btn";
-                const b = btn.querySelector(".badge");
-                if (b) {
-                    b.className = "badge bg-secondary ms-1";
-                }
-            }
-        });
-
-        // 3. Update Export Excel URL
         const exportBtn = document.getElementById("exportExcelBtn");
         if (exportBtn) {
-            if (currentSiteId) {
-                exportBtn.href = `/export/access-logs?site_id=${encodeURIComponent(currentSiteId)}`;
-            } else {
-                exportBtn.href = `/export/access-logs`;
-            }
+            exportBtn.href = currentSiteId ? `/export/access-logs?site_id=${encodeURIComponent(currentSiteId)}` : `/export/access-logs`;
         }
 
-        // 4. Update URL Query Parameter tanpa reload halaman
         try {
             const url = new URL(window.location);
-            if (currentSiteId) {
-                url.searchParams.set("site_id", currentSiteId);
-            } else {
-                url.searchParams.delete("site_id");
-            }
+            if (currentSiteId) url.searchParams.set("site_id", currentSiteId);
+            else url.searchParams.delete("site_id");
             window.history.replaceState({}, "", url);
-        } catch (e) {
-            // Ignore jika history API terhalang
-        }
-
-        // 5. Muat ulang data log dari server dengan filter site
+        } catch (e) {}
         loadAccessLogs();
     };
 
@@ -711,30 +445,17 @@ Access Logs per Site
         window.open(`/kiosk/${encodeURIComponent(currentSiteId)}`, '_blank');
     };
 
-    // =====================================================
-    // SUMMARY
-    // =====================================================
     function updateSummary() {
-        const granted = allLogs.filter(log => {
-            const res = String(getLogValue(log, ["result", "access_result", "status"])).toUpperCase();
-            return res === "GRANTED";
-        }).length;
-
-        const denied = allLogs.filter(log => {
-            const res = String(getLogValue(log, ["result", "access_result", "status"])).toUpperCase();
-            return res === "DENIED";
-        }).length;
+        const granted = allLogs.filter(log => String(getLogValue(log, ["result", "access_result", "status"])).toUpperCase() === "GRANTED").length;
+        const denied = allLogs.filter(log => String(getLogValue(log, ["result", "access_result", "status"])).toUpperCase() === "DENIED").length;
 
         document.getElementById("totalLogs").textContent = allLogs.length;
         document.getElementById("grantedLogs").textContent = granted;
         document.getElementById("deniedLogs").textContent = denied;
 
         const scopeLabel = document.getElementById("summarySiteScope");
-        if (scopeLabel) {
-            scopeLabel.textContent = currentSiteId ? currentSiteId : "Semua Site";
-        }
+        if (scopeLabel) scopeLabel.textContent = currentSiteId ? currentSiteId : "Semua Site";
 
-        // Banner Status
         const banner = document.getElementById("activeSiteBanner");
         const bannerName = document.getElementById("bannerSiteName");
         const bannerId = document.getElementById("bannerSiteId");
@@ -747,7 +468,7 @@ Access Logs per Site
             banner.classList.add("d-flex");
             bannerName.textContent = resolvedName;
             bannerId.textContent = currentSiteId;
-            bannerStats.textContent = `• Total ${allLogs.length} riwayat (${granted} Granted, ${denied} Denied)`;
+            bannerStats.textContent = `Menampilkan ${allLogs.length} riwayat akses (${granted} Diizinkan, ${denied} Ditolak)`;
             tableSubtitle.textContent = `(Khusus Site: ${currentSiteId} - ${resolvedName})`;
         } else {
             banner.classList.add("d-none");
@@ -756,9 +477,6 @@ Access Logs per Site
         }
     }
 
-    // =====================================================
-    // RENDER TABLE
-    // =====================================================
     function renderTable() {
         const tbody = document.getElementById("accessLogTable");
         const search = document.getElementById("searchInput").value.trim().toLowerCase();
@@ -767,11 +485,7 @@ Access Logs per Site
         const filtered = allLogs.filter(function (log) {
             const text = JSON.stringify(log).toLowerCase();
             const result = String(getLogValue(log, ["result", "access_result", "status"])).toUpperCase();
-
-            const searchMatch = !search || text.includes(search);
-            const resultMatch = !resultFilter || result === resultFilter;
-
-            return searchMatch && resultMatch;
+            return (!search || text.includes(search)) && (!resultFilter || result === resultFilter);
         });
 
         document.getElementById("visibleCount").textContent = `${filtered.length} data`;
@@ -779,13 +493,12 @@ Access Logs per Site
         if (filtered.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">
-                        <div class="fs-3 mb-2">📂</div>
+                    <td colspan="8" class="text-center py-5 text-muted border-0">
+                        <i class="bi bi-inbox fs-1 text-light d-block mb-2"></i>
                         <div>Tidak ada riwayat access log yang sesuai dengan filter.</div>
-                        ${currentSiteId ? `<button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="window.selectSite('')">Lihat Semua Site</button>` : ''}
+                        ${currentSiteId ? `<button type="button" class="btn btn-sm btn-outline-primary mt-3" onclick="window.selectSite('')">Tampilkan Semua Site</button>` : ''}
                     </td>
-                </tr>
-            `;
+                </tr>`;
             return;
         }
 
@@ -796,81 +509,55 @@ Access Logs per Site
             const technician = getLogValue(log, ["technician_name", "technician_id", "worker_id", "technician", "worker_name"]);
             const result = getLogValue(log, ["result", "access_result", "status"]);
             const reason = getLogValue(log, ["reason", "reason_code", "description", "message"]);
+            const logId = log.id || log.access_log_id || 0;
 
             return `
                 <tr>
-                    <td class="text-muted small">${index + 1}</td>
-                    <td>
-                        <span class="small font-monospace">${escapeHtml(timestamp)}</span>
-                    </td>
-                    <td>
-                        ${siteBadge(siteId, siteName)}
-                    </td>
-                    <td>
-                        <span class="fw-semibold text-dark">${escapeHtml(technician)}</span>
+                    <td class="text-muted small ps-4 border-light">${index + 1}</td>
+                    <td class="border-light"><span class="small fw-semibold text-muted">${escapeHtml(timestamp)}</span></td>
+                    <td class="border-light">${siteBadge(siteId, siteName)}</td>
+                    <td class="border-light">
+                        <span class="fw-bold text-dark">${escapeHtml(technician)}</span>
                         ${log.technician_id && log.technician_name && log.technician_id !== log.technician_name ? `<div class="small text-muted font-monospace">${escapeHtml(log.technician_id)}</div>` : ''}
                     </td>
-                    <td>
-                        ${resultBadge(result)}
-                    </td>
-                    <td>
-                        ${methodBadge(log)}
-                    </td>
-                    <td>
+                    <td class="border-light">${resultBadge(result)}</td>
+                    <td class="border-light">${methodBadge(log)}</td>
+                    <td class="border-light">
                         <span class="small ${String(reason).includes('DENIED') || String(reason).includes('ALARM') || String(reason).includes('FAILED') ? 'text-danger fw-semibold' : 'text-secondary'}">
                             ${escapeHtml(reason)}
                         </span>
                     </td>
-                </tr>
-            `;
+                    <td class="border-light text-end pe-4">
+                        ${logId ? `
+                            <a href="/access-logs/${logId}/berita-acara" target="_blank" class="btn btn-sm btn-outline-primary py-1 px-2 shadow-sm" title="Cetak Berita Acara Akses (BAA)" style="font-size: 0.75rem;">
+                                <i class="bi bi-file-earmark-text me-1"></i> BAA
+                            </a>
+                        ` : '-'}
+                    </td>
+                </tr>`;
         }).join("");
     }
 
-    // =====================================================
-    // EVENT LISTENERS
-    // =====================================================
     document.addEventListener("DOMContentLoaded", function () {
-        // Ambil filter site_id awal dari URL query params atau server template
         const urlParams = new URLSearchParams(window.location.search);
         const paramSiteId = urlParams.get("site_id");
         const initialSite = paramSiteId || "{{ filters.site_id|default('', true) }}";
 
-        if (initialSite) {
-            currentSiteId = initialSite.trim();
-        }
+        if (initialSite) currentSiteId = initialSite.trim();
 
-        // Sinkronisasi dropdown awal
         const siteFilterEl = document.getElementById("siteFilter");
         if (siteFilterEl) {
             siteFilterEl.value = currentSiteId;
-            siteFilterEl.addEventListener("change", function () {
-                window.selectSite(this.value);
-            });
+            siteFilterEl.addEventListener("change", function () { window.selectSite(this.value); });
         }
 
-        // Terapkan status aktif pada pill jika ada initial site
         if (currentSiteId) {
-            const pillButtons = document.querySelectorAll(".site-pill-btn");
-            pillButtons.forEach(btn => {
-                const btnSiteId = btn.getAttribute("data-site-id") || "";
-                if (btnSiteId.toLowerCase() === currentSiteId.toLowerCase()) {
-                    btn.className = "btn btn-sm btn-primary site-pill-btn active";
-                    const b = btn.querySelector(".badge");
-                    if (b) b.className = "badge bg-white text-primary ms-1";
-                } else {
-                    btn.className = "btn btn-sm btn-outline-secondary site-pill-btn";
-                    const b = btn.querySelector(".badge");
-                    if (b) b.className = "badge bg-secondary ms-1";
-                }
-            });
-
             const exportBtn = document.getElementById("exportExcelBtn");
-            if (exportBtn) {
-                exportBtn.href = `/export/access-logs?site_id=${encodeURIComponent(currentSiteId)}`;
-            }
+            if (exportBtn) exportBtn.href = `/export/access-logs?site_id=${encodeURIComponent(currentSiteId)}`;
         }
 
-        document.getElementById("refreshButton").addEventListener("click", loadAccessLogs);
+        // Listener tombol refresh DIHAPUS.
+
         document.getElementById("searchInput").addEventListener("input", renderTable);
         document.getElementById("resultFilter").addEventListener("change", renderTable);
         document.getElementById("limitInput").addEventListener("change", loadAccessLogs);
@@ -885,7 +572,6 @@ Access Logs per Site
     });
 
 })();
-
 </script>
 
 {% endblock %}

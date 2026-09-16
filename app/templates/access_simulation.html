@@ -299,6 +299,8 @@
                     <option
                         value="{{ site.site_id }}"
                         data-status="{{ site.status }}"
+                        data-lat="{{ site.latitude or '' }}"
+                        data-lng="{{ site.longitude or '' }}"
                     >
 
                         {{ site.site_id }} -
@@ -320,6 +322,39 @@
                     class="mt-2 tech-info"
                 >
                     Silakan pilih Site BTS terlebih dahulu.
+                </div>
+
+                <!-- GPS GEOFENCING VALIDATION PANEL -->
+                <div id="geofencePanel" class="mt-3 p-3 border rounded-3" style="background: rgba(13, 110, 253, 0.04); border-color: rgba(13, 110, 253, 0.2) !important;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <div class="fw-bold d-flex align-items-center gap-2">
+                            <i class="bi bi-geo-alt-fill text-primary"></i>
+                            <span>GPS Geofencing Security</span>
+                            <span id="geoStatusBadge" class="badge bg-secondary">Mendeteksi GPS...</span>
+                        </div>
+                        <div class="small text-muted" id="geoAccuracyText">Maks Radius: 150m</div>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 small text-secondary mb-2">
+                        <div>
+                            <span>Koordinat Anda: </span>
+                            <strong id="geoCoordsDisplay" class="font-monospace text-dark">-</strong>
+                        </div>
+                        <div>
+                            <span>Jarak ke Tower: </span>
+                            <strong id="geoDistanceDisplay" class="text-primary">-</strong>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap pt-1">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnGpsAuto" onclick="useRealGps()">
+                            <i class="bi bi-crosshair me-1"></i> GPS Asli Perangkat
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" id="btnGpsOnSite" onclick="simulateOnSiteGps()">
+                            <i class="bi bi-check-circle me-1"></i> Mode di Area Tower (&lt;150m)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="btnGpsOffSite" onclick="simulateFarGps()">
+                            <i class="bi bi-shield-x me-1"></i> Mode Luar Area (&gt;150m)
+                        </button>
+                    </div>
                 </div>
 
             </div>
@@ -381,8 +416,12 @@
 
                 <div class="col-lg-7">
 
-                    <div class="camera-wrapper">
+                    <div class="camera-wrapper position-relative">
 
+                        <div class="camera-anti-spoof-badge" style="position: absolute; top: 12px; left: 12px; z-index: 10; background: rgba(15, 23, 42, 0.80); backdrop-filter: blur(8px); color: #10B981; font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 8px #10B981;"></span>
+                            <span>🛡️ Anti-Spoofing AI: Active</span>
+                        </div>
 
                         <video
                             id="video"
@@ -586,6 +625,15 @@
                                 -
                             </span>
 
+                        </div>
+
+                        <div class="mt-2 pt-2 border-top" id="livenessRow" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small fw-semibold text-muted">Keaslian Biometrik:</span>
+                                <span id="livenessStatusBadge" class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-shield-check me-1"></i> Live Verified (<span id="livenessScore">100%</span>)
+                                </span>
+                            </div>
                         </div>
 
                     </div>
@@ -1201,9 +1249,129 @@ siteSelect.addEventListener(
         resetVerification();
 
         updateVerifyButton();
+        updateGeofenceUI();
 
     }
 );
+
+
+// =========================================================
+// GPS GEOFENCING LOGIC & SIMULATION
+// =========================================================
+
+let currentGpsLat = null;
+let currentGpsLng = null;
+let currentGpsMode = 'AUTO'; // 'AUTO', 'ONSITE', 'FAR'
+
+function calculateHaversine(lat1, lon1, lat2, lon2) {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+function updateGeofenceUI() {
+    const selected = siteSelect.options[siteSelect.selectedIndex];
+    const siteLat = selected && selected.dataset.lat ? parseFloat(selected.dataset.lat) : null;
+    const siteLng = selected && selected.dataset.lng ? parseFloat(selected.dataset.lng) : null;
+
+    const coordsElem = document.getElementById('geoCoordsDisplay');
+    const distElem = document.getElementById('geoDistanceDisplay');
+    const badgeElem = document.getElementById('geoStatusBadge');
+
+    if (!currentGpsLat || !currentGpsLng) {
+        coordsElem.textContent = 'Mencari sinyal GPS...';
+        distElem.textContent = '-';
+        badgeElem.className = 'badge bg-secondary';
+        badgeElem.textContent = 'Mendeteksi...';
+        return;
+    }
+
+    coordsElem.textContent = `${currentGpsLat.toFixed(5)}, ${currentGpsLng.toFixed(5)}`;
+
+    if (siteLat !== null && siteLng !== null && !isNaN(siteLat) && !isNaN(siteLng)) {
+        const dist = calculateHaversine(currentGpsLat, currentGpsLng, siteLat, siteLng);
+        if (dist !== null) {
+            const distText = dist < 1000 ? `${Math.round(dist)} meter` : `${(dist / 1000).toFixed(2)} km`;
+            distElem.textContent = distText;
+
+            if (dist <= 150) {
+                badgeElem.className = 'badge bg-success';
+                badgeElem.innerHTML = '<i class="bi bi-shield-check me-1"></i> Di Area Tower (&le; 150m)';
+            } else {
+                badgeElem.className = 'badge bg-danger';
+                badgeElem.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> Di Luar Radius (> 150m)';
+            }
+        } else {
+            distElem.textContent = 'Koordinat site belum diisi';
+            badgeElem.className = 'badge bg-info';
+            badgeElem.textContent = 'GPS Siap';
+        }
+    } else {
+        distElem.textContent = selectedSiteId ? 'Koordinat site belum diisi' : 'Pilih site';
+        badgeElem.className = 'badge bg-info';
+        badgeElem.textContent = 'GPS Siap';
+    }
+}
+
+function useRealGps() {
+    currentGpsMode = 'AUTO';
+    const badgeElem = document.getElementById('geoStatusBadge');
+    badgeElem.className = 'badge bg-secondary';
+    badgeElem.textContent = 'Membaca GPS perangkat...';
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                currentGpsLat = pos.coords.latitude;
+                currentGpsLng = pos.coords.longitude;
+                updateGeofenceUI();
+            },
+            (err) => {
+                console.warn('Geolocation error:', err);
+                // Fallback to on-site for smooth demo if permission denied
+                simulateOnSiteGps();
+            },
+            { enableHighAccuracy: true, timeout: 6000 }
+        );
+    } else {
+        simulateOnSiteGps();
+    }
+}
+
+function simulateOnSiteGps() {
+    currentGpsMode = 'ONSITE';
+    const selected = siteSelect.options[siteSelect.selectedIndex];
+    const siteLat = selected && selected.dataset.lat ? parseFloat(selected.dataset.lat) : -6.2088;
+    const siteLng = selected && selected.dataset.lng ? parseFloat(selected.dataset.lng) : 106.8456;
+
+    // Small ~15m simulated variation
+    currentGpsLat = siteLat + 0.0001;
+    currentGpsLng = siteLng + 0.0001;
+    updateGeofenceUI();
+}
+
+function simulateFarGps() {
+    currentGpsMode = 'FAR';
+    const selected = siteSelect.options[siteSelect.selectedIndex];
+    const siteLat = selected && selected.dataset.lat ? parseFloat(selected.dataset.lat) : -6.2088;
+    const siteLng = selected && selected.dataset.lng ? parseFloat(selected.dataset.lng) : 106.8456;
+
+    // ~2.5km away
+    currentGpsLat = siteLat + 0.022;
+    currentGpsLng = siteLng + 0.022;
+    updateGeofenceUI();
+}
+
+// Inisialisasi awal GPS saat halaman dimuat
+setTimeout(() => {
+    useRealGps();
+}, 600);
 
 
 // =========================================================
@@ -1716,7 +1884,13 @@ async function verifyFace() {
                             selectedSiteId,
 
                         access_type:
-                            selectedAccessType
+                            selectedAccessType,
+
+                        latitude:
+                            currentGpsLat,
+
+                        longitude:
+                            currentGpsLng
 
                     })
 
@@ -1771,6 +1945,20 @@ async function verifyFace() {
                 ).toFixed(4)
                 : '-';
 
+        // Tampilkan informasi liveness / anti-spoofing jika tersedia
+        const livenessRow = document.getElementById('livenessRow');
+        const livenessScoreEl = document.getElementById('livenessScore');
+        if (livenessRow) {
+            if (result.liveness_score !== undefined && result.liveness_score !== null) {
+                livenessRow.style.display = 'block';
+                if (livenessScoreEl) {
+                    livenessScoreEl.textContent = `${Math.round(Number(result.liveness_score) * 100)}%`;
+                }
+            } else {
+                livenessRow.style.display = 'none';
+            }
+        }
+
         // Tampilkan informasi teknisi
         faceResult.style.display =
             'block';
@@ -1802,10 +1990,18 @@ async function verifyFace() {
             error
         );
 
-        setStatus(
-            (error.message || 'Verifikasi wajah gagal.') + ' Anda dapat membuka gerbang menggunakan Kode OTP sebagai alternatif.',
-            'danger'
-        );
+        const isSpoof = String(error.message || '').includes('Anti-Spoofing') || String(error.message || '').includes('pemalsuan');
+        if (isSpoof) {
+            setStatus(
+                `🚨 <strong>PERINGATAN KEAMANAN:</strong> ${error.message}<br><span class="small text-muted mt-1 d-block">Sistem mendeteksi foto/layar digital. Silakan hadapkan wajah asli Anda langsung di depan kamera atau buka menggunakan alternatif Kode OTP.</span>`,
+                'danger'
+            );
+        } else {
+            setStatus(
+                (error.message || 'Verifikasi wajah gagal.') + ' Anda dapat membuka gerbang menggunakan Kode OTP sebagai alternatif.',
+                'danger'
+            );
+        }
 
         const failedPrompt = document.getElementById('faceFailedOtpPrompt');
         if (failedPrompt) {

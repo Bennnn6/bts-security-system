@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    :root { --jk-primary: #7C3AED; --jk-bg-main: #F8FAFC; --jk-white: #FFFFFF; --jk-radius: 12px; }
+    body { background-color: var(--jk-bg-main) !important; font-family: 'Inter', sans-serif; }
+    .card { background-color: var(--jk-white); border: none; border-radius: var(--jk-radius); box-shadow: 0 4px 15px rgba(15,23,42,0.04); }
+</style>
+
+<div class="app-page p-3 p-md-4">
+    <div class="card mb-4">
+        <div class="card-header bg-white py-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h4 class="mb-1 fw-bold text-dark"><i class="bi bi-clock-history text-primary me-2"></i> Riwayat Akses Gerbang Saya</h4>
+                <p class="text-muted mb-0 small">Catatan riwayat verifikasi pembukaan gerbang otomatis menggunakan kredensial Anda.</p>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead style="background-color: var(--jk-bg-main);">
+                        <tr>
+                            <th class="ps-4 text-muted small text-uppercase border-0">Waktu</th>
+                            <th class="text-muted small text-uppercase border-0">Site BTS</th>
+                            <th class="text-muted small text-uppercase border-0">Jenis</th>
+                            <th class="text-muted small text-uppercase border-0">Face Recog.</th>
+                            <th class="text-muted small text-uppercase border-0">OTP 2FA</th>
+                            <th class="text-muted small text-uppercase border-0">Status</th>
+                            <th class="pe-4 text-muted small text-uppercase border-0">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in my_access_logs %}
+                        <tr>
+                            <td class="ps-4"><small class="text-muted font-monospace">{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</small></td>
+                            <td>
+                                <strong class="text-dark">{{ log.site.site_name if log.site else (log.site_id or '-') }}</strong>
+                                <small class="text-muted d-block">{{ log.site_id }}</small>
+                            </td>
+                            <td>
+                                {% if log.access_type == 'MASUK' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2"><i class="bi bi-box-arrow-in-right"></i> MASUK</span>
+                                {% elif log.access_type == 'KELUAR' %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2"><i class="bi bi-box-arrow-left"></i> KELUAR</span>
+                                {% else %}
+                                    <span class="badge bg-secondary px-2">{{ log.access_type or '-' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.face_result == 'SUCCESS' %}
+                                    <span class="text-success small fw-semibold"><i class="bi bi-check-circle"></i> Cocok</span>
+                                {% elif log.face_result == 'FAILED' %}
+                                    <span class="text-danger small fw-semibold"><i class="bi bi-x-circle"></i> Gagal</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.otp_result == 'SUCCESS' %}
+                                    <span class="text-success small fw-semibold"><i class="bi bi-check-circle"></i> Valid</span>
+                                {% elif log.otp_result == 'FAILED' %}
+                                    <span class="text-danger small fw-semibold"><i class="bi bi-x-circle"></i> Salah</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.access_result == 'GRANTED' %}
+                                    <span class="badge bg-success rounded-pill shadow-sm">GRANTED</span>
+                                {% elif log.access_result == 'DENIED' %}
+                                    <span class="badge bg-danger rounded-pill shadow-sm">DENIED</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill shadow-sm">{{ log.access_result or '-' }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <small class="text-muted">{{ log.reason_code or log.description or '-' }}</small>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">
+                                <i class="bi bi-journal-x fs-2 d-block mb-2 text-light"></i>
+                                Belum ada riwayat akses gerbang yang tercatat.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -3127,6 +3127,212 @@ def export_access_logs():
 
 
 # =========================================================
+# BERITA ACARA AKSES (BAA) - FITUR ENTERPRISE 5
+# =========================================================
+
+@app.route('/access-logs/<int:log_id>/berita-acara', methods=['GET'])
+@login_required_any
+def view_berita_acara(log_id):
+    log = AccessLog.query.get_or_404(log_id)
+    site = log.site or BtsSite.query.filter_by(site_id=log.site_id).first()
+    tech = None
+    if log.technician_id:
+        tech = Technician.query.filter_by(technician_id=log.technician_id).first()
+
+    return render_template(
+        'berita_acara.html',
+        log=log,
+        site=site,
+        tech=tech
+    )
+
+
+@app.route('/access-logs/<int:log_id>/berita-acara/pdf', methods=['GET'])
+@login_required_any
+def download_berita_acara_pdf(log_id):
+    log = AccessLog.query.get_or_404(log_id)
+    site = log.site or BtsSite.query.filter_by(site_id=log.site_id).first()
+    tech = None
+    if log.technician_id:
+        tech = Technician.query.filter_by(technician_id=log.technician_id).first()
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.platypus import (
+            SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
+        )
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    except ImportError:
+        flash("Pustaka ReportLab belum terpasang.", "danger")
+        return redirect(url_for('view_berita_acara', log_id=log_id))
+
+    output = BytesIO()
+    doc = SimpleDocTemplate(
+        output,
+        pagesize=A4,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=13,
+        alignment=1,
+        spaceAfter=4,
+        textColor=colors.HexColor('#0F172A')
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubtitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        alignment=1,
+        textColor=colors.HexColor('#64748B'),
+        spaceAfter=12
+    )
+    kop_company = ParagraphStyle(
+        'KopCompany',
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        textColor=colors.HexColor('#0F172A')
+    )
+    section_head = ParagraphStyle(
+        'SectionHead',
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        textColor=colors.white,
+        spaceAfter=2
+    )
+    cell_bold = ParagraphStyle('CellBold', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor('#334155'))
+    cell_val = ParagraphStyle('CellVal', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#0F172A'))
+
+    story = []
+
+    kop_data = [
+        [
+            Paragraph("<b>PT TELEKOMUNIKASI INFRASTRUKTUR INDONESIA</b><br/><font size=7 color='#64748B'>DIVISI OPERASIONAL KEAMANAN MENARA & NOC (SMART GATE SYSTEM)<br/>Jl. Telekomunikasi No. 01, Jakarta 12950 &bull; ISO/IEC 27001 Certified</font>", kop_company),
+            Paragraph("<b>BERITA ACARA RESMI</b><br/><font size=7 color='#64748B'>Kepatuhan Keamanan Fisik</font>", ParagraphStyle('KopRight', fontName='Helvetica', fontSize=8, alignment=2))
+        ]
+    ]
+    t_kop = Table(kop_data, colWidths=[380, 142])
+    t_kop.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_kop)
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0F172A'), spaceAfter=10))
+
+    story.append(Paragraph("BERITA ACARA AKSES GERBANG SITE BTS", title_style))
+    baa_num = f"Nomor: BAA/BTS/{log.site_id}/{log.timestamp.strftime('%Y%m%d')}/{log.id:04d}"
+    story.append(Paragraph(baa_num, subtitle_style))
+
+    # I. DATA SITE
+    h1 = Table([[Paragraph("I. DATA LOKASI SITE BTS", section_head)]], colWidths=[522])
+    h1.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#1E293B')), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
+    story.append(h1)
+
+    site_rows = [
+        [Paragraph("Site ID", cell_bold), Paragraph(str(site.site_id if site else log.site_id), cell_val)],
+        [Paragraph("Nama Menara BTS", cell_bold), Paragraph(str(site.site_name if site else '-'), cell_val)],
+        [Paragraph("Alamat / Lokasi", cell_bold), Paragraph(str(site.location if site else '-'), cell_val)],
+        [Paragraph("Koordinat GPS", cell_bold), Paragraph(f"{site.latitude if site and site.latitude else '-'}, {site.longitude if site and site.longitude else '-'}", cell_val)],
+        [Paragraph("Status Tower", cell_bold), Paragraph(str(site.status if site else 'Normal'), cell_val)],
+    ]
+    t_site = Table(site_rows, colWidths=[140, 382])
+    t_site.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_site)
+    story.append(Spacer(1, 8))
+
+    # II. DATA TEKNISI
+    h2 = Table([[Paragraph("II. DATA PERSONEL TEKNISI PEMOHON", section_head)]], colWidths=[522])
+    h2.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#1E293B')), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
+    story.append(h2)
+
+    tech_rows = [
+        [Paragraph("ID Teknisi", cell_bold), Paragraph(str(tech.technician_id if tech else (log.technician_id or '-')), cell_val)],
+        [Paragraph("Nama Lengkap", cell_bold), Paragraph(str(tech.name if tech else '-'), cell_val)],
+        [Paragraph("Jabatan / Posisi", cell_bold), Paragraph(str(tech.position if tech else 'Teknisi Lapangan'), cell_val)],
+        [Paragraph("Nomor Telepon", cell_bold), Paragraph(str(tech.phone if tech else '-'), cell_val)],
+    ]
+    t_tech = Table(tech_rows, colWidths=[140, 382])
+    t_tech.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_tech)
+    story.append(Spacer(1, 8))
+
+    # III. HASIL VERIFIKASI
+    h3 = Table([[Paragraph("III. HASIL PEMERIKSAAN MULTI-FAKTOR & KEPUTUSAN AKSES", section_head)]], colWidths=[522])
+    h3.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#1E293B')), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
+    story.append(h3)
+
+    result_color = "#10B981" if log.access_result == "GRANTED" else "#EF4444"
+    res_text = f"<b><font color='{result_color}'>{log.access_result} ({'DIIZINKAN' if log.access_result == 'GRANTED' else 'DITOLAK'})</font></b>"
+
+    auth_rows = [
+        [Paragraph("Waktu Permintaan", cell_bold), Paragraph(log.timestamp.strftime('%d/%m/%Y %H:%M:%S WIB'), cell_val)],
+        [Paragraph("Jenis Akses", cell_bold), Paragraph(str(log.access_type), cell_val)],
+        [Paragraph("Face Biometric Result", cell_bold), Paragraph(f"{log.face_result or '-'} (Distance: {log.face_distance:.3f})" if log.face_distance else str(log.face_result or '-'), cell_val)],
+        [Paragraph("Anti-Spoofing / Liveness", cell_bold), Paragraph("BLOCKED (Foto Palsu Terdeteksi)" if 'SPOOF' in (log.reason_code or '') else "PASSED (Live Face Verified)", cell_val)],
+        [Paragraph("TOTP 6-Digit Token", cell_bold), Paragraph(str(log.otp_result or '-'), cell_val)],
+        [Paragraph("GPS Geofencing Status", cell_bold), Paragraph("DITOLAK DI LUAR GEOFENCE" if log.reason_code == 'OUT_OF_GEOFENCE' else "TERVERIFIKASI DI AREA BTS", cell_val)],
+        [Paragraph("Keputusan Akses", cell_bold), Paragraph(res_text, cell_val)],
+        [Paragraph("Status Aktuator Gate", cell_bold), Paragraph("OPEN (Dibuka 10 Detik)" if log.gate_status == 'OPEN' or log.access_result == 'GRANTED' else "LOCKED (Terkunci Rapat)", cell_val)],
+        [Paragraph("Keterangan Reason", cell_bold), Paragraph(f"[{log.reason_code or '-'}] {log.description or '-'}", cell_val)],
+    ]
+    t_auth = Table(auth_rows, colWidths=[140, 382])
+    t_auth.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_auth)
+    story.append(Spacer(1, 14))
+
+    sig_data = [
+        [
+            Paragraph("<b>Teknisi Pemohon Akses,</b><br/><br/><br/><br/><b><u>" + str(tech.name if tech else '-') + "</u></b><br/><font size=7 color='#64748B'>ID: " + str(tech.technician_id if tech else '-') + "</font>", cell_val),
+            Paragraph("<b>Security & NOC Controller,</b><br/><br/><br/><br/><b><u>SISTEM GERBANG SMART BTS</u></b><br/><font size=7 color='#64748B'>NOC Automated Auth Verified</font>", cell_val)
+        ]
+    ]
+    t_sig = Table(sig_data, colWidths=[261, 261])
+    t_sig.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+    ]))
+    story.append(t_sig)
+
+    doc.build(story)
+    output.seek(0)
+
+    filename = f"Berita_Acara_Akses_{log.site_id}_{log.timestamp.strftime('%Y%m%d')}_{log.id:04d}.pdf"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf"
+    )
+
+
+# =========================================================
 # EXPORT ACTIVITY LOG
 # =========================================================
 
@@ -3941,7 +4147,40 @@ def export_work_orders():
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'
     response.headers['Content-Disposition'] = 'attachment; filename=work-orders.csv'
-    return response
+
+# =========================================================
+# WORKER: TUGAS & WORK ORDER (MENU TERPISAH)
+# =========================================================
+@app.route('/worker/work-orders', methods=['GET'])
+@technician_required
+def worker_work_orders():
+    worker_id = session.get('worker_id')
+    
+    # Ambil semua work order khusus untuk teknisi ini
+    my_work_orders = (
+        WorkOrder.query.filter_by(technician_id=worker_id)
+        .order_by(WorkOrder.scheduled_date.desc(), WorkOrder.id.desc())
+        .all()
+    )
+    
+    return render_template('worker_work_orders.html', my_work_orders=my_work_orders)
+
+# =========================================================
+# WORKER: RIWAYAT AKSES (MENU TERPISAH)
+# =========================================================
+@app.route('/worker/access-logs', methods=['GET'])
+@technician_required
+def worker_access_logs():
+    worker_id = session.get('worker_id')
+    
+    # Ambil semua riwayat akses khusus untuk teknisi ini
+    my_access_logs = (
+        AccessLog.query.filter_by(technician_id=worker_id)
+        .order_by(AccessLog.timestamp.desc())
+        .all()
+    )
+    
+    return render_template('worker_access_logs.html', my_access_logs=my_access_logs)
 
 
 @app.route('/work-orders/export/<format>')
@@ -4426,5 +4665,6 @@ def sse_events():
 @app.route('/offline.html')
 def offline():
     return render_template('offline.html')
+
 
 

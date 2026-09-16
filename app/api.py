@@ -3,11 +3,14 @@ from functools import wraps
 import secrets
 import time
 
+import math
+
 from flask import (
     Blueprint,
     request,
     jsonify,
     session,
+    current_app,
 )
 
 from flask_login import current_user
@@ -23,6 +26,7 @@ from app.models import (
 from app.face_recognition_module import (
     extract_face_encoding,
     compare_faces,
+    analyze_liveness,
 )
 
 from app.totp_module import verify_totp
@@ -96,6 +100,40 @@ _rate_limit_store = {}
 
 # Challenge liveness
 _liveness_sessions = {}
+
+
+# =========================================================
+# GPS GEOFENCING HELPER
+# =========================================================
+
+def calculate_haversine_distance(lat1, lon1, lat2, lon2):
+    """
+    Menghitung jarak dalam satuan meter antara dua titik koordinat
+    (latitude, longitude) menggunakan rumus Haversine.
+    """
+    try:
+        lat1 = float(str(lat1).strip())
+        lon1 = float(str(lon1).strip())
+        lat2 = float(str(lat2).strip())
+        lon2 = float(str(lon2).strip())
+    except (TypeError, ValueError):
+        return None
+
+    # Radius bumi dalam meter
+    R = 6371000.0
+
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(delta_phi / 2.0) ** 2
+        + math.cos(phi1) * math.cos(phi2) * (math.sin(delta_lambda / 2.0) ** 2)
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
+
+    return R * c
 
 
 # =========================================================
@@ -1183,6 +1221,65 @@ def verify_face():
         )
 
     # =====================================================
+    # GPS GEOFENCING VALIDATION
+    # =====================================================
+
+    geofence_enabled = current_app.config.get("GEOFENCE_ENABLED", True)
+    geofence_radius = current_app.config.get("GEOFENCE_RADIUS_METERS", 150)
+    user_lat = data.get("latitude")
+    user_lon = data.get("longitude")
+    geofence_distance = None
+
+    if geofence_enabled and user_lat is not None and user_lon is not None and str(user_lat).strip() != "" and str(user_lon).strip() != "":
+        geofence_distance = calculate_haversine_distance(user_lat, user_lon, site.latitude, site.longitude)
+        if geofence_distance is not None and geofence_distance > geofence_radius:
+            dist_str = f"{geofence_distance:.0f} meter" if geofence_distance < 1000 else f"{(geofence_distance / 1000.0):.2f} km"
+            reason_code = "OUT_OF_GEOFENCE"
+            desc_text = (
+                f"Akses ditolak di luar radius BTS: {dist_str} dari tower "
+                f"(izin radius: {geofence_radius}m). Koordinat: {user_lat}, {user_lon}"
+            )
+            save_access_log(
+                site_id=site.site_id,
+                access_type=access_type,
+                face_result="FAILED",
+                access_result="DENIED",
+                reason_code=reason_code,
+                incident_level="HIGH",
+                description=desc_text,
+                evidence_image=image if image else None,
+            )
+            create_activity_log(
+                action="GEOFENCE_VIOLATION",
+                description=f"Pelanggaran Geofence pada site {site.site_id}: {desc_text}",
+                incident_level="HIGH",
+            )
+            try:
+                from app.notifications import send_telegram_alert
+                send_telegram_alert(
+                    title="📍 PELANGGARAN GEOFENCE BTS!",
+                    message=(
+                        f"Permintaan akses ditolak karena teknisi di luar area BTS!\n"
+                        f"Site: {site.site_name} ({site.site_id})\n"
+                        f"Jarak: {dist_str} (Maks {geofence_radius}m)\n"
+                        f"Koordinat: {user_lat}, {user_lon}"
+                    ),
+                    incident_level="HIGH",
+                    evidence_base64=image,
+                    site_id=site.site_id,
+                )
+            except Exception:
+                pass
+
+            return api_error(
+                f"Akses ditolak: Anda terdeteksi berada di luar area BTS ({dist_str} dari tower, batas izin {geofence_radius}m).",
+                403,
+                reason_code=reason_code,
+                distance_meters=round(geofence_distance, 1),
+                max_radius=geofence_radius,
+            )
+
+    # =====================================================
     # VALIDASI EVIDENCE
     # =====================================================
 
@@ -1219,9 +1316,61 @@ def verify_face():
         )
 
     # =====================================================
-    # LIVENESS
+    # ANTI-SPOOFING & LIVENESS DETECTION
     # =====================================================
 
+    liveness_enabled = current_app.config.get(
+        "LIVENESS_DETECTION_ENABLED",
+        True,
+    )
+
+    liveness_score = 1.0
+    liveness_details = {}
+
+    if liveness_enabled:
+        is_live, liveness_score, liveness_details, liveness_msg = analyze_liveness(image)
+
+        if not is_live:
+            reason_code = "SPOOF_ATTACK_DETECTED"
+            save_access_log(
+                site_id=site.site_id,
+                access_type=access_type,
+                face_result="FAILED",
+                access_result="DENIED",
+                reason_code=reason_code,
+                incident_level="HIGH",
+                description=f"Anti-Spoofing Alert: {liveness_msg} (Skor: {liveness_score})",
+                evidence_image=image,
+            )
+
+            create_activity_log(
+                action="SPOOF_ATTACK_DETECTED",
+                description=f"Percobaan pemalsuan foto/layar terdeteksi pada site {site.site_id}: {liveness_msg}",
+                incident_level="HIGH",
+            )
+
+            try:
+                from app.notifications import send_telegram_alert
+                send_telegram_alert(
+                    title="🚨 PERINGATAN ANTI-SPOOFING!",
+                    message=f"Percobaan buka gerbang menggunakan foto/layar HP tidak sah terdeteksi!\n"
+                            f"Detail: {liveness_msg}\nSkor Liveness: {liveness_score}",
+                    incident_level="HIGH",
+                    evidence_base64=image,
+                    site_id=site.site_id,
+                )
+            except Exception:
+                pass
+
+            return api_error(
+                f"Percobaan pemalsuan foto terdeteksi (Anti-Spoofing Alert): {liveness_msg}",
+                403,
+                reason_code=reason_code,
+                liveness_score=liveness_score,
+                liveness_details=liveness_details,
+            )
+
+    # Validasi challenge interaktif jika ada
     if challenge_id or challenge_result:
 
         valid, liveness_error = (
@@ -1634,6 +1783,9 @@ def verify_face():
         access_type=access_type,
         gate_open_duration=GATE_OPEN_SECONDS,
         gate_open_seconds=GATE_OPEN_SECONDS,
+        is_live=True,
+        liveness_score=liveness_score,
+        liveness_details=liveness_details,
     )
 
 
@@ -1736,6 +1888,47 @@ def verify_otp():
             400,
             reason_code=reason_code,
         )
+
+    # =====================================================
+    # GPS GEOFENCING VALIDATION (OTP)
+    # =====================================================
+
+    geofence_enabled = current_app.config.get("GEOFENCE_ENABLED", True)
+    geofence_radius = current_app.config.get("GEOFENCE_RADIUS_METERS", 150)
+    user_lat = data.get("latitude")
+    user_lon = data.get("longitude")
+
+    if geofence_enabled and user_lat is not None and user_lon is not None and str(user_lat).strip() != "" and str(user_lon).strip() != "":
+        geofence_distance = calculate_haversine_distance(user_lat, user_lon, site.latitude, site.longitude)
+        if geofence_distance is not None and geofence_distance > geofence_radius:
+            dist_str = f"{geofence_distance:.0f} meter" if geofence_distance < 1000 else f"{(geofence_distance / 1000.0):.2f} km"
+            reason_code = "OUT_OF_GEOFENCE"
+            desc_text = (
+                f"Akses OTP ditolak di luar radius BTS: {dist_str} dari tower "
+                f"(izin radius: {geofence_radius}m). Koordinat: {user_lat}, {user_lon}"
+            )
+            save_access_log(
+                technician_id=tech_id,
+                site_id=site.site_id,
+                access_type=access_type,
+                otp_result="FAILED",
+                access_result="DENIED",
+                reason_code=reason_code,
+                incident_level="HIGH",
+                description=desc_text,
+            )
+            create_activity_log(
+                action="GEOFENCE_VIOLATION_OTP",
+                description=f"Pelanggaran Geofence OTP pada site {site.site_id}: {desc_text}",
+                incident_level="HIGH",
+            )
+            return api_error(
+                f"Akses ditolak: Anda terdeteksi berada di luar area BTS ({dist_str} dari tower, batas izin {geofence_radius}m).",
+                403,
+                reason_code=reason_code,
+                distance_meters=round(geofence_distance, 1),
+                max_radius=geofence_radius,
+            )
 
     technician = (
         Technician.query
@@ -2864,17 +3057,27 @@ def features_summary():
     "/features/sites",
     methods=["GET"],
 )
-@api_login_required
 def features_sites():
     from app.models import BtsSite
-    sites = BtsSite.query.all()
+    try:
+        from app.feature_routes import calculate_site_risk
+    except Exception:
+        calculate_site_risk = None
+
+    sites = BtsSite.query.order_by(BtsSite.site_name.asc()).all()
     result = []
     for site in sites:
+        risk = calculate_site_risk(site.site_id) if calculate_site_risk else {"level": "NORMAL", "score": 0}
         result.append({
             'site_id': site.site_id,
             'site_name': site.site_name,
             'location': site.location,
-            'status': site.status or 'ACTIVE',
+            'latitude': site.latitude,
+            'longitude': site.longitude,
+            'status': site.status or 'Normal (Up)',
+            'temperature': getattr(site, 'temperature', None) or '-',
+            'power_output': getattr(site, 'power_output', None) or '-',
+            'risk': risk,
         })
     return api_success(sites=result)
 

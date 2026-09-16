@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Berita Acara Akses - {{ log.site_id }} - {{ log.timestamp.strftime('%Y%m%d') }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0F172A;
+            --accent-color: #7C3AED;
+            --border-color: #E2E8F0;
+        }
+        body {
+            background-color: #F8FAFC;
+            color: #1E293B;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+        }
+        .document-container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: #FFFFFF;
+            padding: 40px 48px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .action-bar {
+            max-width: 850px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: gap-2;
+        }
+        /* KOP SURAT */
+        .doc-header {
+            border-bottom: 3px double #334155;
+            padding-bottom: 18px;
+            margin-bottom: 24px;
+        }
+        .doc-title {
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: 0.5px;
+        }
+        .doc-section-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0F172A;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background-color: #F1F5F9;
+            padding: 6px 12px;
+            border-left: 4px solid var(--accent-color);
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        .info-table th {
+            width: 25%;
+            font-weight: 600;
+            color: #475569;
+            padding: 6px 10px;
+            border-bottom: 1px solid #F1F5F9;
+            vertical-align: top;
+        }
+        .info-table td {
+            width: 75%;
+            padding: 6px 10px;
+            border-bottom: 1px solid #F1F5F9;
+            color: #0F172A;
+            vertical-align: top;
+        }
+        .evidence-box {
+            background-color: #0F172A;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            display: inline-block;
+        }
+        .evidence-img {
+            max-height: 180px;
+            border-radius: 6px;
+            object-fit: contain;
+        }
+        .signature-box {
+            border: 1px dashed #CBD5E1;
+            border-radius: 8px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94A3B8;
+            font-style: italic;
+            font-size: 0.8rem;
+            background: #F8FAFC;
+        }
+        .digital-stamp {
+            border: 2px solid #10B981;
+            color: #10B981;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 12px;
+            display: inline-block;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            transform: rotate(-3deg);
+        }
+        .digital-stamp.denied {
+            border-color: #EF4444;
+            color: #EF4444;
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            body {
+                background: #FFFFFF !important;
+                padding: 0 !important;
+            }
+            .action-bar, .no-print {
+                display: none !important;
+            }
+            .document-container {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+            @page {
+                size: A4;
+                margin: 15mm 15mm 15mm 15mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ACTION BAR -->
+    <div class="action-bar no-print">
+        <a href="{{ url_for('access_logs') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Kembali ke Access Log
+        </a>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-primary btn-sm px-3 shadow-sm">
+                <i class="bi bi-printer me-1"></i> Cetak / Simpan PDF
+            </button>
+            <a href="/access-logs/{{ log.id }}/berita-acara/pdf" class="btn btn-outline-success btn-sm px-3">
+                <i class="bi bi-file-earmark-arrow-down me-1"></i> Unduh File PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- MAIN FORMAL DOCUMENT -->
+    <div class="document-container">
+        <!-- KOP SURAT RESMI -->
+        <div class="doc-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+                <div class="p-2 bg-dark text-white rounded-3 text-center" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-broadcast fs-3"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-uppercase" style="letter-spacing: 0.5px;">PT TELEKOMUNIKASI INFRASTRUKTUR INDONESIA</h5>
+                    <div class="text-muted small">DIVISI OPERASIONAL KEAMANAN MENARA & INFRASTRUKTUR JARINGAN (NOC)</div>
+                    <div class="small text-secondary" style="font-size: 0.75rem;">Jl. Telekomunikasi No. 01, Kawasan Sentra Telekomunikasi Terpadu, Jakarta 12950</div>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-secondary px-2 py-1" style="font-size: 0.7rem;">DOKUMEN RESMI</span>
+                <div class="small text-muted mt-1 font-monospace">ISO/IEC 27001 Certified</div>
+            </div>
+        </div>
+
+        <!-- JUDUL DAN NOMOR SURAT -->
+        <div class="text-center my-3">
+            <h4 class="doc-title fw-bold text-uppercase mb-1" style="text-decoration: underline;">BERITA ACARA AKSES GERBANG SITE BTS</h4>
+            <div class="font-monospace text-muted small">
+                Nomor: <strong>BAA/BTS/{{ log.site_id }}/{{ log.timestamp.strftime('%Y%m%d') }}/{{ '%04d'|format(log.id) }}</strong>
+            </div>
+        </div>
+
+        <p class="small text-muted mt-3 mb-2">
+            Pada hari ini, <strong>{{ log.timestamp.strftime('%A, %d %B %Y') }}</strong> pukul <strong>{{ log.timestamp.strftime('%H:%M:%S') }} WIB</strong>, telah tercatat dan diautentikasi aktivitas permohonan akses fisik gerbang shelter Base Transceiver Station (BTS) dengan rincian data verifikasi sebagai berikut:
+        </p>
+
+        <!-- BAGIAN I: DATA LOKASI -->
+        <div class="doc-section-title">I. DATA LOKASI SITE BTS</div>
+        <table class="info-table">
+            <tr>
+                <th>Site ID</th>
+                <td class="font-monospace fw-bold">{{ site.site_id if site else log.site_id }}</td>
+            </tr>
+            <tr>
+                <th>Nama Menara BTS</th>
+                <td><strong>{{ site.site_name if site else '-' }}</strong></td>
+            </tr>
+            <tr>
+                <th>Alamat / Wilayah</th>
+                <td>{{ site.location if site else '-' }}</td>
+            </tr>
+            <tr>
+                <th>Koordinat GPS Menara</th>
+                <td class="font-monospace">{{ site.latitude if site and site.latitude else '-' }}, {{ site.longitude if site and site.longitude else '-' }}</td>
+            </tr>
+            <tr>
+                <th>Status Operasional</th>
+                <td>
+                    <span class="badge {{ 'bg-success' if site and site.status == 'Normal (Up)' else 'bg-secondary' }}">
+                        {{ site.status if site else 'Unknown' }}
+                    </span>
+                </td>
+            </tr>
+        </table>
+
+        <!-- BAGIAN II: DATA PERSONEL TEKNISI -->
+        <div class="doc-section-title">II. DATA PERSONEL TEKNISI PEMOHON</div>
+        <table class="info-table">
+            <tr>
+                <th>ID Teknisi</th>
+                <td class="font-monospace fw-bold">{{ tech.technician_id if tech else (log.technician_id or 'UNKNOWN') }}</td>
+            </tr>
+            <tr>
+                <th>Nama Lengkap</th>
+                <td><strong>{{ tech.name if tech else '-' }}</strong></td>
+            </tr>
+            <tr>
+                <th>Posisi / Jabatan</th>
+                <td>{{ tech.position if tech else 'Teknisi Lapangan' }}</td>
+            </tr>
+            <tr>
+                <th>Nomor Kontak / Telepon</th>
+                <td>{{ tech.phone if tech else '-' }}</td>
+            </tr>
+            <tr>
+                <th>Status Keanggotaan</th>
+                <td>
+                    <span class="badge {{ 'bg-success' if tech and tech.status == 'Active' else 'bg-warning text-dark' }}">
+                        {{ tech.status if tech else 'Terdaftar' }}
+                    </span>
+                </td>
+            </tr>
+        </table>
+
+        <!-- BAGIAN III: HASIL PEMERIKSAAN KEAMANAN & MULTI-FAKTOR -->
+        <div class="doc-section-title">III. HASIL PEMERIKSAAN MULTI-FAKTOR & KEPUTUSAN AKSES</div>
+        <table class="info-table">
+            <tr>
+                <th>Jenis Akses</th>
+                <td>
+                    <span class="badge bg-dark px-2 py-1">{{ log.access_type }}</span>
+                </td>
+            </tr>
+            <tr>
+                <th>Verifikasi Biometrik Wajah</th>
+                <td>
+                    {% if log.face_result == 'MATCHED' %}
+                        <span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>MATCHED (Cocok dengan Database Biometrik)</span>
+                        {% if log.face_distance %}
+                            <span class="text-muted small font-monospace ms-2">(Distance: {{ "%.3f"|format(log.face_distance) }})</span>
+                        {% endif %}
+                    {% elif log.face_result == 'FAILED' %}
+                        <span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-1"></i>FAILED (Tidak Cocok / Tidak Ditemukan)</span>
+                    {% else %}
+                        <span class="text-muted">{{ log.face_result or '-' }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Anti-Spoofing / Liveness</th>
+                <td>
+                    {% if 'SPOOF' in (log.reason_code or '') %}
+                        <span class="text-danger fw-bold"><i class="bi bi-shield-x me-1"></i>TERDETEKSI FOTO PALSU / LAYAR DIGITAL (BLOCKED)</span>
+                    {% else %}
+                        <span class="text-success"><i class="bi bi-shield-check me-1"></i>TERVERIFIKASI ASLI (Live Face Verified)</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Token OTP (TOTP 6-Digit)</th>
+                <td>
+                    {% if log.otp_result == 'SUCCESS' %}
+                        <span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>VALID (Otentikasi Dua Arah Berhasil)</span>
+                    {% elif log.otp_result == 'SKIPPED' %}
+                        <span class="text-muted">DILEWATI (Direct Face Auth Mode)</span>
+                    {% else %}
+                        <span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-1"></i>{{ log.otp_result or 'GAGAL' }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>GPS Geofencing Status</th>
+                <td>
+                    {% if log.reason_code == 'OUT_OF_GEOFENCE' %}
+                        <span class="text-danger fw-bold"><i class="bi bi-geo-alt-fill me-1"></i>DILUAR RADIUS TOWER (Pelanggaran Geofence)</span>
+                    {% else %}
+                        <span class="text-success"><i class="bi bi-geo-alt-fill me-1"></i>TERVALIDASI DI AREA TOWER (&le; 150m)</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Keputusan Akhir Akses</th>
+                <td>
+                    {% if log.access_result == 'GRANTED' %}
+                        <span class="badge bg-success fs-6 px-3 py-1"><i class="bi bi-unlock-fill me-1"></i>DIIZINKAN (ACCESS GRANTED)</span>
+                    {% else %}
+                        <span class="badge bg-danger fs-6 px-3 py-1"><i class="bi bi-lock-fill me-1"></i>DITOLAK (ACCESS DENIED)</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Status Aktuator Gerbang</th>
+                <td>
+                    {% if log.gate_status == 'OPEN' or log.access_result == 'GRANTED' %}
+                        <strong class="text-success">TERBUKA OTOMATIS (Duration: 10 detik)</strong>
+                    {% else %}
+                        <strong class="text-danger">TETAP TERKUNCI RAPAT (Gate Locked)</strong>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Keterangan / Reason Code</th>
+                <td class="small text-muted font-monospace">
+                    <strong>[{{ log.reason_code or 'ACCESS_GRANTED' }}]</strong> {{ log.description or 'Akses berhasil diproses.' }}
+                </td>
+            </tr>
+        </table>
+
+        <!-- BAGIAN IV: BUKTI DOKUMENTASI VISUAL -->
+        <div class="doc-section-title">IV. BUKTI FOTO DOKUMENTASI (VISUAL EVIDENCE)</div>
+        <div class="row align-items-center mt-2 mb-3">
+            <div class="col-sm-5 text-center">
+                <div class="evidence-box">
+                    {% if log.evidence_image %}
+                        <img src="{{ log.evidence_image }}" class="evidence-img img-fluid" alt="Bukti Foto Snapshot Akses">
+                    {% else %}
+                        <div style="height: 140px; width: 140px; display: flex; align-items: center; justify-content: center; color: #64748B; background: #1E293B; border-radius: 6px; margin: 0 auto;">
+                            <div class="small"><i class="bi bi-camera-fill fs-2 d-block mb-1"></i>Tidak Ada Foto</div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="text-muted small mt-1 font-monospace" style="font-size: 0.75rem;">Snapshot Kamera Gerbang</div>
+            </div>
+            <div class="col-sm-7">
+                <div class="p-3 bg-light rounded-3 small">
+                    <div class="fw-bold mb-1 text-dark"><i class="bi bi-info-circle-fill text-primary me-1"></i>Catatan Forensik Keamanan:</div>
+                    <div class="text-muted mb-2">
+                        Foto snapshot diambil secara otomatis oleh modul kamera saat sistem mendeteksi permintaan verifikasi gerbang. Seluruh data biometrik dienkripsi dan diarsipkan untuk kebutuhan audit kepatuhan regulasi telekomunikasi.
+                    </div>
+                    <div class="font-monospace text-secondary" style="font-size: 0.75rem;">
+                        <div>Perangkat ID: <strong>{{ log.device_id or 'LOCAL_KIOSK_SIMULATION' }}</strong></div>
+                        <div>Tingkat Risiko: <span class="badge {{ 'bg-success' if log.incident_level == 'NORMAL' else 'bg-danger' }}">{{ log.incident_level or 'NORMAL' }}</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BAGIAN V: LEMBAR PENGESAHAN RESMI -->
+        <div class="doc-section-title">V. LEMBAR PENGESAHAN RESMI</div>
+        <div class="row text-center mt-3 pt-2">
+            <div class="col-6">
+                <div class="fw-bold text-dark mb-1">Teknisi Pemohon Akses,</div>
+                <div class="text-muted small mb-2">Yang Melakukan Kunjungan Kerja</div>
+                <div class="signature-box mb-2">
+                    {% if log.access_result == 'GRANTED' %}
+                        <div class="digital-stamp">
+                            <i class="bi bi-patch-check-fill me-1"></i>DIGITALLY VERIFIED<br>
+                            <small class="font-monospace" style="font-size: 0.65rem;">{{ tech.technician_id if tech else 'TECH' }}</small>
+                        </div>
+                    {% else %}
+                        <span class="text-muted">Akses Ditolak</span>
+                    {% endif %}
+                </div>
+                <div class="fw-bold text-dark">{{ tech.name if tech else '-' }}</div>
+                <div class="small text-muted font-monospace">{{ tech.technician_id if tech else '-' }}</div>
+            </div>
+
+            <div class="col-6">
+                <div class="fw-bold text-dark mb-1">Security & Network Controller,</div>
+                <div class="text-muted small mb-2">Pusat Pengawasan Operasional (NOC)</div>
+                <div class="signature-box mb-2">
+                    <div class="digital-stamp {{ 'denied' if log.access_result != 'GRANTED' else '' }}">
+                        <i class="bi bi-shield-check me-1"></i>AUTORISASI SISTEM<br>
+                        <small class="font-monospace" style="font-size: 0.65rem;">{{ log.timestamp.strftime('%Y%m%d/%H%M%S') }}</small>
+                    </div>
+                </div>
+                <div class="fw-bold text-dark">SISTEM GERBANG SMART BTS</div>
+                <div class="small text-muted font-monospace">NOC Server Automated Auth</div>
+            </div>
+        </div>
+
+        <!-- FOOTER DOKUMEN -->
+        <div class="border-top pt-3 mt-4 text-center text-muted" style="font-size: 0.75rem;">
+            <em>Dokumen ini dicetak dan diterbitkan secara sah oleh Sistem Pengamanan Akses Fisik BTS Terpadu. Informasi dalam dokumen ini bersifat rahasia dan merupakan aset kepatuhan operasional telekomunikasi.</em>
+        </div>
+    </div>
+
+</body>
+</html>

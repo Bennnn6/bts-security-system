@@ -1448,14 +1448,15 @@ def access_logs_api():
         # -----------------------------
         # Jumlah data
         # -----------------------------
-        try:
-            limit = int(
-                request.args.get("limit", 50)
-            )
-        except (TypeError, ValueError):
-            limit = 50
-
-        limit = max(1, min(limit, 500))
+        limit_arg = str(request.args.get("limit", "50")).strip().lower()
+        if limit_arg in ("all", "semua", "0", "max"):
+            limit = 5000
+        else:
+            try:
+                limit = int(limit_arg)
+            except (TypeError, ValueError):
+                limit = 50
+            limit = max(1, min(limit, 5000))
 
         try:
             page = int(
@@ -2106,6 +2107,211 @@ def export_pdf():
         mimetype=
             "application/pdf",
     )
+
+
+# =========================================================
+# K3 SHELTER OVERSTAY ALERT (FITUR ENTERPRISE 3)
+# =========================================================
+
+K3_MAX_STAY_MINUTES = 120  # Ambang batas aman K3 di dalam shelter BTS (2 Jam)
+
+def get_active_shelter_stays():
+    """
+    Mencari teknisi yang status akses terakhirnya MASUK (GRANTED) dan belum KELUAR.
+    Menghitung durasi stay dan mendeteksi overstay K3 (> 120 menit).
+    """
+    technicians = Technician.query.filter_by(status="Active").all()
+    stays = []
+    now = datetime.utcnow()
+
+    for tech in technicians:
+        latest = (
+            AccessLog.query
+            .filter(
+                AccessLog.technician_id == tech.technician_id,
+                AccessLog.access_result == 'GRANTED',
+                AccessLog.access_type.in_(('MASUK', 'KELUAR'))
+            )
+            .order_by(AccessLog.timestamp.desc())
+            .first()
+        )
+
+        if latest and latest.access_type == 'MASUK':
+            duration_minutes = int((now - latest.timestamp).total_seconds() / 60)
+            hours = duration_minutes // 60
+            mins = duration_minutes % 60
+            dur_str = f"{hours}j {mins}m" if hours > 0 else f"{mins} menit"
+            is_overstay = duration_minutes >= K3_MAX_STAY_MINUTES
+
+            site = latest.site or BtsSite.query.filter_by(site_id=latest.site_id).first()
+            stays.append({
+                "technician_id": tech.technician_id,
+                "name": tech.name,
+                "position": tech.position or "Teknisi Lapangan",
+                "phone": tech.phone or "-",
+                "site_id": latest.site_id,
+                "site_name": site.site_name if site else latest.site_id,
+                "entry_time": latest.timestamp.strftime("%d/%m/%Y %H:%M:%S"),
+                "duration_minutes": duration_minutes,
+                "duration_formatted": dur_str,
+                "is_overstay": is_overstay,
+                "status_badge": "OVERSTAY" if is_overstay else "NORMAL_STAY",
+                "incident_level": "HIGH" if is_overstay else "NORMAL"
+            })
+
+    return stays
+
+
+@features_bp.get("/k3-overstay")
+@admin_required
+def get_k3_overstay_data():
+    stays = get_active_shelter_stays()
+    overstay_list = [s for s in stays if s["is_overstay"]]
+    return jsonify({
+        "status": "success",
+        "active_stays": stays,
+        "overstay_count": len(overstay_list),
+        "overstays": overstay_list,
+        "threshold_minutes": K3_MAX_STAY_MINUTES,
+        "server_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    })
+
+
+# =========================================================
+# TELEGRAM BOT CONFIG & TEST (FITUR ENTERPRISE 4)
+# =========================================================
+
+@features_bp.get("/telegram/status")
+@admin_required
+def get_telegram_status():
+    token = app.config.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = app.config.get("TELEGRAM_CHAT_ID", "").strip()
+    enabled = app.config.get("TELEGRAM_NOTIFICATIONS_ENABLED", False)
+
+    if not token:
+        return jsonify({
+            "status": "unconfigured",
+            "enabled": enabled,
+            "has_token": False,
+            "has_chat_id": bool(chat_id),
+            "bot_info": None
+        })
+
+    import requests
+    try:
+        resp = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=6)
+        data = resp.json()
+        if resp.status_code == 200 and data.get("ok"):
+            return jsonify({
+                "status": "connected",
+                "enabled": enabled,
+                "has_token": True,
+                "has_chat_id": bool(chat_id),
+                "chat_id": chat_id,
+                "bot_info": data.get("result")
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "enabled": enabled,
+                "has_token": True,
+                "has_chat_id": bool(chat_id),
+                "error": data.get("description", "Token Telegram tidak valid.")
+            })
+    except Exception as exc:
+        return jsonify({
+            "status": "error",
+            "enabled": enabled,
+            "has_token": True,
+            "has_chat_id": bool(chat_id),
+            "error": str(exc)
+        })
+
+
+@features_bp.post("/telegram/config")
+@admin_required
+def update_telegram_config():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("bot_token", "").strip()
+    chat_id = payload.get("chat_id", "").strip()
+    enabled = bool(payload.get("enabled", False))
+    notify_all = bool(payload.get("notify_all", True))
+
+    if token:
+        app.config["TELEGRAM_BOT_TOKEN"] = token
+    if chat_id:
+        app.config["TELEGRAM_CHAT_ID"] = chat_id
+    app.config["TELEGRAM_NOTIFICATIONS_ENABLED"] = enabled
+    app.config["TELEGRAM_NOTIFY_ALL_ACCESS"] = notify_all
+
+    audit(
+        "UPDATE_TELEGRAM_CONFIG",
+        f"Admin memperbarui konfigurasi Telegram Bot (Enabled: {enabled}, Chat ID: {chat_id or 'tidak berubah'})."
+    )
+
+    return jsonify({
+        "status": "success",
+        "message": "Konfigurasi Telegram Bot berhasil disimpan.",
+        "enabled": enabled,
+        "notify_all": notify_all,
+        "has_token": bool(app.config.get("TELEGRAM_BOT_TOKEN")),
+        "chat_id": app.config.get("TELEGRAM_CHAT_ID")
+    })
+
+
+@features_bp.post("/telegram/test")
+@admin_required
+def test_telegram_alert():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("bot_token", "").strip() or app.config.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = payload.get("chat_id", "").strip() or app.config.get("TELEGRAM_CHAT_ID", "").strip()
+    custom_msg = payload.get("message", "").strip()
+
+    if not token or not chat_id:
+        return jsonify({
+            "status": "error",
+            "message": "Bot Token dan Chat ID wajib diisi terlebih dahulu."
+        }), 400
+
+    import requests
+    now_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    test_text = (
+        "🧪 <b>[BTS SECURITY - TEST NOTIFIKASI]</b>\n\n"
+        "Halo Admin! Koneksi Webhook Telegram Bot berhasil terhubung ke server BTS Security System.\n\n"
+        f"💬 <b>Pesan:</b> {custom_msg or 'Uji coba komunikasi real-time sukses!'}\n"
+        f"⏱️ <b>Waktu:</b> {now_str}\n"
+        "🛡️ <i>Status Sistem: SIAP & AKTIF</i>"
+    )
+
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        resp = requests.post(url, json={
+            "chat_id": chat_id,
+            "text": test_text,
+            "parse_mode": "HTML"
+        }, timeout=10)
+
+        data = resp.json()
+        if resp.status_code == 200 and data.get("ok"):
+            audit("TEST_TELEGRAM_NOTIFICATION", f"Uji coba kirim pesan Telegram ke chat_id {chat_id} berhasil.")
+            return jsonify({
+                "status": "success",
+                "message": "Pesan uji coba Telegram berhasil dikirim! Silakan periksa aplikasi Telegram Anda.",
+                "telegram_response": data.get("result")
+            })
+        else:
+            err_desc = data.get("description", "Gagal mengirim pesan via Telegram API.")
+            return jsonify({
+                "status": "error",
+                "message": f"Telegram API Error: {err_desc}"
+            }), 400
+    except Exception as exc:
+        return jsonify({
+            "status": "error",
+            "message": f"Koneksi gagal ke Telegram API: {str(exc)}"
+        }), 500
+
+
 # =========================================================
 # REGISTER BLUEPRINT
 # =========================================================

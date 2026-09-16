@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    :root {
+        --jk-primary: #7C3AED;
+        --jk-bg-main: #F8FAFC;
+        --jk-white: #FFFFFF;
+        --jk-radius: 12px;
+    }
+    body { background-color: var(--jk-bg-main) !important; font-family: 'Inter', sans-serif; }
+    .card { background-color: var(--jk-white); border: none; border-radius: var(--jk-radius); box-shadow: 0 4px 15px rgba(15,23,42,0.04); }
+    .btn-primary { background-color: var(--jk-primary); border-color: var(--jk-primary); }
+</style>
+
+<div class="app-page p-3 p-md-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-1"><i class="bi bi-card-checklist text-primary me-2"></i> Tugas & Work Order Anda</h3>
+            <p class="text-muted mb-0">Kelola dan selesaikan perintah kerja pemeliharaan BTS yang ditugaskan.</p>
+        </div>
+        <span class="badge bg-dark px-3 py-2 fs-6 rounded-pill shadow-sm">{{ my_work_orders|length }} Tiket Total</span>
+    </div>
+
+    <!-- Notification Polling -->
+    {% if active_work_orders %}
+    <div id="workerNotification" class="alert alert-warning border-warning-subtle shadow-sm d-flex align-items-center gap-3 mb-4 rounded-3" data-active-count="{{ active_work_orders|length }}">
+        <i class="bi bi-bell-fill fs-3 text-warning"></i>
+        <div class="flex-grow-1">
+            <h6 class="mb-1 fw-bold text-dark" id="workerNotificationTitle">Ada {{ active_work_orders|length }} tugas yang perlu ditangani</h6>
+            <p class="mb-0 small text-muted">Periksa site tujuan, jadwal, dan catatan pekerjaan sebelum menuju lokasi shelter.</p>
+        </div>
+        <button id="enableWorkerNotifications" type="button" class="btn btn-sm btn-outline-dark">Aktifkan Notifikasi Browser</button>
+    </div>
+    {% endif %}
+
+    <!-- Work Order List -->
+    <div class="row g-4">
+        {% if my_work_orders %}
+            {% for wo in my_work_orders %}
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100 border-top border-4 {% if wo.status == 'COMPLETED' %}border-success{% elif wo.status == 'IN_PROGRESS' %}border-warning{% else %}border-primary{% endif %}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="badge bg-light text-dark border font-monospace">{{ wo.ticket_number }}</span>
+                            <span class="badge {% if wo.status == 'COMPLETED' %}bg-success{% elif wo.status == 'IN_PROGRESS' %}bg-warning text-dark{% else %}bg-primary{% endif %}">{{ wo.status }}</span>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-1">{{ wo.purpose }}</h5>
+                        <p class="text-muted small mb-3"><i class="bi bi-geo-alt me-1"></i> {{ wo.site_name }} ({{ wo.site_id }})</p>
+                        
+                        <div class="p-2 bg-light rounded-3 mb-3 small d-flex justify-content-between">
+                            <span class="text-muted">Jadwal:</span>
+                            <strong class="text-dark"><i class="bi bi-calendar-event me-1"></i> {{ wo.scheduled_date.strftime('%d/%m/%Y') if wo.scheduled_date else '-' }}</strong>
+                        </div>
+
+                        {% if wo.status in ('APPROVED', 'PENDING') %}
+                            <form method="POST" action="{{ url_for('start_worker_work_order', wo_id=wo.id) }}" class="worker-start-form">
+                                <input type="hidden" name="start_latitude" data-gps-latitude>
+                                <input type="hidden" name="start_longitude" data-gps-longitude>
+                                <button type="submit" class="btn btn-primary w-100 fw-bold"><i class="bi bi-play-circle me-2"></i> Mulai Tugas</button>
+                            </form>
+                        {% elif wo.status == 'IN_PROGRESS' %}
+                            <button type="button" class="btn btn-success w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#completeWorkOrder{{ wo.id }}"><i class="bi bi-check-circle me-2"></i> Selesaikan Tugas</button>
+                        {% else %}
+                            <button class="btn btn-light w-100 fw-bold text-muted" disabled><i class="bi bi-check2-all me-2"></i> Selesai</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Penyelesaian WO -->
+            {% if wo.status in ('APPROVED', 'PENDING', 'IN_PROGRESS') %}
+            <div class="modal fade" id="completeWorkOrder{{ wo.id }}" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg" style="border-radius: var(--jk-radius);">
+                        <div class="modal-header bg-dark text-white">
+                            <h5 class="modal-title"><i class="bi bi-check2-square me-2"></i> Selesaikan {{ wo.ticket_number }}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form method="POST" enctype="multipart/form-data" data-gps-form action="{{ url_for('complete_worker_work_order', wo_id=wo.id) }}">
+                            <div class="modal-body p-4">
+                                <div class="alert alert-info py-2 small mb-3 border-0 d-flex align-items-center">
+                                    <i class="bi bi-geo-alt-fill fs-4 me-2"></i> Koordinat GPS otomatis dicatat sebagai bukti kehadiran fisik di lokasi.
+                                </div>
+                                <label class="form-label fw-bold text-dark">Ringkasan Pekerjaan Selesai</label>
+                                <textarea name="completion_note" class="form-control mb-3" rows="3" required placeholder="Contoh: Modul rectifier telah diganti..."></textarea>
+                                
+                                <label class="form-label fw-bold text-dark">Foto Bukti Pekerjaan <span class="text-muted fw-normal">(opsional)</span></label>
+                                <input name="evidence_image" class="form-control" type="file" accept="image/jpeg,image/png,image/webp">
+                                
+                                <input type="hidden" name="completion_latitude" data-gps-latitude>
+                                <input type="hidden" name="completion_longitude" data-gps-longitude>
+                            </div>
+                            <div class="modal-footer bg-light">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                <button type="submit" class="btn btn-success fw-bold px-4">Kirim Laporan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        {% else %}
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-clipboard-x fs-1 text-muted mb-3 d-block"></i>
+                <h5 class="text-dark fw-bold">Tidak ada tugas aktif</h5>
+                <p class="text-muted">Belum ada work order yang ditugaskan ke akun Anda saat ini.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+(function () {
+    const notificationPanel = document.getElementById('workerNotification');
+    const enableButton = document.getElementById('enableWorkerNotifications');
+    const initialCount = Number(notificationPanel?.dataset.activeCount || 0);
+    let knownCount = initialCount;
+
+    async function refreshWorkOrderNotice() {
+        try {
+            const response = await fetch('{{ url_for("worker_work_order_summary") }}', { credentials: 'same-origin', headers: {'X-Requested-With': 'XMLHttpRequest'}, cache: 'no-store' });
+            if (!response.ok) return;
+            const result = await response.json();
+            const activeCount = Number(result.active_count || 0);
+            const title = document.getElementById('workerNotificationTitle');
+            if (activeCount > 0 && title) title.textContent = 'Ada ' + activeCount + ' tugas yang perlu ditangani';
+            if (activeCount > knownCount && knownCount >= 0 && 'Notification' in window && Notification.permission === 'granted') {
+                const latest = result.latest || {};
+                new Notification('Work order baru', { body: (latest.ticket_number || 'Tugas baru') + ' - ' + (latest.purpose || 'Periksa dashboard worker.') });
+            }
+            knownCount = activeCount;
+        } catch (error) {}
+    }
+
+    if (enableButton) {
+        enableButton.addEventListener('click', async function () {
+            if (!('Notification' in window)) { this.textContent = 'Notifikasi tidak didukung'; return; }
+            const permission = await Notification.requestPermission();
+            this.textContent = permission === 'granted' ? 'Notifikasi aktif' : 'Izin belum diberikan';
+            this.disabled = permission === 'granted';
+        });
+    }
+
+    document.querySelectorAll('form[data-gps-form], .worker-start-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var latInputs = form.querySelectorAll('[data-gps-latitude]');
+            var lngInputs = form.querySelectorAll('[data-gps-longitude]');
+            var submitted = false;
+            function doSubmit() { if (submitted) return; submitted = true; form.submit(); }
+            if (!navigator.geolocation) { doSubmit(); return; }
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    latInputs.forEach(i => i.value = position.coords.latitude);
+                    lngInputs.forEach(i => i.value = position.coords.longitude);
+                    doSubmit();
+                },
+                function () { doSubmit(); },
+                { enableHighAccuracy: true, timeout: 1500, maximumAge: 10000 }
+            );
+        });
+    });
+
+    setInterval(refreshWorkOrderNotice, 20000);
+})();
+</script>
+{% endblock %}
