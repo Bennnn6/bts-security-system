@@ -987,6 +987,7 @@ def save_access_log(
     gate_status="CLOSED",
     gate_opened_at=None,
     gate_closed_at=None,
+    device_id=None,
 ):
     log = AccessLog(
         technician_id=technician_id,
@@ -1009,7 +1010,7 @@ def save_access_log(
             else "NORMAL"
         ),
 
-        device_id=get_request_device(),
+        device_id=device_id or get_request_device(),
 
         description=(
             description[:500]
@@ -1653,7 +1654,6 @@ def verify_face():
     # =====================================================
 
     try:
-        from flask import current_app
         if current_app.config.get("ENABLE_WORK_ORDER_CHECK", False) and access_type != "KELUAR":
             from app.models import WorkOrder
             from sqlalchemy import or_
@@ -1947,6 +1947,89 @@ def verify_otp():
             reason_code="TECHNICIAN_NOT_FOUND",
         )
 
+    # =====================================================
+    # SILENT DURESS PIN (EMERGENCY HOSTAGE / COERCION ALARM)
+    # =====================================================
+    duress_pin = str(current_app.config.get("DURESS_PIN", "999999")).strip()
+    evidence_image = data.get("image") or None
+
+    if duress_pin and otp == duress_pin:
+        device_id = get_request_device()
+        try:
+            gate_opened = open_gate(device_id=device_id, site_id=site.site_id)
+        except Exception as exc:
+            print("[DURESS GATE OPEN ERROR]", exc)
+            gate_opened = True
+
+        opened_at = get_gate_opened_at(site.site_id) or datetime.utcnow()
+
+        access_log = save_access_log(
+            technician_id=technician.technician_id,
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="SKIPPED",
+            otp_result="DURESS_TRIGGERED",
+            access_result="GRANTED",
+            reason_code="SILENT_DURESS_ALARM",
+            incident_level="CRITICAL",
+            description=(
+                f"🚨 PERINGATAN DARURAT: Silent Duress PIN digunakan pada Keypad Kiosk "
+                f"oleh teknisi {technician.name} ({technician.technician_id}) di site {site.site_id}! "
+                f"Teknisi kemungkinan berada di bawah ancaman kekerasan atau disandera."
+            ),
+            evidence_image=evidence_image,
+            device_id=device_id,
+        )
+        if gate_opened and access_log:
+            access_log.gate_status = "OPEN"
+            access_log.gate_opened_at = opened_at
+            access_log.gate_closed_at = None
+        db.session.commit()
+
+        create_activity_log(
+            action="SILENT_DURESS_ALARM",
+            description=(
+                f"🚨 SILENT DURESS ALARM: Kode darurat digunakan pada site {site.site_id} "
+                f"oleh {technician.name} ({technician.technician_id})."
+            ),
+            incident_level="CRITICAL",
+            device_id=device_id,
+        )
+
+        try:
+            from app.notifications import send_telegram_alert
+            send_telegram_alert(
+                title="🚨 SILENT DURESS ALARM (DARURAT)!",
+                message=(
+                    f"⚠️ <b>KODE PIN DURESS DIGUNAKAN DI SITE BTS!</b>\n\n"
+                    f"<b>Site:</b> {site.site_name} (<code>{site.site_id}</code>)\n"
+                    f"<b>Teknisi:</b> {technician.name} (<code>{technician.technician_id}</code>)\n"
+                    f"<b>Tipe Akses:</b> {access_type}\n"
+                    f"<b>Status Gerbang:</b> Terbuka (Tampilan normal pada kiosk)\n\n"
+                    f"🚨 <b>INDIKASI BAHAYA:</b> Teknisi diduga disandera atau dipaksa membuka pintu oleh pihak tidak berwenang!\n"
+                    f"Segera hubungi tim patroli keamanan atau pihak berwajib ke lokasi!"
+                ),
+                incident_level="CRITICAL",
+                evidence_base64=evidence_image,
+                site_id=site.site_id,
+                header_badge="🚨 [SILENT DURESS ALARM]",
+            )
+        except Exception as alert_err:
+            print("[DURESS TELEGRAM ALERT ERROR]", alert_err)
+
+        return api_success(
+            message="Kode OTP terverifikasi. Gerbang dibuka!",
+            access_granted=True,
+            gate_opened=True,
+            tech_id=technician.technician_id,
+            technician_name=technician.name,
+            site_id=site.site_id,
+            access_type=access_type,
+            gate_open_duration=GATE_OPEN_SECONDS,
+            gate_open_seconds=GATE_OPEN_SECONDS,
+            is_duress=True,
+        )
+
     if not technician.totp_secret:
 
         return api_error(
@@ -2201,7 +2284,6 @@ def verify_otp():
     # =====================================================
 
     try:
-        from flask import current_app
         if current_app.config.get("ENABLE_WORK_ORDER_CHECK", False) and access_type != "KELUAR":
             from app.models import WorkOrder
             from sqlalchemy import or_
@@ -3145,6 +3227,7 @@ def gate_sensor_event():
     site_id = str(data.get("site_id") or "").strip()
     event = str(data.get("event") or "").strip().upper()
     device_id = str(data.get("device_id") or "DOOR_SENSOR").strip()
+    image = data.get("image") or None
 
     if not site_id:
         return api_error("Site ID wajib dikirim.", 400, reason_code="SITE_REQUIRED")
@@ -3174,6 +3257,7 @@ def gate_sensor_event():
                 incident_level="CRITICAL",
                 description="ALARM! Sensor magnet mendeteksi gerbang dibuka paksa (pembobolan)!",
                 device_id=device_id,
+                evidence_image=image,
             )
             create_activity_log(
                 action="SECURITY_ALARM",
@@ -3195,6 +3279,7 @@ def gate_sensor_event():
                     f"Periksa lokasi atau kamera CCTV sekarang juga!"
                 ),
                 incident_level="CRITICAL",
+                evidence_base64=image,
                 site_id=site_id,
                 header_badge="🚨 [ALARM GERBANG DIBOBOL]",
             )
@@ -3242,5 +3327,305 @@ def gate_sensor_status():
         sensor=get_door_sensor_status(site_id),
         kiosk=get_kiosk_status(site_id),
     )
+
+
+# =========================================================
+# VERIFY QR CODE ACCESS (DIGITAL PASS / WORK ORDER TICKET)
+# =========================================================
+
+@bp.route(
+    "/verify-qr",
+    methods=["POST"],
+)
+@api_login_required
+@csrf_protected
+def verify_qr():
+    """
+    Verifikasi akses gerbang menggunakan QR Code tiket kerja / digital pass.
+    """
+    if not request.is_json:
+        return api_error("Request harus menggunakan JSON.", 415, reason_code="CONTENT_TYPE_INVALID")
+
+    data = request.get_json(silent=True) or {}
+    qr_data = str(data.get("qr_data") or data.get("qr") or "").strip()
+    site_id = str(data.get("site_id") or "").strip()
+    access_type = str(data.get("access_type") or "MASUK").strip().upper()
+    image = data.get("image") or None
+    device_id = get_request_device()
+
+    if not qr_data and image:
+        try:
+            import cv2
+            import numpy as np
+            import base64
+            img_b64 = str(image)
+            if "," in img_b64:
+                img_b64 = img_b64.split(",", 1)[1]
+            raw_bytes = base64.b64decode(img_b64)
+            nparr = np.frombuffer(raw_bytes, np.uint8)
+            cv_frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if cv_frame is not None:
+                detector = cv2.QRCodeDetector()
+                val, _, _ = detector.detectAndDecode(cv_frame)
+                if val:
+                    qr_data = str(val).strip()
+        except Exception as exc:
+            print("[OPENCV QR DECODE ERROR]", exc)
+
+    if not qr_data:
+        return api_error("QR Code tidak terdeteksi pada kamera atau data QR kosong.", 400, reason_code="QR_NOT_DETECTED")
+
+    site, error = validate_site_and_access(site_id, access_type)
+    if error:
+        message, reason_code = error
+        return api_error(message, 400, reason_code=reason_code)
+
+    parsed_tech_id = None
+    parsed_ticket = None
+
+    import json
+    if qr_data.startswith("{") and qr_data.endswith("}"):
+        try:
+            parsed_json = json.loads(qr_data)
+            parsed_tech_id = parsed_json.get("tech_id") or parsed_json.get("technician_id")
+            parsed_ticket = parsed_json.get("ticket_number") or parsed_json.get("wo_number") or parsed_json.get("ticket")
+        except Exception:
+            pass
+
+    if not parsed_ticket and not parsed_tech_id:
+        if ":" in qr_data:
+            parts = qr_data.split(":", 1)
+            parsed_tech_id, parsed_ticket = parts[0].strip(), parts[1].strip()
+        elif qr_data.startswith("WO-"):
+            parsed_ticket = qr_data
+        elif qr_data.startswith("TECH-"):
+            parsed_tech_id = qr_data
+
+    technician = None
+    from app.models import WorkOrder
+
+    if parsed_ticket:
+        wo = WorkOrder.query.filter_by(ticket_number=parsed_ticket).first()
+        if wo:
+            technician = Technician.query.filter_by(technician_id=wo.technician_id, status="Active").first()
+            if wo.site_id != site.site_id:
+                return api_error(
+                    f"Tiket Kerja {parsed_ticket} terdaftar untuk site {wo.site_id}, bukan site ini ({site.site_id}).",
+                    403,
+                    reason_code="WO_SITE_MISMATCH",
+                )
+            if str(wo.status or "").strip().upper() not in ("APPROVED", "IN_PROGRESS", "ASSIGNED"):
+                return api_error(
+                    f"Tiket Kerja {parsed_ticket} berstatus {wo.status} (bukan APPROVED / IN_PROGRESS / ASSIGNED).",
+                    403,
+                    reason_code="WO_NOT_ACTIVE",
+                )
+
+    if not technician and parsed_tech_id:
+        technician = Technician.query.filter_by(technician_id=parsed_tech_id, status="Active").first()
+
+    if not technician:
+        save_access_log(
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="SKIPPED",
+            otp_result="QR_INVALID",
+            access_result="DENIED",
+            reason_code="QR_INVALID",
+            incident_level="WARNING",
+            description=f"QR Code tidak dikenali atau tidak memiliki tiket aktif: {qr_data[:50]}",
+            evidence_image=image,
+            device_id=device_id,
+        )
+        return api_error("QR Code tidak valid atau teknisi tidak ditemukan.", 403, reason_code="QR_INVALID")
+
+    if gate_is_in_cooldown(site.site_id):
+        return api_error("Gate masih dalam cooldown.", 429, reason_code="GATE_COOLDOWN")
+
+    gate_opened = open_gate(device_id=device_id, site_id=site.site_id)
+    opened_at = get_gate_opened_at(site.site_id) or datetime.utcnow()
+
+    access_log = save_access_log(
+        technician_id=technician.technician_id,
+        site_id=site.site_id,
+        access_type=access_type,
+        face_result="SKIPPED",
+        otp_result="QR_VERIFIED",
+        access_result="GRANTED",
+        reason_code="QR_ACCESS_GRANTED",
+        incident_level="NORMAL",
+        description=f"Akses dibuka via pemindaian QR Code tiket kerja {parsed_ticket or ''} oleh {technician.name}.",
+        evidence_image=image,
+        device_id=device_id,
+    )
+    if gate_opened and access_log:
+        access_log.gate_status = "OPEN"
+        access_log.gate_opened_at = opened_at
+        access_log.gate_closed_at = None
+    db.session.commit()
+
+    try:
+        from app.notifications import send_gate_access_notification
+        send_gate_access_notification(access_log)
+    except Exception:
+        pass
+
+    create_activity_log(
+        action="QR_ACCESS_GRANTED",
+        description=f"Akses QR Code berhasil untuk {technician.name} pada site {site.site_id}.",
+        incident_level="NORMAL",
+        device_id=device_id,
+    )
+
+    return api_success(
+        message="QR Code valid. Gerbang dibuka!",
+        access_granted=True,
+        gate_opened=True,
+        tech_id=technician.technician_id,
+        technician_name=technician.name,
+        site_id=site.site_id,
+        access_type=access_type,
+        gate_open_duration=GATE_OPEN_SECONDS,
+        gate_open_seconds=GATE_OPEN_SECONDS,
+    )
+
+
+# =========================================================
+# NOC & MONITORING DASHBOARD API ENDPOINTS
+# =========================================================
+
+@bp.route("/noc/active-personnel", methods=["GET"])
+@api_login_required
+def noc_active_personnel():
+    """
+    Mengambil daftar personel/teknisi yang saat ini berada di dalam site BTS (On-Site).
+    Mendeteksi potensi overstay jika melebihi batas waktu 3 jam.
+    """
+    from app.models import AccessLog, Technician, BtsSite
+    from sqlalchemy import desc
+
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    logs = (
+        AccessLog.query
+        .filter(AccessLog.access_result == "GRANTED")
+        .filter(AccessLog.timestamp >= today_start)
+        .order_by(desc(AccessLog.timestamp))
+        .all()
+    )
+
+    seen = set()
+    active_list = []
+    now = datetime.utcnow()
+
+    for log in logs:
+        if not log.technician_id:
+            continue
+        key = (log.technician_id, log.site_id)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        if log.access_type == "MASUK":
+            tech = Technician.query.filter_by(technician_id=log.technician_id).first()
+            site = BtsSite.query.filter_by(site_id=log.site_id).first()
+            
+            diff_seconds = int((now - log.timestamp).total_seconds())
+            hours = diff_seconds // 3600
+            mins = (diff_seconds % 3600) // 60
+            
+            # Overstay threshold: 3 hours (180 mins)
+            is_overstay = diff_seconds > (3 * 3600)
+
+            active_list.append({
+                "technician_id": log.technician_id,
+                "technician_name": tech.name if tech else log.technician_id,
+                "phone": tech.phone if tech else "-",
+                "site_id": log.site_id,
+                "site_name": site.site_name if site else log.site_id,
+                "location": site.location if site else "-",
+                "check_in_time": log.timestamp.strftime("%H:%M:%S"),
+                "duration_str": f"{hours}j {mins}m",
+                "duration_minutes": diff_seconds // 60,
+                "is_overstay": is_overstay,
+                "status": "OVERSTAY" if is_overstay else "NORMAL",
+            })
+
+    return api_success(
+        active_count=len(active_list),
+        overstay_count=sum(1 for p in active_list if p["is_overstay"]),
+        personnel=active_list,
+    )
+
+
+@bp.route("/noc/site-map-summary", methods=["GET"])
+def noc_site_map_summary():
+    """
+    Ringkasan sebaran menara BTS, status operasional, sensor pintu, dan personel aktif untuk Live NOC Map.
+    """
+    from app.models import BtsSite, AccessLog
+    from sqlalchemy import desc
+
+    sites = BtsSite.query.order_by(BtsSite.site_name.asc()).all()
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    summary = []
+    for s in sites:
+        gate_st = get_gate_status(s.site_id)
+        sensor_st = get_door_sensor_status(s.site_id)
+        
+        two_hours_ago = datetime.utcnow() - timedelta(hours=2)
+        critical_alert = (
+            AccessLog.query
+            .filter(AccessLog.site_id == s.site_id)
+            .filter(AccessLog.incident_level.in_(["HIGH", "CRITICAL"]))
+            .filter(AccessLog.timestamp >= two_hours_ago)
+            .first()
+        )
+
+        latest_logs = (
+            AccessLog.query
+            .filter(AccessLog.site_id == s.site_id)
+            .filter(AccessLog.access_result == "GRANTED")
+            .filter(AccessLog.timestamp >= today_start)
+            .order_by(desc(AccessLog.timestamp))
+            .all()
+        )
+        tech_inside = set()
+        for l in latest_logs:
+            if l.technician_id and l.technician_id not in tech_inside:
+                if l.access_type == "MASUK":
+                    tech_inside.add(l.technician_id)
+
+        has_breach = (sensor_st.get("state") == "DOOR_FORCED") or bool(
+            critical_alert and critical_alert.reason_code in ("DOOR_FORCED_BREACH", "SILENT_DURESS_ALARM")
+        )
+        has_tech = len(tech_inside) > 0
+
+        if has_breach:
+            pin_status = "CRITICAL"
+        elif has_tech:
+            pin_status = "OCCUPIED"
+        else:
+            pin_status = "NORMAL"
+
+        summary.append({
+            "id": s.id,
+            "site_id": s.site_id,
+            "site_name": s.site_name,
+            "location": s.location,
+            "latitude": s.latitude,
+            "longitude": s.longitude,
+            "temperature": s.temperature,
+            "power_output": s.power_output,
+            "gate_status": str(gate_st or "CLOSED"),
+            "door_sensor": sensor_st.get("state", "DOOR_CLOSED") if isinstance(sensor_st, dict) else str(sensor_st or "DOOR_CLOSED"),
+            "active_tech_count": len(tech_inside),
+            "pin_status": pin_status,
+            "has_alarm": has_breach,
+            "alarm_message": critical_alert.description if (critical_alert and has_breach) else None,
+        })
+
+    return api_success(sites=summary)
 
 

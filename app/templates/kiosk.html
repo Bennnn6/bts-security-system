@@ -597,12 +597,18 @@
         <section class="kiosk-panel">
             <div class="panel-header">
                 <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-camera-video-fill text-info"></i>
-                    <span>PEMINDAI WAJAH (FACE SCANNER)</span>
+                    <i class="bi bi-camera-video-fill text-info" id="scannerPanelIcon"></i>
+                    <span id="scannerPanelTitle">PEMINDAI WAJAH & QR</span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-info py-0 px-2 fw-semibold border-info-subtle" id="btnToggleAutoScan" onclick="toggleAutoScanMode()" title="Nyalakan/Matikan Pemindaian Otomatis (Hands-Free)">
+                        <i class="bi bi-magic me-1"></i> <span id="autoScanLabel">AUTO: ON</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2 text-white" id="btnToggleScannerMode" onclick="toggleScannerMode()" title="Ganti Mode Pindai (Wajah atau QR Tiket)">
+                        <i class="bi bi-qr-code-scan me-1" id="modeBtnIcon"></i> <span id="scannerModeLabel">QR TIKET</span>
+                    </button>
                     <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="camStatusBadge">
-                        <i class="bi bi-record-circle-fill me-1"></i> KAMERA AKTIF
+                        <i class="bi bi-record-circle-fill me-1"></i> AKTIF
                     </span>
                     <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="btnSwitchCamera" title="Ganti Kamera">
                         <i class="bi bi-arrow-repeat"></i>
@@ -611,7 +617,7 @@
             </div>
 
             <!-- Scanner Viewport -->
-            <div class="scanner-viewport" id="scannerViewport" onclick="triggerManualScan()" style="cursor: pointer;" title="Sentuh area kamera untuk memindai wajah">
+            <div class="scanner-viewport" id="scannerViewport" onclick="triggerManualScan()" style="cursor: pointer;" title="Sentuh area kamera untuk memindai">
                 <video id="kioskVideo" autoplay playsinline muted></video>
                 <canvas id="kioskCanvas" style="display: none;"></canvas>
 
@@ -623,6 +629,16 @@
                         <div class="bracket bl"></div>
                         <div class="bracket br"></div>
                         <div class="scan-laser" id="scanLaser" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Auto-Scan Countdown Circle Overlay -->
+                <div id="autoScanCountdownOverlay" class="position-absolute top-50 start-50 translate-middle text-center" style="display: none; z-index: 25; pointer-events: none;">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto shadow-lg" style="width: 100px; height: 100px; background: rgba(6, 182, 212, 0.92); border: 4px solid #FFFFFF; backdrop-filter: blur(8px);">
+                        <span id="autoCountdownNum" class="font-display fw-bold text-white fs-1">3</span>
+                    </div>
+                    <div class="badge bg-dark text-info mt-2 px-3 py-1 font-monospace border border-info-subtle shadow">
+                        TAHAN POSISI ANDA...
                     </div>
                 </div>
 
@@ -788,6 +804,15 @@
         let cameraStream = null;
         let currentFacingMode = "user"; // Front camera default
 
+        // Enhanced Features State (Auto-Scan & Scan Mode)
+        let autoScanEnabled = true;
+        let currentScanMode = "FACE"; // "FACE" or "QR"
+        let autoCountdownVal = 3;
+        let autoCountdownTimer = null;
+        let presenceDetectorInterval = null;
+        let lastFrameMean = 0;
+        let stablePresenceCount = 0;
+
         // Audio Synthesizer (Web Audio API)
         let audioCtx = null;
         function getAudioContext() {
@@ -917,12 +942,13 @@
                 cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
                 videoElem.srcObject = cameraStream;
                 document.getElementById('camStatusBadge').className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
-                document.getElementById('camStatusBadge').innerHTML = '<i class="bi bi-record-circle-fill me-1"></i> KAMERA AKTIF';
+                document.getElementById('camStatusBadge').innerHTML = '<i class="bi bi-record-circle-fill me-1"></i> AKTIF';
                 setScannerStatus("Posisikan Wajah lalu Tekan Tombol di Bawah", "info", false);
+                startAutoPresenceMonitor();
             } catch (err) {
                 console.error("Gagal menyalakan kamera kiosk:", err);
                 document.getElementById('camStatusBadge').className = 'badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1';
-                document.getElementById('camStatusBadge').innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> KAMERA ERROR';
+                document.getElementById('camStatusBadge').innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> ERROR';
                 setScannerStatus("Kamera tidak terdeteksi. Gunakan Keypad OTP di kanan.", "danger");
             }
         }
@@ -932,8 +958,127 @@
             initCamera();
         });
 
-        // Manual Trigger Scan Function
+        // Toggle Auto-Scan (Hands-Free Mode)
+        function toggleAutoScanMode() {
+            autoScanEnabled = !autoScanEnabled;
+            const label = document.getElementById('autoScanLabel');
+            const btn = document.getElementById('btnToggleAutoScan');
+            if (autoScanEnabled) {
+                btn.className = "btn btn-sm btn-outline-info py-0 px-2 fw-semibold border-info-subtle";
+                label.textContent = "AUTO: ON";
+                speakVoice("Mode pemindaian otomatis aktif.");
+            } else {
+                btn.className = "btn btn-sm btn-outline-secondary py-0 px-2 fw-semibold";
+                label.textContent = "AUTO: OFF";
+                cancelAutoCountdown();
+                speakVoice("Mode manual aktif. Silakan tekan tombol untuk memindai.");
+            }
+        }
+
+        // Toggle Scanner Mode (Wajah vs QR Tiket)
+        function toggleScannerMode() {
+            cancelAutoCountdown();
+            currentScanMode = currentScanMode === "FACE" ? "QR" : "FACE";
+            const modeLabel = document.getElementById('scannerModeLabel');
+            const btnLabel = document.getElementById('btnScanLabel');
+            const btnIcon = document.getElementById('btnScanIcon');
+            const panelIcon = document.getElementById('scannerPanelIcon');
+            const targetBox = document.getElementById('targetBox');
+
+            if (currentScanMode === "QR") {
+                modeLabel.textContent = "MODE: WAJAH";
+                btnLabel.textContent = "SCAN QR CODE TIKET";
+                btnIcon.className = "bi bi-qr-code-scan fs-4";
+                panelIcon.className = "bi bi-qr-code-scan text-warning";
+                setScannerStatus("Arahkan QR Code Tiket Kerja / Pass ke Kamera", "warning", false);
+                speakVoice("Mode pindai QR Code aktif. Arahkan kode QR ke depan kamera.");
+                if (targetBox) targetBox.style.borderColor = "#F59E0B";
+            } else {
+                modeLabel.textContent = "QR TIKET";
+                btnLabel.textContent = "SCAN WAJAH SEKARANG";
+                btnIcon.className = "bi bi-camera-fill fs-4";
+                panelIcon.className = "bi bi-camera-video-fill text-info";
+                setScannerStatus("Posisikan Wajah lalu Tekan Tombol di Bawah", "info", false);
+                speakVoice("Mode pemindaian wajah aktif.");
+                if (targetBox) targetBox.style.borderColor = "";
+            }
+        }
+
+        // Auto-Scan Presence Monitor
+        function startAutoPresenceMonitor() {
+            if (presenceDetectorInterval) clearInterval(presenceDetectorInterval);
+            presenceDetectorInterval = setInterval(() => {
+                if (!autoScanEnabled || isScanning || isGateOpen || scanPaused) {
+                    cancelAutoCountdown();
+                    return;
+                }
+                if (!videoElem || videoElem.readyState < 2) return;
+
+                // Sample 32x24 downsampled canvas to measure brightness and stability
+                const sampleCanvas = document.createElement('canvas');
+                sampleCanvas.width = 32;
+                sampleCanvas.height = 24;
+                const sctx = sampleCanvas.getContext('2d');
+                sctx.drawImage(videoElem, 0, 0, 32, 24);
+                const imgData = sctx.getImageData(0, 0, 32, 24).data;
+
+                let sum = 0;
+                for (let i = 0; i < imgData.length; i += 4) {
+                    sum += (imgData[i] + imgData[i+1] + imgData[i+2]) / 3;
+                }
+                const meanBrightness = sum / (imgData.length / 4);
+                const diff = Math.abs(meanBrightness - lastFrameMean);
+                lastFrameMean = meanBrightness;
+
+                // Presence criteria: decent lighting (mean > 25) and stable position (diff < 10)
+                if (meanBrightness > 25 && diff < 10) {
+                    stablePresenceCount++;
+                    if (stablePresenceCount >= 4 && !autoCountdownTimer) {
+                        triggerAutoCountdown();
+                    }
+                } else if (diff > 18) {
+                    stablePresenceCount = 0;
+                    if (autoCountdownTimer) {
+                        cancelAutoCountdown();
+                    }
+                }
+            }, 300);
+        }
+
+        function triggerAutoCountdown() {
+            if (isScanning || isGateOpen || autoCountdownTimer) return;
+            autoCountdownVal = 3;
+            const overlay = document.getElementById('autoScanCountdownOverlay');
+            const numElem = document.getElementById('autoCountdownNum');
+            if (overlay) overlay.style.display = 'block';
+            if (numElem) numElem.textContent = autoCountdownVal;
+            playBeep(660, 'sine', 0.08, 0.12);
+
+            autoCountdownTimer = setInterval(() => {
+                autoCountdownVal--;
+                if (numElem) numElem.textContent = autoCountdownVal;
+                if (autoCountdownVal > 0) {
+                    playBeep(660 + (3 - autoCountdownVal) * 100, 'sine', 0.08, 0.15);
+                } else {
+                    cancelAutoCountdown();
+                    triggerManualScan();
+                }
+            }, 900);
+        }
+
+        function cancelAutoCountdown() {
+            if (autoCountdownTimer) {
+                clearInterval(autoCountdownTimer);
+                autoCountdownTimer = null;
+            }
+            stablePresenceCount = 0;
+            const overlay = document.getElementById('autoScanCountdownOverlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        // Manual / Auto Trigger Scan Function
         async function triggerManualScan() {
+            cancelAutoCountdown();
             if (isGateOpen) return;
             if (isScanning) return;
 
@@ -944,7 +1089,7 @@
             }
 
             isScanning = true;
-            playBeep(880, 'sine', 0.08, 0.15); // Trigger feedback tone
+            playBeep(880, 'sine', 0.08, 0.15);
 
             const scanLaser = document.getElementById('scanLaser');
             const btnScan = document.getElementById('btnTriggerScan');
@@ -953,13 +1098,12 @@
 
             if (scanLaser) scanLaser.style.display = 'block';
             if (btnScan) btnScan.disabled = true;
-            if (btnScanLabel) btnScanLabel.textContent = "MEMERIKSA WAJAH...";
+            if (btnScanLabel) btnScanLabel.textContent = currentScanMode === "QR" ? "MEMERIKSA QR TIKET..." : "MEMERIKSA WAJAH...";
             if (btnScanIcon) btnScanIcon.className = "spinner-border spinner-border-sm";
 
-            setScannerStatus("Memeriksa Wajah...", "info", true);
+            setScannerStatus(currentScanMode === "QR" ? "Memeriksa QR Tiket..." : "Memeriksa Wajah...", "info", true);
 
             try {
-                // Capture snapshot frame from video
                 canvasElem.width = videoElem.videoWidth || 640;
                 canvasElem.height = videoElem.videoHeight || 480;
                 const ctx = canvasElem.getContext('2d');
@@ -967,22 +1111,44 @@
 
                 const base64Image = canvasElem.toDataURL('image/jpeg', 0.85);
 
-                const resp = await fetch('/api/verify-face', {
+                const endpoint = currentScanMode === "QR" ? '/api/verify-qr' : '/api/verify-face';
+                const payload = currentScanMode === "QR" ? {
+                    site_id: SITE_ID,
+                    access_type: currentAccessType,
+                    image: base64Image,
+                    qr_data: "",
+                    device_id: `KIOSK-${SITE_ID}-QR`,
+                } : {
+                    site_id: SITE_ID,
+                    access_type: currentAccessType,
+                    image: base64Image,
+                    device_id: `KIOSK-${SITE_ID}`,
+                };
+
+                const resp = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': CSRF_TOKEN,
                         'X-CSRF-Token': CSRF_TOKEN,
                     },
-                    body: JSON.stringify({
-                        site_id: SITE_ID,
-                        access_type: currentAccessType,
-                        image: base64Image,
-                        device_id: `KIOSK-${SITE_ID}`,
-                    })
+                    body: JSON.stringify(payload)
                 });
 
-                const res = await resp.json();
+                let res;
+                try {
+                    res = await resp.json();
+                } catch (jsonErr) {
+                    console.error("Gagal parse respon JSON server:", jsonErr);
+                    res = null;
+                }
+
+                if (!res) {
+                    markTargetBoxDenied();
+                    playBuzzerDenied();
+                    setScannerStatus(`Server error (${resp.status}): Gagal memproses data`, "danger", false);
+                    return;
+                }
 
                 if (resp.ok && (res.access_granted || res.gate_opened)) {
                     consecutiveFailures = 0;
@@ -993,8 +1159,13 @@
                     playBuzzerDenied();
 
                     if (reason === "SPOOF_ATTACK_DETECTED") {
-                        setScannerStatus("⚠️ Anti-Spoofing: Foto Layar/Cetak Terdeteksi! Gunakan wajah asli.", "danger", false);
-                        speakVoice("Peringatan anti spoofing. Wajah terindikasi foto atau layar digital. Silakan gunakan wajah asli Anda.");
+                        if (res.liveness_details && res.liveness_details.reason === "NO_FACE") {
+                            setScannerStatus("Wajah Tidak Terdeteksi! Posisikan wajah tepat di dalam kotak.", "warning", false);
+                            speakVoice("Wajah tidak terdeteksi. Posisikan wajah Anda di depan kamera.");
+                        } else {
+                            setScannerStatus("⚠️ Anti-Spoofing: Foto Layar/Cetak Terdeteksi! Gunakan wajah asli.", "danger", false);
+                            speakVoice("Peringatan anti spoofing. Wajah terindikasi foto atau layar digital. Silakan gunakan wajah asli Anda.");
+                        }
                     } else if (reason === "FACE_NOT_DETECTED" || reason === "FACE_NOT_FOUND") {
                         setScannerStatus("Wajah Tidak Terdeteksi! Posisikan wajah tepat di dalam kotak.", "warning", false);
                         speakVoice("Wajah tidak terdeteksi. Posisikan wajah Anda di depan kamera.");
@@ -1014,7 +1185,7 @@
             } catch (err) {
                 console.error("Scan face error:", err);
                 playBuzzerDenied();
-                setScannerStatus("Gagal terhubung ke server verifikasi.", "danger", false);
+                setScannerStatus("Gagal terhubung ke server verifikasi. Periksa jaringan.", "danger", false);
             } finally {
                 isScanning = false;
                 if (scanLaser) scanLaser.style.display = 'none';
@@ -1153,6 +1324,17 @@
             const techId = document.getElementById('keypadTechId').value;
             playKeyClick();
 
+            let currentSnapshot = null;
+            try {
+                if (videoElem && videoElem.readyState >= 2) {
+                    canvasElem.width = videoElem.videoWidth || 640;
+                    canvasElem.height = videoElem.videoHeight || 480;
+                    const ctx = canvasElem.getContext('2d');
+                    ctx.drawImage(videoElem, 0, 0, canvasElem.width, canvasElem.height);
+                    currentSnapshot = canvasElem.toDataURL('image/jpeg', 0.80);
+                }
+            } catch (e) {}
+
             try {
                 const resp = await fetch('/api/verify-otp', {
                     method: 'POST',
@@ -1167,10 +1349,23 @@
                         site_id: SITE_ID,
                         access_type: currentAccessType,
                         device_id: `KIOSK-${SITE_ID}-KEYPAD`,
+                        image: currentSnapshot,
                     })
                 });
 
-                const res = await resp.json();
+                let res;
+                try {
+                    res = await resp.json();
+                } catch (jsonErr) {
+                    console.error("Gagal parse respon JSON OTP:", jsonErr);
+                    res = null;
+                }
+
+                if (!res) {
+                    playBuzzerDenied();
+                    alert(`Server error (${resp.status}): Gagal memproses verifikasi OTP`);
+                    return;
+                }
 
                 if (resp.ok && (res.access_granted || res.gate_opened)) {
                     enteredOtp = "";
@@ -1193,6 +1388,17 @@
         // IoT Door Sensor Event Simulation
         async function sendSensorEvent(event) {
             playKeyClick();
+            let currentSnapshot = null;
+            try {
+                if (videoElem && videoElem.readyState >= 2) {
+                    canvasElem.width = videoElem.videoWidth || 640;
+                    canvasElem.height = videoElem.videoHeight || 480;
+                    const ctx = canvasElem.getContext('2d');
+                    ctx.drawImage(videoElem, 0, 0, canvasElem.width, canvasElem.height);
+                    currentSnapshot = canvasElem.toDataURL('image/jpeg', 0.80);
+                }
+            } catch (e) {}
+
             try {
                 const resp = await fetch('/api/gate/sensor-event', {
                     method: 'POST',
@@ -1205,6 +1411,7 @@
                         site_id: SITE_ID,
                         event: event,
                         device_id: `DOOR_SENSOR_${SITE_ID}`,
+                        image: currentSnapshot,
                     })
                 });
 

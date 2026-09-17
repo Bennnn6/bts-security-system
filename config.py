@@ -109,6 +109,9 @@ class Config:
         )
     )
 
+    # Silent Duress Code (Emergency Duress PIN)
+    DURESS_PIN = os.environ.get('DURESS_PIN', '999999').strip()
+
     # =====================================================
     # WORK ORDER / TIKET KERJA
     # =====================================================

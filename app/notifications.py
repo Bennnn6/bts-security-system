@@ -91,6 +91,7 @@ def send_telegram_alert(
     evidence_image_base64=None,
     site_id=None,
     header_badge=None,
+    evidence_base64=None,
 ):
     """
     Kirim notifikasi Telegram secara asinkron di thread terpisah
@@ -107,9 +108,11 @@ def send_telegram_alert(
         if not enabled or not token or not chat_id:
             return
 
+        evidence_img = evidence_base64 or evidence_image_base64
+
         worker = threading.Thread(
             target=_dispatch_telegram,
-            args=(token, chat_id, title, message, incident_level, evidence_image_base64, site_id, header_badge),
+            args=(token, chat_id, title, message, incident_level, evidence_img, site_id, header_badge),
             daemon=True
         )
         worker.start()
