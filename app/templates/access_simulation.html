@@ -24,7 +24,8 @@
     <style>
 
         body {
-            background: #f4f6f9;
+            background: var(--bg-app);
+            color: var(--text-main);
         }
 
         .page-wrapper {
@@ -34,14 +35,15 @@
         }
 
         .main-card {
-            background: #ffffff;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
             border-radius: 18px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            box-shadow: var(--shadow-md);
             overflow: hidden;
         }
 
         .header-section {
-            background: #212529;
+            background: var(--sidebar-bg);
             color: white;
             padding: 25px 30px;
         }

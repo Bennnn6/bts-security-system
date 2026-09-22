@@ -1,57 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 
-<style>
-    :root {
-        --jk-primary: #7C3AED;
-        --jk-primary-hover: #885CF6;
-        --jk-bg-subtle: #EDE9FE;
-        --jk-bg-main: #F8FAFC;
-        --jk-text-dark: #0F172A;
-        --jk-text-muted: #64748B;
-        --jk-white: #FFFFFF;
-        --jk-radius: 12px;
-        --jk-shadow: 0 4px 15px rgba(15, 23, 42, 0.04);
-    }
-
-    body {
-        background-color: var(--jk-bg-main) !important;
-        color: var(--jk-text-dark);
-        font-family: 'Inter', -apple-system, sans-serif;
-    }
-
-    .card {
-        background-color: var(--jk-white);
-        border: none;
-        border-radius: var(--jk-radius);
-        box-shadow: var(--jk-shadow);
-    }
-
-    .badge-soft-primary { background-color: var(--jk-bg-subtle); color: var(--jk-primary); }
-    .badge-soft-success { background-color: #D1FAE5; color: #065F46; }
-    .badge-soft-warning { background-color: #FEF3C7; color: #92400E; }
-    .badge-soft-danger { background-color: #FEE2E2; color: #991B1B; }
-    
-    .icon-box {
-        width: 48px; height: 48px;
-        border-radius: 10px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.5rem;
-    }
-
-    .btn-primary { background-color: var(--jk-primary); border-color: var(--jk-primary); }
-    .btn-primary:hover { background-color: var(--jk-primary-hover); border-color: var(--jk-primary-hover); }
-</style>
-
 <div class="app-page p-3 p-md-4">
 
     <!-- HEADER PORTAL TEKNISI -->
-    <div class="card p-4 mb-4" style="border-left: 6px solid var(--jk-primary);">
+    <div class="card p-4 mb-4" style="border-left: 6px solid var(--brand-primary) !important;">
         <div class="d-flex align-items-center gap-2 mb-2">
             <span class="badge bg-primary text-uppercase px-2 py-1">Portal Teknisi Lapangan</span>
             <span class="badge bg-dark px-2 py-1">{{ technician.technician_id if technician else session.get('worker_id') }}</span>
         </div>
-        <h2 class="mb-1 fw-bold text-dark">Selamat datang, {{ technician.name if technician else worker_name }}</h2>
+        <h2 class="mb-1 fw-bold">Selamat datang, {{ technician.name if technician else worker_name }}</h2>
         <p class="text-muted mb-0">Pantau status menara BTS dan perbarui data profil keamanan Anda.</p>
     </div>
 

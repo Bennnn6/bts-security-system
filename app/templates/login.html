@@ -1,37 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Login | BTS Security System{% endblock %}
+{% block title %}Login Portal | BTS Security System{% endblock %}
 
 {% block page_class %}login-layout{% endblock %}
 
 {% block content %}
 <style>
-    /* Styling background khusus halaman login dengan Jinja2 url_for */
+    html:has(body.login-layout) {
+        background-color: #070B14;
+    }
+    
     body.login-layout {
         background-image: url("{{ url_for('static', filename='IMG/tower bts.jpeg') }}");
         background-size: cover;
-        background-position: center;
+        background-position: center center;
         background-repeat: no-repeat;
         background-attachment: fixed;
         min-height: 100vh;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #070B14;
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    body.login-layout::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 50% 40%, rgba(15, 23, 42, 0.30) 0%, rgba(7, 11, 20, 0.65) 100%);
+        pointer-events: none;
+        z-index: 1;
+    }
+    
+    body.login-layout .app-shell {
+        min-height: 100vh;
+        width: 100%;
+        background: transparent !important;
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    body.login-layout .app-main {
+        width: 100%;
+        background: transparent !important;
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: #0F172A; /* Fallback jika gambar kosong */
+        padding: 2rem 1rem;
+        margin: 0 !important;
+        min-height: 100vh;
     }
     
-    /* Sembunyikan topbar/navigasi bawaan di halaman login */
-    body.login-layout .app-topbar { 
-        display: none !important; 
-    }
-
-    /* Posisikan flash message error di bagian atas tengah */
     body.login-layout .app-flash-stack {
         position: absolute;
-        top: 20px;
+        top: 24px;
         left: 50%;
         transform: translateX(-50%);
         width: 90%;
-        max-width: 600px;
+        max-width: 580px;
         z-index: 1050;
     }
 </style>
@@ -39,33 +72,61 @@
 <div class="glass-login-wrapper">
     <div class="glass-login-container">
         
-        <!-- Bagian Kiri (Visual & Teks) -->
+        <!-- Left Banner: Telecom & Cyber Security Brand -->
         <div class="glass-login-left">
-            <div class="login-brand">BTS SECURITY</div>
-            <h2>SMART<br>GATE SYSTEM</h2>
-            <p>Sistem Kontrol Akses Terpadu & Pemantauan Keamanan Jaringan Area. Real-time Monitoring 24/7.</p>
+            <div class="login-brand">
+                <i class="bi bi-shield-lock-fill text-primary me-1"></i> BTS SECURITY OPERATIONS
+            </div>
+            <h2>SMART GATE<br><span style="color: #A78BFA;">ACCESS NOC</span></h2>
+            <p>Sistem Kontrol Akses Terpadu Shelter Menara BTS. Dilengkapi multi-faktor Face Recognition, TOTP 2FA, dan pemantauan telemetri real-time 24/7.</p>
+            
+            <div class="login-security-pills">
+                <div class="login-pill"><i class="bi bi-person-bounding-box text-info"></i> Face Biometric</div>
+                <div class="login-pill"><i class="bi bi-shield-check text-success"></i> TOTP 2-Factor</div>
+                <div class="login-pill"><i class="bi bi-activity text-warning"></i> Live Telemetry</div>
+            </div>
         </div>
 
-        <!-- Bagian Kanan (Form Login) -->
+        <!-- Right: Login Form -->
         <div class="glass-login-right">
-            <div class="login-header-mobile">
-                <h3>Welcome Back</h3>
-                <p>Silakan masuk ke akun Anda</p>
+            <div class="mb-4">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="pulse-dot"></span>
+                    <span class="text-uppercase small fw-bold" style="color: #A78BFA; letter-spacing: 1px;">Gateway Portal</span>
+                </div>
+                <h3 class="fw-bold text-white mb-1">Selamat Datang</h3>
+                <p class="small text-muted mb-0">Masukkan kredensial akun Admin atau Teknisi Anda.</p>
             </div>
             
             <form method="POST">
-                <div class="mb-4">
-                    <label for="username" class="form-label glass-label">Username / ID Pengguna</label>
-                    <input id="username" type="text" name="username" class="form-control glass-input" placeholder="Masukkan username..." required autofocus>
+                <div class="mb-3">
+                    <label for="username" class="form-label glass-label">
+                        <i class="bi bi-person-badge me-1"></i> Username / ID Akun
+                    </label>
+                    <input id="username" type="text" name="username" class="form-control glass-input" placeholder="Contoh: admin atau TECH-001" required autofocus autocomplete="username">
                 </div>
                 
                 <div class="mb-4">
-                    <label for="password" class="form-label glass-label">Password</label>
-                    <input id="password" type="password" name="password" class="form-control glass-input" placeholder="••••••••" required>
+                    <label for="password" class="form-label glass-label">
+                        <i class="bi bi-key-fill me-1"></i> Password
+                    </label>
+                    <div class="position-relative">
+                        <input id="password" type="password" name="password" class="form-control glass-input" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-white-50 text-decoration-none pe-3 border-0 bg-transparent" onclick="var p = document.getElementById('password'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('bi-eye'); this.querySelector('i').classList.toggle('bi-eye-slash');" aria-label="Lihat Password">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="d-grid gap-2 mt-5">
-                    <button type="submit" class="btn btn-primary glass-btn fw-bold">SIGN IN</button>
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary glass-btn">
+                        <span>MASUK KE SISTEM</span>
+                        <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+
+                <div class="text-center mt-4">
+                    <span class="text-muted small">Smart BTS Infrastructure Guard &copy; 2026</span>
                 </div>
             </form>
         </div>

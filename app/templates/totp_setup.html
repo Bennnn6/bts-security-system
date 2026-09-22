@@ -5,22 +5,22 @@
 {% block extra_css %}
 <style>
     :root {
-        --totp-primary: #7C3AED;
-        --totp-primary-hover: #6D28D9;
-        --totp-primary-light: #EDE9FE;
-        --totp-bg-card: #FFFFFF;
-        --totp-border: #E2E8F0;
-        --totp-text-dark: #0F172A;
-        --totp-text-muted: #64748B;
-        --totp-success: #10B981;
-        --totp-danger: #EF4444;
+        --totp-primary: var(--brand-primary);
+        --totp-primary-hover: var(--brand-primary-hover);
+        --totp-primary-light: var(--brand-primary-subtle);
+        --totp-bg-card: var(--bg-surface);
+        --totp-border: var(--border-subtle);
+        --totp-text-dark: var(--text-main);
+        --totp-text-muted: var(--text-muted);
+        --totp-success: var(--accent-emerald);
+        --totp-danger: var(--accent-rose);
     }
 
     .setup-hero {
         background: var(--totp-bg-card);
         border-radius: 16px;
         border: 1px solid var(--totp-border);
-        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+        box-shadow: var(--shadow-sm);
         border-left: 6px solid var(--totp-primary);
     }
 
@@ -28,13 +28,13 @@
         background: var(--totp-bg-card);
         border: 1px solid var(--totp-border);
         border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+        box-shadow: var(--shadow-sm);
         overflow: hidden;
     }
 
     .totp-card-header {
-        background: #FAF5FF;
-        border-bottom: 1px solid var(--totp-primary-light);
+        background: var(--bg-surface-soft);
+        border-bottom: 1px solid var(--border-subtle);
         padding: 1.25rem 1.5rem;
     }
 
