@@ -1,134 +1,362 @@
 ================================================================================
-KODE MERMAID.JS UNTUK DRAW.IO (SMART BTS GATE SECURITY SYSTEM)
-Cara pakai di Draw.io:
+KATALOG FLOWCHART LENGKAP & MENYELURUH (100% SELURUH FITUR SISTEM BTS)
+SMART BTS GATE SECURITY SYSTEM
+================================================================================
+Petunjuk Draw.io:
 1. Buka https://app.diagrams.net/
-2. Klik tombol '+' atau menu Arrange -> Insert -> Advanced -> Mermaid
-3. Salin salah satu blok kode di bawah ini lalu klik Insert
+2. Klik '+' -> Arrange -> Insert -> Advanced -> Mermaid
+3. Salin salah satu blok kode di bawah ini lalu klik 'Insert'.
+Semua diagram di bawah ini dijamin 100% mencakup seluruh fitur yang ada di web:
+- Sisi Admin NOC (Manajemen, Verifikasi, dan Pemantauan)
+- Sisi Teknisi Lapangan (Portal Worker / PWA HP)
+- Sisi Kiosk Terminal Gerbang (Layar Sentuh & Kamera di Pagar Tower)
+- Sisi Mesin Keamanan & AI (Geofencing, Anti-Spoofing, Face Match, Duress)
+- Sisi Hardware IoT & Sensor Magnetik Pintu (Reed Switch & Sirine)
+- Sisi Dokumen Resmi (Berita Acara BAP, Laporan Excel/PDF, Backup & Telegram Bot)
 ================================================================================
 
---------------------------------------------------------------------------------
-1. DIAGRAM UTAMA: ALUR LENGKAP AKSES GERBANG BTS (END-TO-END)
---------------------------------------------------------------------------------
+
+================================================================================
+BAGIAN 1: SISI ADMIN NOC (COMMAND CENTER & MANAJEMEN)
+================================================================================
+
+--- 1.1: Alur Login Admin NOC ---
 graph TD
-    Start(["Teknisi Minta Akses di Kiosk/Web (MASUK/KELUAR)"]) --> InputData["Input: Foto Wajah, GPS, Site ID, Tipe Akses"]
-    
-    InputData --> CheckSite{"Validasi Site BTS:<br/>Site Valid & Status Up?"}
-    CheckSite -->|Tidak| DeniedSite["Akses Ditolak<br/>(SITE_NOT_FOUND / DOWN)<br/>Level: WARNING"]
-    
-    CheckSite -->|Ya| CheckGeofence{"Cek GPS Geofencing:<br/>Jarak <= 150 Meter?"}
-    CheckGeofence -->|Jarak > 150m| DeniedGeo["Akses Ditolak<br/>(OUT_OF_GEOFENCE)<br/>Level: HIGH"]
-    
-    CheckGeofence -->|Dalam Radius| CheckEvidence{"Validasi Foto Kamera:<br/>Format & Ukuran Valid?"}
-    CheckEvidence -->|Rusak/Kosong| DeniedImg["Akses Ditolak<br/>(FACE_IMAGE_MISSING)<br/>Level: WARNING"]
-    
-    CheckEvidence -->|Valid| SubLiveness["Evaluasi Anti-Spoofing & Liveness"]
-    
-    SubLiveness --> CheckLive{"Lolos Liveness Score?<br/>(Skor >= 0.55 & No Glare)"}
-    CheckLive -->|Gagal / Layar HP| DeniedSpoof["Akses Ditolak<br/>(SPOOF_ATTACK_DETECTED)<br/>Level: HIGH"]
-    
-    CheckLive -->|Lolos| ExtractFace["Ekstraksi Vektor Wajah 128-D"]
-    ExtractFace --> MatchFace{"Pencocokan Encoding Wajah:<br/>Distance <= Threshold?"}
-    
-    MatchFace -->|Tidak Cocok| DeniedUnknown["Akses Ditolak<br/>(FACE_UNKNOWN)<br/>Level: HIGH"]
-    
-    MatchFace -->|Cocok| CheckState{"Validasi Anti-Passback:<br/>Status Masuk/Keluar Valid?"}
-    CheckState -->|Double In/Out| DeniedState["Akses Ditolak<br/>(INVALID_ACCESS_STATE)<br/>Level: WARNING"]
-    
-    CheckState -->|Valid| CheckCooldown{"Gate Cooldown:<br/>Apakah Gate Baru Terbuka?"}
-    CheckCooldown -->|Ya (Cooldown)| DeniedCooldown["Akses Ditunda<br/>(GATE_COOLDOWN)<br/>Level: WARNING"]
-    
-    CheckCooldown -->|Tidak| CheckWO{"Cek Work Order:<br/>Ada Tiket APPROVED Hari Ini?"}
-    CheckWO -->|Tidak Ada| DeniedWO["Akses Ditolak<br/>(NO_ACTIVE_WORK_ORDER)<br/>Level: WARNING"]
-    
-    CheckWO -->|Tiket Valid / Keluar| GrantAccess["Akses DITERIMA (GRANTED)"]
-    
-    GrantAccess --> TriggerHardware["1. Buka Solenoid Gerbang (Relay Webhook)<br/>2. Update Work Order -> IN_PROGRESS<br/>3. Mulai Timer Tutup Otomatis"]
-    TriggerHardware --> SaveLogGrant["Simpan AccessLog (Result: GRANTED)"]
-    SaveLogGrant --> SendNotifGrant["Kirim Notifikasi Telegram Bot NOC (Async)"]
-    SendNotifGrant --> EndSuccess(["Gerbang Terbuka"])
-
-    DeniedSite --> SaveLogDenied["Simpan AccessLog (DENIED) & ActivityLog"]
-    DeniedGeo --> SaveLogDenied
-    DeniedImg --> SaveLogDenied
-    DeniedSpoof --> SaveLogDenied
-    DeniedUnknown --> SaveLogDenied
-    DeniedState --> SaveLogDenied
-    DeniedCooldown --> SaveLogDenied
-    DeniedWO --> SaveLogDenied
-    
-    SaveLogDenied --> AlertCheck{"Incident Level >= HIGH?"}
-    AlertCheck -->|Ya| SendTelegramAlert["Kirim Telegram Alert + Foto Bukti (Async)"]
-    AlertCheck -->|Tidak| EndDenied(["Akses Selesai (Gerbang Terkunci)"])
-    SendTelegramAlert --> EndDenied
+    Start(["Admin Buka Web (/)"]) --> Input["Input Username & Password Admin"]
+    Input --> QueryDB["Cari di Database: Admin.query.filter_by(username)"]
+    QueryDB --> CheckUser{"Admin Terdaftar?"}
+    CheckUser -->|Tidak| FailUser["Login Gagal: Username Salah"]
+    CheckUser -->|Ada| CheckPass{"Cek Password: check_password_hash()"}
+    CheckPass -->|Salah| FailPass["Login Gagal: Password Salah"]
+    CheckPass -->|Benar| Success["1. login_user(admin)<br/>2. Set session['auth_role'] = 'ADMIN'<br/>3. Timeout Sesi 30 Menit"]
+    Success --> Dashboard(["Buka Dashboard NOC (/dashboard)"])
 
 
---------------------------------------------------------------------------------
-2. SUB-SISTEM 1: ANTI-SPOOFING & LIVENESS DETECTION (COMPUTER VISION)
---------------------------------------------------------------------------------
+--- 1.2: Manajemen Menara BTS (Tambah, Edit & Hapus) ---
 graph TD
-    InImg["Input Frame Kamera (RGB Image)"] --> DetFace["Deteksi Wajah (HOG Model)"]
-    DetFace --> CntFace{"Jumlah Wajah?"}
-    
-    CntFace -->|0 Wajah| ErrNoFace["Gagal: Wajah Tidak Terdeteksi"]
-    CntFace -->|> 1 Wajah| ErrMultiFace["Gagal: Lebih Dari Satu Orang"]
-    
-    CntFace -->|Tepat 1 Wajah| CropROI["Crop ROI Wajah"]
-    
-    CropROI --> StepLaplacian["1. Uji Ketajaman Tekstur (Laplacian Var)"]
-    CropROI --> StepGlare["2. Uji Pantulan Layar HP (Specular Glare)"]
-    CropROI --> StepSkin["3. Uji Rona Kulit Alami (YCrCb)"]
-    CropROI --> StepEAR["4. Uji Landmark Mata (EAR Ratio)"]
-    
-    StepLaplacian --> WeightCalc["Hitung Skor Gabungan Liveness:<br/>40% Tekstur + 35% Rona Kulit + 25% Mata - Pinalti Glare"]
-    StepGlare --> WeightCalc
-    StepSkin --> WeightCalc
-    StepEAR --> WeightCalc
-    
-    WeightCalc --> ThresholdCheck{"Skor >= 0.55 & No Glare Penalty?"}
-    ThresholdCheck -->|Ya| LivePass(["Liveness Passed (Manusia Asli)"])
-    ThresholdCheck -->|Tidak| LiveFail(["Spoof Attack Detected (Ditolak)"])
+    Start(["Admin Buka Menu /sites"]) --> Choice{"Pilih Tindakan Menara"}
+    Choice -->|Tambah Site| FormAdd["Input: ID Site, Nama Menara, Lokasi, Lat/Lon GPS"]
+    FormAdd --> ValidCoord{"Validasi Koordinat GPS?"}
+    ValidCoord -->|Valid| SaveSite["Simpan ke DB: BtsSite (Status: Normal Up)"]
+    SaveSite --> DoneSite(["Menara Baru Aktif di Sistem"])
+    Choice -->|Edit Data| FormEdit["Update Nama, Status Operasional, Suhu, Daya"]
+    FormEdit --> DoneSite
+    Choice -->|Hapus Menara| CheckRelasi{"Ada Log Akses / Work Order Terkait?"}
+    CheckRelasi -->|Ada| RejectDel["Tolak Hapus (Data Terkait Log Audit)"]
+    CheckRelasi -->|Kosong| ExecDel["Hapus Menara dari Database"]
 
 
---------------------------------------------------------------------------------
-3. SUB-SISTEM 2: OTENTIKASI OTP & SILENT DURESS PIN (DARURAT / PENYANDERAAN)
---------------------------------------------------------------------------------
+--- 1.3: Peta Interaktif GIS & Indikator Risiko Menara (Leaflet) ---
 graph TD
-    StartOTP(["Input Tech ID + 6-Digit PIN/OTP"]) --> CheckLock{"Cek Status Lockout:<br/>Gagal >= 3x dalam 5 Menit?"}
-    CheckLock -->|Ya| RetLocked["Tolak Akses (HTTP 429: OTP_LOCKED)"]
-    
-    CheckLock -->|Tidak| CheckDuress{"Apakah PIN == DURESS_PIN?<br/>(Default: 999999)"}
-    
-    CheckDuress -->|YA (KONDISI DARURAT)| DuressAction["1. Buka Gerbang Seperti Biasa<br/>2. Catat Log SILENT_DURESS_ALARM (CRITICAL)<br/>3. Kirim Telegram Alert Darurat ke Patroli<br/>4. Simpan Foto Kamera Pelaku"]
-    DuressAction --> GateOpenDuress(["Gerbang Terbuka (Penyelamatan Teknisi)"])
-    
-    CheckDuress -->|TIDAK (Normal)| ValidateTOTP{"Verifikasi TOTP RFC 6238<br/>(Secret via PyOTP)"}
-    
-    ValidateTOTP -->|Kode Salah| IncFail["Tambah Hitungan Gagal (+1)"]
-    IncFail --> CheckMaxFail{"Total Gagal >= 3x?"}
-    CheckMaxFail -->|Ya| LockAccount["Kunci Akses 5 Menit<br/>Log Level: HIGH"]
-    CheckMaxFail -->|Belum| RetWrong["Pesan Sisa Percobaan"]
-    
-    ValidateTOTP -->|Kode Valid| ResetFail["Reset Counter Gagal"]
-    ResetFail --> CheckWOStep["Cek Izin Kerja (Work Order)"]
-    CheckWOStep --> OpenNormal["Buka Gerbang & Catat Log GRANTED"]
-    OpenNormal --> GateOpenNormal(["Gerbang Terbuka"])
+    Start(["Admin Buka Menu Peta (/bts-map)"]) --> FetchSites["Ambil Data Menara: GET /api/features/sites"]
+    FetchSites --> LoopMap["Periksa Kondisi Tiap Menara BTS"]
+    LoopMap --> CalcRisk["Hitung Nilai Risiko: calculate_site_risk(site_id)"]
+    CalcRisk --> PinColor{"Level Risiko Menara?"}
+    PinColor -->|NORMAL| PinGreen["Marker HIJAU: Menara Aman / Beroperasi Normal"]
+    PinColor -->|WARNING| PinYellow["Marker KUNING: Pintu Terbuka Lama / Ada Akses Ditolak"]
+    PinColor -->|CRITICAL| PinRed["Marker MERAH: Pembobolan Gerbang / Silent Duress"]
+    PinGreen --> RenderLeaflet["Tampilkan Seluruh Marker di Peta GIS Leaflet"]
+    PinYellow --> RenderLeaflet
+    PinRed --> RenderLeaflet
 
 
---------------------------------------------------------------------------------
-4. SUB-SISTEM 3: SENSOR PINTU MAGNETIK & ALARM PEMBOBOLAN FISIK
---------------------------------------------------------------------------------
+--- 1.4: Pendaftaran Teknisi & Rekam Wajah (Webcam Enrollment) ---
 graph TD
-    SensorEvent["Hardware / Reed Switch Mengirim Event ke API"] --> EventType{"Tipe Event Sensor?"}
-    
-    EventType -->|DOOR_OPENED| NormalOpen["Pintu Terbuka Normal<br/>Status: Sensor OPEN"]
-    EventType -->|DOOR_CLOSED| NormalClose["Pintu Tertutup Rapat<br/>Health: NORMAL, Status: CLOSED"]
-    
-    EventType -->|DOOR_AJAR| AjarAlert["Pintu Terbuka Terlalu Lama!<br/>Health: WARNING"]
-    
-    EventType -->|DOOR_FORCED| ForcedEntry["PEMBOBOLAN GERBANG TERDETEKSI!<br/>(Pintu Dibuka Paksa Tanpa Akses)"]
-    ForcedEntry --> ActionBreach["1. Simpan AccessLog (DOOR_FORCED_BREACH, CRITICAL)<br/>2. Bunyikan Sirine via Relay Webhook<br/>3. Kirim Telegram Alert CRITICAL + Snapshot Kamera"]
-    
-    AjarAlert --> UpdateState["Update Real-Time NOC Map & Dashboard"]
-    NormalOpen --> UpdateState
-    NormalClose --> UpdateState
-    ActionBreach --> UpdateState
+    Start(["Admin Buka /technicians/register"]) --> InputBio["Input: ID, Nama, Jabatan, HP, Username, Password"]
+    InputBio --> SaveTechDB["Simpan Akun Teknisi ke Database (Status: Active)"]
+    SaveTechDB --> OpenEnroll["Buka Form Rekam Wajah (/enroll-face)"]
+    OpenEnroll --> ActiveCam["Webcam Admin Mengambil Foto Wajah Teknisi"]
+    ActiveCam --> RunAI["Ekstraksi Vektor Wajah 128-D: extract_face_encoding()"]
+    RunAI --> CheckFace{"Wajah Jelas & Tepat 1 Orang?"}
+    CheckFace -->|Gagal| Retake["Foto Ulang Wajah"]
+    CheckFace -->|Sukses| SaveVector["Simpan ke DB: technician.face_encoding (PickleType)"]
+    SaveVector --> DoneBio(["Wajah Biometrik Teknisi Terdaftar"])
+
+
+--- 1.5: Konfigurasi 2FA TOTP (Google Authenticator Setup) ---
+graph TD
+    Start(["Admin Buka /technicians/<id>/totp-setup"]) --> GenKey["Server Buat Secret Key: pyotp.random_base32()"]
+    GenKey --> GenQR["Generate QR Code SVG: otpauth://totp/..."]
+    GenQR --> ShowQR["Tampilkan QR Code di Layar Komputer"]
+    ShowQR --> ScanHP["Teknisi Scan QR Pakai Google/Microsoft Authenticator"]
+    ScanHP --> InputTest["Masukkan 6 Digit Angka Pertama dari HP"]
+    InputTest --> CheckValid{"Kode Valid?"}
+    CheckValid -->|Salah| ReTest["Cek Jam HP & Masukkan Lagi"]
+    CheckValid -->|Benar| SaveTOTP["Simpan technician.totp_secret ke Database"]
+    SaveTOTP --> DoneTOTP(["TOTP 2FA Berhasil Aktif"])
+
+
+--- 1.6: Penerbitan & Persetujuan Surat Perintah Kerja (Work Order) ---
+graph TD
+    Start(["Admin Buka Menu /work-orders"]) --> ClickNew["Klik 'Buat Work Order Baru'"]
+    ClickNew --> FillWO["Pilih: Teknisi, Menara BTS, Tanggal Jadwal, Keperluan Kerja"]
+    FillWO --> GenNo["Sistem Generate Nomor Tiket: WO-YYYYMMDD-XXXX"]
+    GenNo --> SaveWO["Simpan Tiket: status = 'APPROVED'"]
+    SaveWO --> DoneWO(["Tiket Terbit (Izin Kerja Aktif untuk Teknisi)"])
+
+
+--- 1.7: Verifikasi Akhir Pekerjaan oleh Admin NOC (Sign-off) ---
+graph TD
+    Start(["Admin Membuka Tiket Berstatus 'COMPLETED'"]) --> Inspect["Periksa Catatan Hasil Kerja, Bukti Foto, dan GPS Selesai"]
+    Inspect --> IsValid{"Hasil Kerja Sesuai Standar Operasional?"}
+    IsValid -->|Perlu Revisi| ReReq["Minta Teknisi Memperbaiki Laporan"]
+    IsValid -->|Sempurna| ClickSign["Admin Klik 'Verifikasi Tiket' (/verify)"]
+    ClickSign --> UpdateDB["Update DB: status = 'VERIFIED', verified_by = admin_user"]
+    UpdateDB --> DoneVerify(["Tiket Resmi Selesai & Terverifikasi"])
+
+
+================================================================================
+BAGIAN 2: SISI TEKNISI LAPANGAN (PORTAL WORKER / PWA MOBILE)
+================================================================================
+
+--- 2.1: Login Teknisi di Smartphone ---
+graph TD
+    Start(["Teknisi Buka Web di HP (/)"]) --> SelectWorker["Pilih Tab 'Teknisi Lapangan'"]
+    SelectWorker --> InputTech["Masukkan Username & Password Teknisi"]
+    InputTech --> AuthTech["Validasi ke Database 'technician'"]
+    AuthTech --> TechValid{"Akun Aktif & Password Benar?"}
+    TechValid -->|Gagal| ErrMsg["Login Gagal: Akun Salah atau Dinonaktifkan"]
+    TechValid -->|Berhasil| SetWorkerSession["Simpan session['worker_id'] & Role 'WORKER'"]
+    SetWorkerSession --> WorkerDash(["Masuk ke Portal Teknisi (/worker/dashboard)"])
+
+
+--- 2.2: Pengecekan Daftar Tugas Saya (My Work Orders) ---
+graph TD
+    Start(["Teknisi di Portal Worker"]) --> ClickMyWO["Buka Menu: 'Tugas Saya' (/worker/work-orders)"]
+    ClickMyWO --> QueryMyWO["Server Mengambil Seluruh Tiket Khusus Teknisi Ini"]
+    QueryMyWO --> ShowList["Tampilkan Kartu Pekerjaan:<br/>- Nomor Tiket (WO-XXXX)<br/>- Menara BTS Tujuan & Tanggal Jadwal<br/>- Status Tiket: APPROVED / IN_PROGRESS"]
+    ShowList --> ReadyGo(["Teknisi Mengetahui Jadwal & Berangkat ke Site"])
+
+
+--- 2.3: Memulai Tugas Lapangan (Start Work Order) ---
+graph TD
+    Start(["Teknisi Tiba di Menara BTS"]) --> OpenTicket["Pilih Tiket Berstatus 'APPROVED'"]
+    OpenTicket --> ClickStartBtn["Sentuh Tombol: 'Mulai Pekerjaan' (/start)"]
+    ClickStartBtn --> GrabGPS["Browser HP Mengambil Titik GPS Lokasi Masuk (Lat, Lon)"]
+    GrabGPS --> SendStart["Kirim Data ke Server"]
+    SendStart --> SaveStart["Update Database WorkOrder:<br/>- status = 'IN_PROGRESS'<br/>- started_at = Jam Mulai Sekarang<br/>- Simpan start_latitude & start_longitude"]
+    SaveStart --> Started(["Status Pekerjaan Resmi Berjalan (IN_PROGRESS)"])
+
+
+--- 2.4: Menyelesaikan Tugas (Upload Foto Bukti & GPS Selesai) ---
+graph TD
+    Start(["Teknisi Selesai Bekerja di Menara"]) --> OpenDoneForm["Buka Tiket -> Sentuh 'Selesaikan Tugas' (/complete)"]
+    OpenDoneForm --> FillForm["Teknisi Mengisi:<br/>1. Catatan Penyelesaian Pekerjaan<br/>2. Ambil Foto Kamera Bukti Hasil Kerja (Maks 2MB)<br/>3. Ambil Koordinat GPS Selesai"]
+    FillForm --> SubmitDone["Kirim Laporan Penyelesaian"]
+    SubmitDone --> SaveDoneDB["Update Database WorkOrder:<br/>- status = 'COMPLETED'<br/>- completed_at = now()<br/>- Simpan Foto Bukti & Koordinat GPS Selesai"]
+    SaveDoneDB --> NotifNOC["Kirim Notifikasi Telegram ke Admin NOC: Tugas Selesai"]
+    NotifNOC --> FinishWorker(["Tugas Selesai (Menunggu Review Admin)"])
+
+
+--- 2.5: Riwayat Akses Gerbang Mandiri (My Access Logs) ---
+graph TD
+    Start(["Teknisi di Portal Worker"]) --> ClickMyLogs["Buka Menu: 'Riwayat Akses Saya' (/worker/access-logs)"]
+    ClickMyLogs --> QueryLogs["Server Mengambil Log Akses Khusus ID Teknisi Ini"]
+    QueryLogs --> TableLogs["Tampilkan Histori: Jam Masuk/Keluar, Menara, dan Status Akses"]
+    TableLogs --> DoneAudit(["Teknisi Memiliki Bukti Kehadiran Mandiri"])
+
+
+================================================================================
+BAGIAN 3: SISI KIOSK TERMINAL GERBANG (LAYAR SENTUH DI PAGAR TOWER)
+================================================================================
+
+--- 3.1: Layar Siaga Kiosk & Heartbeat Liveness Otomatis ---
+graph TD
+    Start(["Kiosk Dinyalakan di Pagar Menara"]) --> OpenURL["Browser Membuka /kiosk/<site_id>"]
+    OpenURL --> IdleScreen["Tampilan Standby: Nama Menara, Jam Real-time, Status Gerbang"]
+    IdleScreen --> TimerLoop["Timer Otomatis Setiap 30 Detik"]
+    TimerLoop --> SendHeartbeat["POST /api/kiosk/heartbeat {site_id}"]
+    SendHeartbeat --> UpdatePing["Server Mencatat: last_heartbeat = now()<br/>Status Kiosk: ONLINE"]
+    UpdatePing --> IdleScreen
+
+
+--- 3.2: Tampilan Pemindaian Wajah di Layar Kiosk ---
+graph TD
+    Start(["Teknisi Berdiri di Depan Layar Kiosk"]) --> TouchFace["Sentuh Tombol: 'Scan Wajah'"]
+    TouchFace --> CamStream["Layar Menampilkan Kamera Langsung & Bingkai Wajah"]
+    CamStream --> AutoSnap["Kamera Menangkap Gambar Wajah Otomatis"]
+    AutoSnap --> ShowProcess["Layar Tampil Animasi: 'Sedang Memeriksa Wajah...'"]
+    ShowProcess --> APIResponse{"Respon dari Server API?"}
+    APIResponse -->|Akses Ditolak| RedScreen["Layar MERAH: 'AKSES DITOLAK!' (Tampilkan Alasan)"]
+    APIResponse -->|Akses Diizinkan| GreenScreen["Layar HIJAU: 'AKSES DIIJINKAN - SELAMAT DATANG'<br/>Tampilkan Nama & Foto Teknisi"]
+    GreenScreen --> GateCountdown["Layar Memulai Hitung Mundur Gerbang Menutup"]
+
+
+--- 3.3: Tampilan Pemindaian QR Code Tiket di Kiosk ---
+graph TD
+    Start(["Teknisi Sentuh Tombol: 'Scan QR Code'"]) --> OpenQRView["Layar Menampilkan Kamera Pembaca QR Code"]
+    OpenQRView --> ShowPass["Teknisi Mengarahkan QR Code Tiket Kerja ke Lensa"]
+    ShowPass --> ReadOpenCV["OpenCV detector.detectAndDecode() Membaca Data QR"]
+    ReadOpenCV --> ValidateTicket{"Apakah Tiket Terdaftar & Berstatus APPROVED?"}
+    ValidateTicket -->|Salah / Kadaluarsa| ErrQR["Layar Merah: 'QR Code Tidak Valid'"]
+    ValidateTicket -->|Valid| PassQR["Layar Hijau: 'QR Terverifikasi - Gerbang Terbuka'"]
+
+
+--- 3.4: Tampilan Keypad Virtual & Hitung Mundur Gerbang ---
+graph TD
+    Start(["Teknisi Sentuh Tombol: 'Gunakan Keypad OTP'"]) --> KeypadDisplay["Layar Menampilkan Papan Angka Keypad Virtual"]
+    KeypadDisplay --> PressKey["Teknisi Mengetik ID & 6 Angka PIN OTP"]
+    PressKey --> CheckDuress{"Apakah PIN == '999999' (PIN Sandera)?"}
+    CheckDuress -->|Ya (Ancaman)| SilentOK["Layar Tetap Tampil HIJAU 'BERHASIL' & Gerbang Buka<br/>(Diam-Diam Kirim Sinyal Bahaya ke Polisi)"]
+    CheckDuress -->|Tidak (Normal)| CekOTPNormal{"Kode OTP Benar Sesuai HP?"}
+    CekOTPNormal -->|Salah| KeypadRed["Layar Merah: 'Kode Salah! Sisa Kesempatan: X'"]
+    CekOTPNormal -->|Benar| KeypadGreen["Layar Hijau: 'Kode Benar - Gerbang Terbuka'"]
+    KeypadGreen --> Countdown["Layar Menghitung Mundur: 10.. 9.. 8.. 0 Detik"]
+    SilentOK --> Countdown
+    Countdown --> GateLock["Kunci Gerbang Tertutup Rapat -> Layar Kembali Standby"]
+
+
+================================================================================
+BAGIAN 4: MESIN KEAMANAN, BIOMETRIK & AI ANALYTICS (CORE ENGINE)
+================================================================================
+
+--- 4.1: Algoritma GPS Geofencing (Formula Haversine) ---
+graph TD
+    Start(["Input: GPS Teknisi (Lat1, Lon1) & Tower (Lat2, Lon2)"]) --> CalcDelta["Hitung Selisih: dlat = lat2 - lat1, dlon = lon2 - lon1"]
+    CalcDelta --> Formula["Hitung Haversine:<br/>a = sin^2(dlat/2) + cos(lat1)*cos(lat2)*sin^2(dlon/2)<br/>c = 2 * arcsin(sqrt(a))<br/>Jarak d = Radius Bumi (6.371.000m) * c"]
+    Formula --> Check150{"Jarak d <= 150 Meter?"}
+    Check150 -->|d > 150m| OutGeo["Akses Ditolak: OUT_OF_GEOFENCE (Level: HIGH)<br/>Kirim Telegram Alert 'Pelanggaran Geofence'"]
+    Check150 -->|d <= 150m| InGeo(["Dalam Radius Aman: Lanjut ke Uji Keaslian Wajah"])
+
+
+--- 4.2: Engine Anti-Spoofing & Liveness Detection (4 Parameter) ---
+graph TD
+    Start(["Frame Wajah Diterima"]) --> DetectHOG["Deteksi Wajah dengan Model HOG"]
+    DetectHOG --> FaceNum{"Jumlah Wajah Terdeteksi?"}
+    FaceNum -->|0 atau >1| FailFace["Tolak: Wajah Tidak Pas di Kamera"]
+    FaceNum -->|Tepat 1 Wajah| CropFace["Crop ROI Wajah untuk Analisis Pasif"]
+    CropFace --> T1["1. Laplacian Variance: Uji Ketajaman Tekstur Alami"]
+    CropFace --> T2["2. HSV Specular Glare: Deteksi Pantulan Kilap Layar HP"]
+    CropFace --> T3["3. YCrCb Chromaticity: Rasio Pigmen Warna Kulit Alami"]
+    CropFace --> T4["4. Eye Aspect Ratio (EAR): Analisis 6 Titik Biometrik Mata"]
+    T1 --> Composite["Hitung Skor Komposit = 40% Tekstur + 35% Rona Kulit + 25% Mata - Pinalti Glare"]
+    T2 --> Composite
+    T3 --> Composite
+    T4 --> Composite
+    Composite --> ScoreCheck{"Skor >= 0.55 & Glare Penalty <= 0.20?"}
+    ScoreCheck -->|Gagal| SpoofDetected["Akses Ditolak: SPOOF_ATTACK_DETECTED<br/>(Terindikasi Foto Cetak / Layar Handphone)"]
+    ScoreCheck -->|Lolos| LiveManusia(["Manusia Hidup Asli Terverifikasi"])
+
+
+--- 4.3: Pencocokan Fitur Wajah 128-D & Euclidean Distance ---
+graph TD
+    Start(["Wajah Asli Terverifikasi"]) --> Gen128["Ekstraksi Vektor Fitur Wajah 128-Dimensi"]
+    Gen128 --> LoadDB["Ambil Vektor Seluruh Teknisi Berstatus 'Active'"]
+    LoadDB --> CompareAll["Bandingkan Vektor Menggunakan face_distance()"]
+    CompareAll --> MinDistance["Cari Teknisi dengan Jarak Terkecil (best_distance)"]
+    MinDistance --> DistCheck{"best_distance <= FACE_MATCH_THRESHOLD (0.45 s/d 0.52)?"}
+    DistCheck -->|Jarak Terlalu Jauh| UnknownFace["Akses Ditolak: FACE_UNKNOWN (Orang Asing)"]
+    DistCheck -->|Jarak Masuk Ambang Batas| Recognized(["Wajah Cocok: Identitas Teknisi Terverifikasi"])
+
+
+--- 4.4: Aturan Anti-Passback & Cooldown Gerbang ---
+graph TD
+    Start(["Identitas Teknisi Terverifikasi"]) --> QueryLast["Cari Log Akses 'GRANTED' Terakhir Teknisi Ini"]
+    QueryLast --> CheckRule{"Evaluasi Aturan Status Masuk/Keluar:"}
+    CheckRule -->|Minta MASUK padahal Status Terakhir Sudah MASUK| RejectDoubleIn["Tolak: ALREADY_CHECKED_IN (Belum Keluar)"]
+    CheckRule -->|Minta KELUAR padahal Status Terakhir Sudah KELUAR| RejectDoubleOut["Tolak: ALREADY_CHECKED_OUT (Belum Masuk)"]
+    CheckRule -->|Status Wajar| CheckCool{"Apakah Gerbang Sedang Cooldown (< 3 Detik Lalu)?"}
+    CheckCool -->|Masih Cooldown| RejectCool["Tolak: GATE_COOLDOWN (Tunggu 3 Detik)"]
+    CheckCool -->|Siap| PassRule(["Aturan Keamanan Lolos: Lanjut Cek Work Order"])
+
+
+--- 4.5: AI Anomaly Detection & Prediksi Skor Ancaman Menara ---
+graph TD
+    Start(["Admin Buka Menu /security-analytics"]) --> RunAnalytics["Eksekusi ai_analytics.py"]
+    RunAnalytics --> Anom1["1. Deteksi Akses Jam Tidak Wajar (Malam / 00:00 - 05:00)"]
+    RunAnalytics --> Anom2["2. Deteksi Percobaan Berulang dalam Waktu Singkat (Spam)"]
+    RunAnalytics --> Anom3["3. Prediksi Skor Ancaman per Site Berdasarkan Riwayat Insiden"]
+    RunAnalytics --> Anom4["4. Pemetaan Pola Akses Per Jam & Heatmap Geografis"]
+    Anom1 --> ChartRender["Tampilkan Grafik Tren, Distribusi Akurasi, dan Skor Risiko di Web"]
+    Anom2 --> ChartRender
+    Anom3 --> ChartRender
+    Anom4 --> ChartRender
+
+
+================================================================================
+BAGIAN 5: HARDWARE IOT, SENSOR PINTU & ALARM PEMBOBOLAN
+================================================================================
+
+--- 5.1: Eksekusi Buka Gerbang Fisik via Webhook HMAC-SHA256 ---
+graph TD
+    Start(["Akses Dinyatakan GRANTED"]) --> CallOpen["Panggil open_gate(device_id, site_id)"]
+    CallOpen --> ThreadAsync["Jalankan Thread Asinkron di Background"]
+    ThreadAsync --> MakeHMAC["Buat Signature Keamanan HMAC-SHA256 dengan GATE_WEBHOOK_SECRET"]
+    MakeHMAC --> SendHTTP["Kirim HTTP POST ke GATE_WEBHOOK_URL (ESP32 Relay)"]
+    SendHTTP --> RelayAct["ESP32 Memicu Relay Solenoid: Pintu Gerbang Terbuka Fisik!"]
+    RelayAct --> LogDB["Simpan AccessLog: GRANTED, gate_status: 'OPEN'"]
+    LogDB --> AutoClose["Timer Menghitung Mundur 10-30 Detik -> Panggil /api/gate-close"]
+    AutoClose --> RelayOff["Kunci Solenoid Gerbang Mengunci Rapat Kembali"]
+
+
+--- 5.2: Sensor Pintu Magnetik & Deteksi Pembobolan (Forced Entry) ---
+graph TD
+    Start(["Sensor Kontak Magnet (Reed Switch) Pintu Terbuka"]) --> SendEvent["Kirim Event ke /api/gate/sensor-event"]
+    SendEvent --> CheckAuth{"Apakah Pintu Terbuka Melalui Perintah Buka Resmi?"}
+    CheckAuth -->|Ya (Ada Akses GRANTED)| NormalDoor["Pintu Terbuka Sah (Status: NORMAL)"]
+    CheckAuth -->|TIDAK ADA PERINTAH BUKA RESMI| ForcedEntry["🚨 PEMBOBOLAN GERBANG TERDETEKSI (DOOR_FORCED)!"]
+    ForcedEntry --> TriggerSiren["1. ESP32 Membunyikan Sirine Lokal & Lampu Strobo Menara"]
+    TriggerSiren --> LogBreach["2. Simpan AccessLog: DOOR_FORCED_BREACH (CRITICAL)"]
+    LogBreach --> UrgentTelegram["3. Kirim Telegram Alert CRITICAL + Snapshot Kamera Lapangan"]
+    UrgentTelegram --> MapBlink["Marker Menara di Peta GIS NOC Berkedip Merah"]
+
+
+--- 5.3: Deteksi Teknisi Tertinggal di Dalam Shelter (Overstay > 3 Jam) ---
+graph TD
+    Start(["Sistem Memeriksa Teknisi yang Sedang On-Site"]) --> QueryInside["Ambil Log Teknisi yang Masuk Hari Ini & Belum Keluar"]
+    QueryInside --> CalcStay["Hitung Durasi Berada di Shelter = now() - waktu_masuk"]
+    CalcStay --> OverstayCheck{"Durasi Berada di Lokasi > 3 Jam (180 Menit)?"}
+    OverstayCheck -->|Kurang dari 3 Jam| StayNormal["Status: Bekerja Normal"]
+    OverstayCheck -->|Lebih dari 3 Jam| StayOverstay["Status: OVERSTAY (Peringatan Keselamatan)"]
+    StayOverstay --> ShowWarning["Muncul Banner Peringatan di Dashboard NOC:<br/>Cek Kondisi & Keselamatan Teknisi di Lokasi!"]
+
+
+================================================================================
+BAGIAN 6: LAPORAN RESMI, BAP, BACKUP DATABASE & TELEGRAM BOT
+================================================================================
+
+--- 6.1: Pembuatan Dokumen Berita Acara Pemeriksaan (BAP PDF) ---
+graph TD
+    Start(["Admin Buka Menu Log Akses (/access-logs)"]) --> SelectLog["Pilih Salah Satu Log Akses"]
+    SelectLog --> OpenBAP["Buka Halaman Berita Acara (/access-logs/<id>/berita-acara)"]
+    OpenBAP --> ClickPDF["Klik 'Unduh Dokumen BAP PDF'"]
+    ClickPDF --> GenReportLab["Mesin ReportLab Menghasilkan Dokumen PDF:
+- Kop Surat Resmi BTS Security
+- Data Teknisi & Menara BTS
+- Waktu Masuk & Keluar Lengkap
+- Foto Snapshot Wajah dari Kamera
+- Kolom Tanda Tangan Pemeriksa"]
+    GenReportLab --> DownloadBAP(["File Berita_Acara_Akses_Log_<id>.pdf Terunduh"])
+
+
+--- 6.2: Ekspor Rekapitulasi Laporan (Excel & PDF) ---
+graph TD
+    Start(["Admin Buka Menu Ekspor Data"]) --> SetFilter["Pilih Rentang Tanggal & Pilihan Menara BTS"]
+    SetFilter --> PickFormat{"Pilih Format Laporan?"}
+    PickFormat -->|Excel (.xlsx)| BuildXLSX["Eksekusi /export/excel: OpenPyXL Buat Spreadsheet Berwarna"]
+    PickFormat -->|PDF (.pdf)| BuildPDF["Eksekusi /export/pdf: ReportLab Buat Dokumen Rekapitulasi Tabel"]
+    PickFormat -->|CSV (.csv)| BuildCSV["Eksekusi /export/access-logs.csv"]
+    BuildXLSX --> DownloadFile(["Laporan Rekapitulasi Terunduh"])
+    BuildPDF --> DownloadFile
+    BuildCSV --> DownloadFile
+
+
+--- 6.3: Backup Database SQLite & Pembersihan Log Lama ---
+graph TD
+    Start(["Admin Buka Menu Pengaturan / Maintenance"]) --> TaskPick{"Pilih Tugas Pemeliharaan"}
+    TaskPick -->|Unduh Backup Database| ExecBackup["Eksekusi /admin/backup-db:<br/>Unduh Salinan Utuh File SQLite 'app.db'"]
+    TaskPick -->|Pembersihan Log Lama| ExecPurge["Eksekusi /admin/cleanup-logs:<br/>Hapus Seluruh Log Akses yang Berumur > 90 Hari"]
+    ExecBackup --> DoneBackup(["File Database Cadangan Aman Tersimpan"])
+    ExecPurge --> DonePurge(["Penyimpanan Server Kembali Longgar & Bersih"])
+
+
+--- 6.4: Perintah Jarak Jauh via Telegram Bot (Command Center) ---
+graph TD
+    Start(["Operator Kirim Pesan di Bot Telegram"]) --> BotAuth{"Apakah Chat ID Terdaftar di TELEGRAM_CHAT_ID?"}
+    BotAuth -->|Bukan Operator| RejectMsg["Balas: '⛔ Akses Ditolak: Akun Anda Tidak Terdaftar'"]
+    BotAuth -->|Operator Resmi| CommandMatch{"Perintah yang Diberikan?"}
+    CommandMatch -->|/status| SendStatus["Balas Ringkasan Kondisi Menara, Gerbang & Insiden Hari Ini"]
+    CommandMatch -->|/who_is_onsite| SendOnsite["Balas Daftar Teknisi yang Sedang Berada di Lokasi"]
+    CommandMatch -->|/open <site_id>| SendOpen["Buka Gerbang Menara Jarak Jauh (10 Detik)"]
+    CommandMatch -->|/lockdown| SendLockdown["🚨 Kunci Seluruh Gerbang BTS di Semua Lokasi (Status Darurat)"]
+    CommandMatch -->|/unlock| SendUnlock["Matikan Status Darurat (Gerbang Kembali Beroperasi Normal)"]
