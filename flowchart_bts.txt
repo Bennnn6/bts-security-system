@@ -1,0 +1,134 @@
+================================================================================
+KODE MERMAID.JS UNTUK DRAW.IO (SMART BTS GATE SECURITY SYSTEM)
+Cara pakai di Draw.io:
+1. Buka https://app.diagrams.net/
+2. Klik tombol '+' atau menu Arrange -> Insert -> Advanced -> Mermaid
+3. Salin salah satu blok kode di bawah ini lalu klik Insert
+================================================================================
+
+--------------------------------------------------------------------------------
+1. DIAGRAM UTAMA: ALUR LENGKAP AKSES GERBANG BTS (END-TO-END)
+--------------------------------------------------------------------------------
+graph TD
+    Start(["Teknisi Minta Akses di Kiosk/Web (MASUK/KELUAR)"]) --> InputData["Input: Foto Wajah, GPS, Site ID, Tipe Akses"]
+    
+    InputData --> CheckSite{"Validasi Site BTS:<br/>Site Valid & Status Up?"}
+    CheckSite -->|Tidak| DeniedSite["Akses Ditolak<br/>(SITE_NOT_FOUND / DOWN)<br/>Level: WARNING"]
+    
+    CheckSite -->|Ya| CheckGeofence{"Cek GPS Geofencing:<br/>Jarak <= 150 Meter?"}
+    CheckGeofence -->|Jarak > 150m| DeniedGeo["Akses Ditolak<br/>(OUT_OF_GEOFENCE)<br/>Level: HIGH"]
+    
+    CheckGeofence -->|Dalam Radius| CheckEvidence{"Validasi Foto Kamera:<br/>Format & Ukuran Valid?"}
+    CheckEvidence -->|Rusak/Kosong| DeniedImg["Akses Ditolak<br/>(FACE_IMAGE_MISSING)<br/>Level: WARNING"]
+    
+    CheckEvidence -->|Valid| SubLiveness["Evaluasi Anti-Spoofing & Liveness"]
+    
+    SubLiveness --> CheckLive{"Lolos Liveness Score?<br/>(Skor >= 0.55 & No Glare)"}
+    CheckLive -->|Gagal / Layar HP| DeniedSpoof["Akses Ditolak<br/>(SPOOF_ATTACK_DETECTED)<br/>Level: HIGH"]
+    
+    CheckLive -->|Lolos| ExtractFace["Ekstraksi Vektor Wajah 128-D"]
+    ExtractFace --> MatchFace{"Pencocokan Encoding Wajah:<br/>Distance <= Threshold?"}
+    
+    MatchFace -->|Tidak Cocok| DeniedUnknown["Akses Ditolak<br/>(FACE_UNKNOWN)<br/>Level: HIGH"]
+    
+    MatchFace -->|Cocok| CheckState{"Validasi Anti-Passback:<br/>Status Masuk/Keluar Valid?"}
+    CheckState -->|Double In/Out| DeniedState["Akses Ditolak<br/>(INVALID_ACCESS_STATE)<br/>Level: WARNING"]
+    
+    CheckState -->|Valid| CheckCooldown{"Gate Cooldown:<br/>Apakah Gate Baru Terbuka?"}
+    CheckCooldown -->|Ya (Cooldown)| DeniedCooldown["Akses Ditunda<br/>(GATE_COOLDOWN)<br/>Level: WARNING"]
+    
+    CheckCooldown -->|Tidak| CheckWO{"Cek Work Order:<br/>Ada Tiket APPROVED Hari Ini?"}
+    CheckWO -->|Tidak Ada| DeniedWO["Akses Ditolak<br/>(NO_ACTIVE_WORK_ORDER)<br/>Level: WARNING"]
+    
+    CheckWO -->|Tiket Valid / Keluar| GrantAccess["Akses DITERIMA (GRANTED)"]
+    
+    GrantAccess --> TriggerHardware["1. Buka Solenoid Gerbang (Relay Webhook)<br/>2. Update Work Order -> IN_PROGRESS<br/>3. Mulai Timer Tutup Otomatis"]
+    TriggerHardware --> SaveLogGrant["Simpan AccessLog (Result: GRANTED)"]
+    SaveLogGrant --> SendNotifGrant["Kirim Notifikasi Telegram Bot NOC (Async)"]
+    SendNotifGrant --> EndSuccess(["Gerbang Terbuka"])
+
+    DeniedSite --> SaveLogDenied["Simpan AccessLog (DENIED) & ActivityLog"]
+    DeniedGeo --> SaveLogDenied
+    DeniedImg --> SaveLogDenied
+    DeniedSpoof --> SaveLogDenied
+    DeniedUnknown --> SaveLogDenied
+    DeniedState --> SaveLogDenied
+    DeniedCooldown --> SaveLogDenied
+    DeniedWO --> SaveLogDenied
+    
+    SaveLogDenied --> AlertCheck{"Incident Level >= HIGH?"}
+    AlertCheck -->|Ya| SendTelegramAlert["Kirim Telegram Alert + Foto Bukti (Async)"]
+    AlertCheck -->|Tidak| EndDenied(["Akses Selesai (Gerbang Terkunci)"])
+    SendTelegramAlert --> EndDenied
+
+
+--------------------------------------------------------------------------------
+2. SUB-SISTEM 1: ANTI-SPOOFING & LIVENESS DETECTION (COMPUTER VISION)
+--------------------------------------------------------------------------------
+graph TD
+    InImg["Input Frame Kamera (RGB Image)"] --> DetFace["Deteksi Wajah (HOG Model)"]
+    DetFace --> CntFace{"Jumlah Wajah?"}
+    
+    CntFace -->|0 Wajah| ErrNoFace["Gagal: Wajah Tidak Terdeteksi"]
+    CntFace -->|> 1 Wajah| ErrMultiFace["Gagal: Lebih Dari Satu Orang"]
+    
+    CntFace -->|Tepat 1 Wajah| CropROI["Crop ROI Wajah"]
+    
+    CropROI --> StepLaplacian["1. Uji Ketajaman Tekstur (Laplacian Var)"]
+    CropROI --> StepGlare["2. Uji Pantulan Layar HP (Specular Glare)"]
+    CropROI --> StepSkin["3. Uji Rona Kulit Alami (YCrCb)"]
+    CropROI --> StepEAR["4. Uji Landmark Mata (EAR Ratio)"]
+    
+    StepLaplacian --> WeightCalc["Hitung Skor Gabungan Liveness:<br/>40% Tekstur + 35% Rona Kulit + 25% Mata - Pinalti Glare"]
+    StepGlare --> WeightCalc
+    StepSkin --> WeightCalc
+    StepEAR --> WeightCalc
+    
+    WeightCalc --> ThresholdCheck{"Skor >= 0.55 & No Glare Penalty?"}
+    ThresholdCheck -->|Ya| LivePass(["Liveness Passed (Manusia Asli)"])
+    ThresholdCheck -->|Tidak| LiveFail(["Spoof Attack Detected (Ditolak)"])
+
+
+--------------------------------------------------------------------------------
+3. SUB-SISTEM 2: OTENTIKASI OTP & SILENT DURESS PIN (DARURAT / PENYANDERAAN)
+--------------------------------------------------------------------------------
+graph TD
+    StartOTP(["Input Tech ID + 6-Digit PIN/OTP"]) --> CheckLock{"Cek Status Lockout:<br/>Gagal >= 3x dalam 5 Menit?"}
+    CheckLock -->|Ya| RetLocked["Tolak Akses (HTTP 429: OTP_LOCKED)"]
+    
+    CheckLock -->|Tidak| CheckDuress{"Apakah PIN == DURESS_PIN?<br/>(Default: 999999)"}
+    
+    CheckDuress -->|YA (KONDISI DARURAT)| DuressAction["1. Buka Gerbang Seperti Biasa<br/>2. Catat Log SILENT_DURESS_ALARM (CRITICAL)<br/>3. Kirim Telegram Alert Darurat ke Patroli<br/>4. Simpan Foto Kamera Pelaku"]
+    DuressAction --> GateOpenDuress(["Gerbang Terbuka (Penyelamatan Teknisi)"])
+    
+    CheckDuress -->|TIDAK (Normal)| ValidateTOTP{"Verifikasi TOTP RFC 6238<br/>(Secret via PyOTP)"}
+    
+    ValidateTOTP -->|Kode Salah| IncFail["Tambah Hitungan Gagal (+1)"]
+    IncFail --> CheckMaxFail{"Total Gagal >= 3x?"}
+    CheckMaxFail -->|Ya| LockAccount["Kunci Akses 5 Menit<br/>Log Level: HIGH"]
+    CheckMaxFail -->|Belum| RetWrong["Pesan Sisa Percobaan"]
+    
+    ValidateTOTP -->|Kode Valid| ResetFail["Reset Counter Gagal"]
+    ResetFail --> CheckWOStep["Cek Izin Kerja (Work Order)"]
+    CheckWOStep --> OpenNormal["Buka Gerbang & Catat Log GRANTED"]
+    OpenNormal --> GateOpenNormal(["Gerbang Terbuka"])
+
+
+--------------------------------------------------------------------------------
+4. SUB-SISTEM 3: SENSOR PINTU MAGNETIK & ALARM PEMBOBOLAN FISIK
+--------------------------------------------------------------------------------
+graph TD
+    SensorEvent["Hardware / Reed Switch Mengirim Event ke API"] --> EventType{"Tipe Event Sensor?"}
+    
+    EventType -->|DOOR_OPENED| NormalOpen["Pintu Terbuka Normal<br/>Status: Sensor OPEN"]
+    EventType -->|DOOR_CLOSED| NormalClose["Pintu Tertutup Rapat<br/>Health: NORMAL, Status: CLOSED"]
+    
+    EventType -->|DOOR_AJAR| AjarAlert["Pintu Terbuka Terlalu Lama!<br/>Health: WARNING"]
+    
+    EventType -->|DOOR_FORCED| ForcedEntry["PEMBOBOLAN GERBANG TERDETEKSI!<br/>(Pintu Dibuka Paksa Tanpa Akses)"]
+    ForcedEntry --> ActionBreach["1. Simpan AccessLog (DOOR_FORCED_BREACH, CRITICAL)<br/>2. Bunyikan Sirine via Relay Webhook<br/>3. Kirim Telegram Alert CRITICAL + Snapshot Kamera"]
+    
+    AjarAlert --> UpdateState["Update Real-Time NOC Map & Dashboard"]
+    NormalOpen --> UpdateState
+    NormalClose --> UpdateState
+    ActionBreach --> UpdateState
