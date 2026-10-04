@@ -286,6 +286,125 @@ with app.app_context():
 
 
     # =====================================================
+    # FIXTURE SEEDING (UNTUK CI RUNNER & FRESH DATABASE)
+    # =====================================================
+
+    def seed_test_fixtures():
+        import pyotp
+        from datetime import datetime, date
+
+        db.create_all()
+
+        # 1. Admin default
+        admin = Admin.query.filter_by(username='admin').first()
+        if not admin:
+            admin = Admin(username='admin')
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.flush()
+
+        # 2. BTS Site
+        site = BtsSite.query.first()
+        if not site:
+            site = BtsSite(
+                site_id='BTS-BOJONG',
+                site_name='BTS Bojongsoang',
+                location='Bandung, Jawa Barat',
+                latitude='-6.9744',
+                longitude='107.6303',
+                description='Site BTS Uji Otomatis',
+                status='Normal (Up)',
+                temperature='32°C',
+                power_output='5kW'
+            )
+            db.session.add(site)
+            db.session.flush()
+
+        # 3. Technician
+        technician = Technician.query.first()
+        if not technician:
+            technician = Technician(
+                technician_id='TECH-001',
+                name='Budi Santoso',
+                position='Field Engineer',
+                phone='081234567890',
+                status='Active',
+                username='teknisi1',
+                totp_secret=pyotp.random_base32(),
+                face_encoding=[0.1] * 128
+            )
+            technician.set_password('teknisi123')
+            db.session.add(technician)
+            db.session.flush()
+        else:
+            updated = False
+            if not technician.totp_secret:
+                technician.totp_secret = pyotp.random_base32()
+                updated = True
+            if not technician.face_encoding:
+                technician.face_encoding = [0.1] * 128
+                updated = True
+            if updated:
+                db.session.flush()
+
+        # 4. Work Order
+        work_order = WorkOrder.query.first()
+        if not work_order:
+            work_order = WorkOrder(
+                ticket_number='WO-2026-001',
+                technician_id=technician.technician_id,
+                site_id=site.site_id,
+                scheduled_date=date.today(),
+                purpose='Maintenance Rutin Perangkat BTS',
+                status='APPROVED',
+                notes='Pemeriksaan modul transmisi dan backup baterai'
+            )
+            db.session.add(work_order)
+            db.session.flush()
+
+        # 5. Access Log
+        access_log = AccessLog.query.first()
+        if not access_log:
+            access_log = AccessLog(
+                technician_id=technician.technician_id,
+                site_id=site.site_id,
+                access_type='ENTRY',
+                timestamp=datetime.utcnow(),
+                face_result='MATCH',
+                face_distance=0.25,
+                otp_result='VALID',
+                access_result='GRANTED',
+                reason_code='SUCCESS',
+                incident_level='NORMAL',
+                device_id='GATE-01',
+                description='Akses masuk teknisi uji',
+                gate_status='CLOSED',
+                gate_opened_at=datetime.utcnow(),
+                gate_closed_at=datetime.utcnow()
+            )
+            db.session.add(access_log)
+            db.session.flush()
+
+        # 6. Activity Log
+        activity_log = ActivityLog.query.first()
+        if not activity_log:
+            activity_log = ActivityLog(
+                timestamp=datetime.utcnow(),
+                username=admin.username,
+                action='SYSTEM_TEST_INIT',
+                description='Inisialisasi fixture untuk automated test',
+                incident_level='NORMAL',
+                device_id='TEST_RUNNER'
+            )
+            db.session.add(activity_log)
+            db.session.flush()
+
+        db.session.commit()
+
+    seed_test_fixtures()
+
+
+    # =====================================================
     # 5. MODEL QUERY
     # =====================================================
 
