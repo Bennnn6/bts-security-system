@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#070B14">
+
+    <!-- Progress Bar Pemuatan Halaman -->
+    <ProgressBar
+        android:id="@+id/bacsProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_alignParentTop="true"
+        android:max="100"
+        android:progressDrawable="@android:color/holo_blue_bright"
+        android:visibility="gone"
+        android:elevation="10dp" />
+
+    <!-- Container Utama WebView -->
+    <WebView
+        android:id="@+id/bacsWebView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#070B14" />
+
+</RelativeLayout>

@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -69,7 +70,7 @@ def set_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=(self)'
+    response.headers['Permissions-Policy'] = 'geolocation=(self), microphone=(), camera=(self)'
     return response
 
 
@@ -115,4 +116,4 @@ start_telegram_bot(app)
 # =========================================================
 
 with app.app_context():
-    db.create_all()
+    db.create_all()

@@ -11,7 +11,10 @@ from app.models import AccessLog, BtsSite, Technician
 
 
 def get_face_accuracy_distribution():
-    logs = AccessLog.query.filter(
+    logs = AccessLog.query.with_entities(
+        AccessLog.face_distance,
+        AccessLog.face_result
+    ).filter(
         AccessLog.face_distance.isnot(None),
         AccessLog.face_distance >= 0,
         AccessLog.face_distance <= 1
@@ -29,7 +32,8 @@ def get_face_accuracy_distribution():
             'count': count,
             'percentage': round(count / len(distances) * 100, 1) if distances else 0
         })
-    successful = sum(1 for log in logs if log.face_result == 'SUCCESS')
+    # Hitung baik SUCCESS (legacy) maupun MATCHED
+    successful = sum(1 for log in logs if log.face_result in ('SUCCESS', 'MATCHED'))
     confidence_rate = round(successful / len(logs) * 100, 1) if logs else 0.0
     return {'buckets': buckets, 'confidence_rate': confidence_rate, 'total_samples': len(logs)}
 
@@ -37,7 +41,7 @@ def get_face_accuracy_distribution():
 def detect_access_anomalies():
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     seven_days_ago = today_start - timedelta(days=7)
-    logs = AccessLog.query.filter(AccessLog.timestamp >= seven_days_ago).all()
+    logs = AccessLog.query.with_entities(AccessLog.timestamp).filter(AccessLog.timestamp >= seven_days_ago).all()
     if not logs:
         return {'anomalies': [], 'message': 'Tidak cukup data'}
     daily_counts = {}
@@ -80,7 +84,10 @@ def predict_threat_scores(sites):
     scores = {}
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     for site in sites:
-        today_logs = AccessLog.query.filter_by(site_id=site.site_id).filter(
+        today_logs = AccessLog.query.with_entities(
+            AccessLog.access_result,
+            AccessLog.incident_level
+        ).filter_by(site_id=site.site_id).filter(
             AccessLog.timestamp >= today_start
         ).all()
         denied = sum(1 for log in today_logs if log.access_result == 'DENIED')
@@ -99,7 +106,7 @@ def predict_threat_scores(sites):
 def get_hourly_access_pattern():
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     seven_days_ago = today_start - timedelta(days=7)
-    logs = AccessLog.query.filter(AccessLog.timestamp >= seven_days_ago).all()
+    logs = AccessLog.query.with_entities(AccessLog.timestamp).filter(AccessLog.timestamp >= seven_days_ago).all()
     hourly = Counter()
     for log in logs:
         if log.timestamp:
@@ -112,7 +119,7 @@ def get_hourly_access_pattern():
 
 def get_denial_reasons():
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    logs = AccessLog.query.filter_by(access_result='DENIED').filter(
+    logs = AccessLog.query.with_entities(AccessLog.reason_code).filter_by(access_result='DENIED').filter(
         AccessLog.timestamp >= today_start
     ).all()
     reason_counts = Counter()
@@ -128,7 +135,7 @@ def get_technician_risk_profile():
     technicians = Technician.query.all()
     profiles = []
     for tech in technicians:
-        logs = AccessLog.query.filter_by(technician_id=tech.technician_id).filter(
+        logs = AccessLog.query.with_entities(AccessLog.access_result).filter_by(technician_id=tech.technician_id).filter(
             AccessLog.timestamp >= today_start
         ).all()
         denied = sum(1 for log in logs if log.access_result == 'DENIED')
@@ -199,7 +206,10 @@ def get_site_heatmap_data():
     )
     heatmap = []
     for site in sites:
-        today_logs = AccessLog.query.filter_by(
+        today_logs = AccessLog.query.with_entities(
+            AccessLog.access_result,
+            AccessLog.incident_level
+        ).filter_by(
             site_id=site.site_id
         ).filter(AccessLog.timestamp >= today_start).all()
         denied = sum(1 for log in today_logs if log.access_result == 'DENIED')

@@ -666,30 +666,89 @@ body:not(.login-layout) .app-main {
     background-color: var(--bg-surface);
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
-    padding: 1.25rem 1.15rem;
+    padding: 1.15rem 1.25rem;
     display: flex;
-    align-items: center;
-    gap: 1.1rem;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 110px;
     box-shadow: var(--shadow-xs);
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 .stat-card-mini:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-sm);
-    border-color: var(--brand-primary-light);
+    border-color: var(--border-focus);
+}
+.stat-card-mini:hover .stat-card-icon-subtle {
+    color: var(--brand-primary);
+    transform: scale(1.08);
 }
 
-.stat-card-mini-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
+.stat-card-header {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.65rem;
+}
+.stat-card-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.stat-card-icon-subtle {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+    transition: all 0.2s ease;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+}
+
+.stat-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.stat-card-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--text-main);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+.stat-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.meta-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
     flex-shrink: 0;
 }
 
+/* Legacy Support */
+.stat-card-mini-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
 .icon-purple {
     background-color: var(--brand-primary-subtle);
     color: var(--brand-primary);
@@ -710,7 +769,6 @@ body:not(.login-layout) .app-main {
     background-color: var(--accent-rose-subtle);
     color: var(--accent-rose);
 }
-
 .stat-card-mini-content h6 {
     font-size: 0.775rem;
     font-weight: 600;
@@ -1551,4 +1609,82 @@ body.login-layout .app-topbar {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+
+/* --------------------------------------------------------------------------
+   16. SURFACE PANELS & MODALS (.inner-box-light & .modal-*)
+   -------------------------------------------------------------------------- */
+.inner-box-light {
+    background-color: var(--bg-surface-soft);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    transition: all 0.2s ease;
+}
+
+.modal-content {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.modal-header {
+    background-color: var(--bg-surface) !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+    color: var(--text-main) !important;
+}
+
+.modal-footer {
+    background-color: var(--bg-surface-soft) !important;
+    border-top: 1px solid var(--border-subtle) !important;
+}
+
+/* --------------------------------------------------------------------------
+   17. DARK MODE UTILITY & BOOTSTRAP OVERRIDES (PREVENT WHITE GLARE)
+   -------------------------------------------------------------------------- */
+html[data-theme="dark"] .bg-white,
+body[data-theme="dark"] .bg-white {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+}
+
+html[data-theme="dark"] .bg-light,
+body[data-theme="dark"] .bg-light {
+    background-color: var(--bg-surface-soft) !important;
+    color: var(--text-main) !important;
+}
+
+html[data-theme="dark"] .text-dark,
+body[data-theme="dark"] .text-dark {
+    color: var(--text-main) !important;
+}
+
+html[data-theme="dark"] .border-light {
+    border-color: var(--border-subtle) !important;
+}
+
+html[data-theme="dark"] .alert-light {
+    background-color: var(--bg-surface-soft) !important;
+    color: var(--text-main) !important;
+    border-color: var(--border-subtle) !important;
+}
+
+html[data-theme="dark"] .table-light,
+html[data-theme="dark"] .table-light th,
+html[data-theme="dark"] .table-light td {
+    background-color: var(--table-th-bg) !important;
+    color: var(--text-main) !important;
+    border-color: var(--border-subtle) !important;
+}
+
+html[data-theme="dark"] .btn-close:not(.btn-close-white) {
+    filter: invert(1) grayscale(100%);
+}
+
+html[data-theme="dark"] .inner-box-light,
+body[data-theme="dark"] .inner-box-light {
+    background-color: var(--bg-surface-soft) !important;
+    border-color: var(--border-subtle) !important;
+    color: var(--text-main) !important;
 }

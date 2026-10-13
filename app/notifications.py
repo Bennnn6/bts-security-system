@@ -1,6 +1,7 @@
 import base64
 import html
 import logging
+import os
 import threading
 from datetime import datetime
 import requests
@@ -51,20 +52,33 @@ def _dispatch_telegram(
         sent = False
         if evidence_base64:
             try:
-                raw_b64 = str(evidence_base64)
-                if "," in raw_b64:
-                    raw_b64 = raw_b64.split(",", 1)[1]
-                image_bytes = base64.b64decode(raw_b64)
+                ev_str = str(evidence_base64).strip()
+                image_bytes = None
 
-                photo_caption = caption if len(caption) <= 1020 else caption[:1015] + "..."
-                files = {"photo": ("evidence.jpg", image_bytes, "image/jpeg")}
-                data = {"chat_id": chat_id, "caption": photo_caption, "parse_mode": "HTML"}
-                url = f"https://api.telegram.org/bot{token}/sendPhoto"
-                resp = requests.post(url, data=data, files=files, timeout=10)
-                if resp.status_code == 200:
-                    sent = True
-                else:
-                    logger.warning("Telegram sendPhoto failed: %s", resp.text)
+                if ev_str.startswith("/static/"):
+                    # Baca langsung dari file di disk
+                    clean_path = ev_str.lstrip("/").replace("/", os.sep)
+                    app_dir = os.path.dirname(os.path.abspath(__file__))
+                    filepath = os.path.join(app_dir, clean_path.replace("app" + os.sep, ""))
+                    if not os.path.exists(filepath):
+                        filepath = os.path.join(os.path.dirname(app_dir), clean_path)
+                    if os.path.exists(filepath):
+                        with open(filepath, "rb") as f:
+                            image_bytes = f.read()
+                elif "," in ev_str or not ev_str.startswith("/"):
+                    raw_b64 = ev_str.split(",", 1)[1] if "," in ev_str else ev_str
+                    image_bytes = base64.b64decode(raw_b64)
+
+                if image_bytes:
+                    photo_caption = caption if len(caption) <= 1020 else caption[:1015] + "..."
+                    files = {"photo": ("evidence.jpg", image_bytes, "image/jpeg")}
+                    data = {"chat_id": chat_id, "caption": photo_caption, "parse_mode": "HTML"}
+                    url = f"https://api.telegram.org/bot{token}/sendPhoto"
+                    resp = requests.post(url, data=data, files=files, timeout=10)
+                    if resp.status_code == 200:
+                        sent = True
+                    else:
+                        logger.warning("Telegram sendPhoto failed: %s", resp.text)
             except Exception as img_err:
                 logger.warning("Error processing evidence image for Telegram: %s", img_err)
 

@@ -30,7 +30,9 @@
         inset: 0;
         width: 100%;
         height: 100%;
-        background: radial-gradient(circle at 50% 40%, rgba(15, 23, 42, 0.30) 0%, rgba(7, 11, 20, 0.65) 100%);
+        background: radial-gradient(circle at 50% 35%, rgba(15, 23, 42, 0.45) 0%, rgba(7, 11, 20, 0.88) 100%);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
         pointer-events: none;
         z-index: 1;
     }
@@ -53,7 +55,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 2rem 1rem;
+        padding: 2.5rem 1rem;
         margin: 0 !important;
         min-height: 100vh;
     }
@@ -64,8 +66,29 @@
         left: 50%;
         transform: translateX(-50%);
         width: 90%;
-        max-width: 580px;
+        max-width: 600px;
         z-index: 1050;
+    }
+
+    .demo-account-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 8px;
+        background: rgba(30, 41, 59, 0.65);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        color: #CBD5E1;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .demo-account-pill:hover {
+        background: rgba(124, 58, 237, 0.25);
+        border-color: #8B5CF6;
+        color: #FFFFFF;
+        transform: translateY(-1px);
     }
 </style>
 
@@ -75,27 +98,55 @@
         <!-- Left Banner: Telecom & Cyber Security Brand -->
         <div class="glass-login-left">
             <div class="login-brand">
-                <i class="bi bi-shield-lock-fill text-primary me-1"></i> BTS SECURITY OPERATIONS
+                <i class="bi bi-shield-lock-fill text-primary me-1"></i> BACS • ENTERPRISE SECURITY
             </div>
-            <h2>SMART GATE<br><span style="color: #A78BFA;">ACCESS NOC</span></h2>
-            <p>Sistem Kontrol Akses Terpadu Shelter Menara BTS. Dilengkapi multi-faktor Face Recognition, TOTP 2FA, dan pemantauan telemetri real-time 24/7.</p>
+            <h2>SMART BTS<br><span style="color: #A78BFA;">ACCESS GATEWAY</span></h2>
+            <p>Sistem Manajemen & Kontrol Akses Fisik Terpadu Shelter Menara Telekomunikasi. Otentikasi ganda biometrik Face Recognition, TOTP RFC 6238, pemantauan K3 lapangan, dan kontrol gerbang solenoid 24/7.</p>
             
             <div class="login-security-pills">
-                <div class="login-pill"><i class="bi bi-person-bounding-box text-info"></i> Face Biometric</div>
-                <div class="login-pill"><i class="bi bi-shield-check text-success"></i> TOTP 2-Factor</div>
-                <div class="login-pill"><i class="bi bi-activity text-warning"></i> Live Telemetry</div>
+                <div class="login-pill"><i class="bi bi-person-bounding-box text-info"></i> Face ID 128-D CNN</div>
+                <div class="login-pill"><i class="bi bi-shield-check text-success"></i> TOTP 2-Factor Auth</div>
+                <div class="login-pill"><i class="bi bi-broadcast text-warning"></i> NOC Live Telemetry</div>
+                <div class="login-pill"><i class="bi bi-shield-shaded text-primary"></i> ISO/IEC 27001 Compliant</div>
+            </div>
+
+            <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 text-white-50 small">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-mortarboard-fill text-info"></i>
+                    <span>Tugas Akhir: Sistem Keamanan Akses Fisik Shelter BTS</span>
+                </div>
             </div>
         </div>
 
         <!-- Right: Login Form -->
         <div class="glass-login-right">
-            <div class="mb-4">
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <span class="pulse-dot"></span>
-                    <span class="text-uppercase small fw-bold" style="color: #A78BFA; letter-spacing: 1px;">Gateway Portal</span>
+            <div class="mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="pulse-dot"></span>
+                        <span class="text-uppercase small fw-bold" style="color: #A78BFA; letter-spacing: 1px;">Portal Autentikasi</span>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" style="font-size: 0.7rem;">
+                        <i class="bi bi-lock-fill me-1"></i> SSL 256-BIT
+                    </span>
                 </div>
-                <h3 class="fw-bold text-white mb-1">Selamat Datang</h3>
-                <p class="small text-muted mb-0">Masukkan kredensial akun Admin atau Teknisi Anda.</p>
+                <h3 class="fw-bold text-white mb-1">Masuk ke Sistem</h3>
+                <p class="small text-muted mb-0">Silakan masukkan kredensial Administrator NOC atau Teknisi.</p>
+            </div>
+
+            <!-- Quick Demo Account Pills (Sidang Tugas Akhir / Company Demo) -->
+            <div class="p-2 mb-3 rounded-3" style="background: rgba(15, 23, 42, 0.45); border: 1px dashed rgba(148, 163, 184, 0.2);">
+                <div class="text-white-50" style="font-size: 0.72rem; margin-bottom: 0.35rem;">
+                    <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Akses Cepat Demo / Pengujian:
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="demo-account-pill" onclick="fillLogin('admin', 'admin123')">
+                        <i class="bi bi-person-fill-gear text-info"></i> Admin NOC
+                    </button>
+                    <button type="button" class="demo-account-pill" onclick="fillLogin('TECH-001', 'rahasia123')">
+                        <i class="bi bi-tools text-warning"></i> Teknisi Lapangan
+                    </button>
+                </div>
             </div>
             
             <form method="POST">
@@ -106,7 +157,7 @@
                     <input id="username" type="text" name="username" class="form-control glass-input" placeholder="Contoh: admin atau TECH-001" required autofocus autocomplete="username">
                 </div>
                 
-                <div class="mb-4">
+                <div class="mb-3">
                     <label for="password" class="form-label glass-label">
                         <i class="bi bi-key-fill me-1"></i> Password
                     </label>
@@ -125,12 +176,26 @@
                     </button>
                 </div>
 
-                <div class="text-center mt-4">
-                    <span class="text-muted small">Smart BTS Infrastructure Guard &copy; 2026</span>
+                <div class="text-center mt-3 pt-2">
+                    <span class="text-muted small" style="font-size: 0.75rem;">
+                        <i class="bi bi-shield-check me-1 text-success"></i> Sesi terenkripsi & tercatat dalam Audit Trail NOC
+                    </span>
                 </div>
             </form>
         </div>
         
     </div>
 </div>
+
+<script>
+    function fillLogin(user, pass) {
+        var u = document.getElementById('username');
+        var p = document.getElementById('password');
+        if (u && p) {
+            u.value = user;
+            p.value = pass;
+            u.focus();
+        }
+    }
+</script>
 {% endblock %}

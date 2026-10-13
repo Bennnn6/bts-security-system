@@ -5,6 +5,8 @@ from io import BytesIO, StringIO
 import base64
 import csv
 import queue
+import os
+import uuid
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -529,6 +531,79 @@ def build_site_metrics(
 
 
 # =========================================================
+# LOGIN BRUTE FORCE PROTECTION
+# =========================================================
+#
+# key = IP address, value = {'count': int, 'first_fail': datetime, 'locked_until': datetime}
+#
+
+_login_fail_store = {}
+LOGIN_MAX_FAILURES = 5
+LOGIN_LOCKOUT_MINUTES = 5
+LOGIN_WINDOW_MINUTES = 5
+
+
+def _check_login_brute_force(ip):
+    """
+    Cek apakah IP ini sedang dalam status lockout.
+    Return: (is_locked: bool, seconds_remaining: int)
+    """
+    now = datetime.utcnow()
+    record = _login_fail_store.get(ip)
+
+    if not record:
+        return False, 0
+
+    locked_until = record.get('locked_until')
+    if locked_until and now < locked_until:
+        remaining = int((locked_until - now).total_seconds())
+        return True, remaining
+
+    # Reset jika window sudah lewat
+    first_fail = record.get('first_fail', now)
+    if (now - first_fail).total_seconds() > LOGIN_WINDOW_MINUTES * 60:
+        _login_fail_store.pop(ip, None)
+
+    return False, 0
+
+
+def _record_login_failure(ip):
+    """Catat kegagalan login dari IP ini."""
+    now = datetime.utcnow()
+    record = _login_fail_store.get(ip, {
+        'count': 0,
+        'first_fail': now,
+        'locked_until': None,
+    })
+
+    # Reset counter jika window sudah lewat
+    if (now - record['first_fail']).total_seconds() > LOGIN_WINDOW_MINUTES * 60:
+        record = {'count': 0, 'first_fail': now, 'locked_until': None}
+
+    record['count'] += 1
+
+    if record['count'] >= LOGIN_MAX_FAILURES:
+        record['locked_until'] = now + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+
+    _login_fail_store[ip] = record
+
+    # Bersihkan entri lama agar tidak bocor memori
+    if len(_login_fail_store) > 2000:
+        stale = [
+            k for k, v in _login_fail_store.items()
+            if (now - v.get('first_fail', now)).total_seconds() > LOGIN_WINDOW_MINUTES * 60
+            and not v.get('locked_until')
+        ]
+        for k in stale[:500]:
+            _login_fail_store.pop(k, None)
+
+
+def _reset_login_failures(ip):
+    """Hapus catatan kegagalan login setelah login berhasil."""
+    _login_fail_store.pop(ip, None)
+
+
+# =========================================================
 # LOGIN
 # =========================================================
 
@@ -594,6 +669,25 @@ def login():
 
     if request.method == 'POST':
 
+        # -------------------------------------------------
+        # BRUTE FORCE CHECK
+        # -------------------------------------------------
+
+        client_ip = (
+            request.remote_addr or '127.0.0.1'
+        )
+
+        is_locked, seconds_left = _check_login_brute_force(client_ip)
+
+        if is_locked:
+            minutes_left = max(1, seconds_left // 60)
+            flash(
+                f'Terlalu banyak percobaan login gagal. '
+                f'Silakan coba lagi dalam {minutes_left} menit.',
+                'danger'
+            )
+            return render_template('login.html')
+
         username = request.form.get(
             'username',
             ''
@@ -622,6 +716,9 @@ def login():
                 password
             )
         ):
+
+            # Login berhasil - hapus catatan kegagalan
+            _reset_login_failures(client_ip)
 
             # Bersihkan session role lama agar tidak terjadi
             # konflik antara session Admin dan Teknisi.
@@ -682,10 +779,14 @@ def login():
 
         if (
             technician
+            and technician.status == 'Active'
             and technician.check_password(
                 password
             )
         ):
+
+            # Login berhasil - hapus catatan kegagalan
+            _reset_login_failures(client_ip)
 
             # Pastikan session Admin lama tidak bercampur
             # dengan session Teknisi.
@@ -741,6 +842,9 @@ def login():
         # LOGIN FAILED
         # -------------------------------------------------
 
+        # Catat kegagalan untuk brute force protection
+        _record_login_failure(client_ip)
+
         db.session.add(
             ActivityLog(
                 username=(
@@ -749,7 +853,7 @@ def login():
                 ),
                 action='LOGIN_FAILED',
                 description=(
-                    'Percobaan login gagal.'
+                    f'Percobaan login gagal dari IP {client_ip}.'
                 ),
                 incident_level='WARNING'
             )
@@ -810,11 +914,11 @@ def setup_admin():
         db.session.commit()
 
         return (
-            'Admin created! '
-            'Login with admin/admin123'
-        )
+            'Admin default berhasil dibuat. '
+            'Silakan login dan segera ganti password.'
+        ), 201
 
-    return 'Admin already exists.'
+    return 'Admin sudah ada.', 200
 
 
 # =========================================================
@@ -1601,11 +1705,34 @@ def edit_technician(
         technician.name
     ).strip()
 
-    technician.username = request.form.get(
+    new_username = request.form.get(
         'username',
         technician.username
         or ''
     ).strip()
+
+    if new_username and new_username != technician.username:
+        duplicate = (
+            Technician.query
+            .filter(
+                Technician.username == new_username,
+                Technician.technician_id != technician.technician_id
+            )
+            .first()
+        )
+        if duplicate:
+            flash(
+                'Username sudah digunakan oleh teknisi lain.',
+                'danger'
+            )
+            return redirect(
+                url_for(
+                    'edit_technician',
+                    tech_id=tech_id
+                )
+            )
+
+    technician.username = new_username
 
     technician.position = request.form.get(
         'position',
@@ -4337,10 +4464,14 @@ def complete_worker_work_order(wo_id):
             if len(evidence_bytes) > 2_000_000:
                 flash('Ukuran bukti pekerjaan maksimal 2 MB.', 'danger')
                 return redirect(url_for('worker_dashboard'))
-            work_order.evidence_image = (
-                f'data:{evidence.mimetype};base64,'
-                f'{base64.b64encode(evidence_bytes).decode("ascii")}'
-            )
+            upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'work_orders')
+            os.makedirs(upload_dir, exist_ok=True)
+            ext = 'jpg' if 'jpeg' in evidence.mimetype or 'jpg' in evidence.mimetype else ('png' if 'png' in evidence.mimetype else 'webp')
+            filename = f"wo_{work_order.ticket_number}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.{ext}"
+            filepath = os.path.join(upload_dir, filename)
+            with open(filepath, 'wb') as f:
+                f.write(evidence_bytes)
+            work_order.evidence_image = f'/static/uploads/work_orders/{filename}'
 
         work_order.status = 'COMPLETED'
         work_order.completion_note = completion_note
@@ -4442,6 +4573,10 @@ def admin_backup_db():
 @admin_required
 def admin_cleanup_logs():
     days = request.form.get('days', 30, type=int)
+    if not days or days < 7:
+        flash('Periode pembersihan minimal 7 hari untuk menjaga kelengkapan audit trail.', 'warning')
+        return redirect(url_for('access_logs'))
+
     cutoff = datetime.utcnow() - timedelta(days=days)
 
     try:

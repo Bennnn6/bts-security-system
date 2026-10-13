@@ -42,3 +42,9 @@ key.pem
 
 # Scratch / temporary scripts
 scratch/
+
+# Windows Shortcuts & Temporary Files
+*.lnk
+~$*
+log.txt
+qr_online.png

@@ -2,7 +2,9 @@ from datetime import datetime, timedelta
 from functools import wraps
 import secrets
 import time
-
+import os
+import uuid
+import base64
 import math
 
 from flask import (
@@ -17,6 +19,7 @@ from flask_login import current_user
 
 from app import db
 from app.models import (
+    Admin,
     Technician,
     BtsSite,
     AccessLog,
@@ -95,6 +98,17 @@ LIVENESS_CHALLENGE_TIMEOUT = 60
 # key = IP + endpoint
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 120
+SENSITIVE_RATE_LIMIT_MAX = 20
+
+SENSITIVE_ENDPOINTS = (
+    "/verify-face",
+    "/verify-otp",
+    "/verify-totp",
+    "/trigger-duress",
+    "/verify-token",
+    "/gate-force-open",
+    "/kiosk/verify-pin",
+)
 
 _rate_limit_store = {}
 
@@ -182,17 +196,21 @@ def get_request_device():
 
 
 def get_client_ip():
-    forwarded = (
-        request.headers.get("X-Forwarded-For")
-        or ""
-    ).strip()
+    trust_proxy = current_app.config.get("TRUST_PROXY", False)
+    if trust_proxy:
+        forwarded = (
+            request.headers.get("X-Forwarded-For")
+            or ""
+        ).strip()
 
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+        if forwarded:
+            ip = forwarded.split(",")[0].strip()
+            if all(c in "0123456789abcdefABCDEF:." for c in ip) and len(ip) <= 45:
+                return ip
 
     return (
         request.remote_addr
-        or "UNKNOWN"
+        or "127.0.0.1"
     )
 
 
@@ -226,7 +244,13 @@ def check_rate_limit():
         if now - timestamp < RATE_LIMIT_WINDOW
     ]
 
-    if len(history) >= RATE_LIMIT_MAX_REQUESTS:
+    max_requests = (
+        SENSITIVE_RATE_LIMIT_MAX
+        if any(path.endswith(ep) for ep in SENSITIVE_ENDPOINTS)
+        else RATE_LIMIT_MAX_REQUESTS
+    )
+
+    if len(history) >= max_requests:
 
         _rate_limit_store[key] = history
 
@@ -419,6 +443,9 @@ def is_authenticated_api_user():
         pass
 
     if session.get("is_kiosk") or session.get("kiosk_site_id"):
+        return True
+
+    if session.get("auth_role") in ("ADMIN", "TECHNICIAN"):
         return True
 
     return bool(
@@ -632,20 +659,20 @@ def validate_evidence(image_data):
     """
 
     if not image_data:
-
         return True, None
 
     if not isinstance(
         image_data,
         str,
     ):
-
         return False, (
             "Evidence tidak valid."
         )
 
-    if len(image_data) > MAX_EVIDENCE_LENGTH:
+    if image_data.startswith("/static/"):
+        return True, None
 
+    if len(image_data) > MAX_EVIDENCE_LENGTH:
         return False, (
             "Ukuran evidence terlalu besar."
         )
@@ -654,18 +681,53 @@ def validate_evidence(image_data):
     if not image_data.startswith(
         "data:image/"
     ):
-
         return False, (
             "Evidence harus berupa image Data URI."
         )
 
     if ";base64," not in image_data:
-
         return False, (
             "Format evidence tidak valid."
         )
 
     return True, None
+
+
+def save_evidence_image_file(image_data, prefix="evidence"):
+    """
+    Menyimpan snapshot gambar Base64 ke disk (app/static/uploads/evidence/)
+    dan mengembalikan path URL statis agar database tidak mengalami bloat.
+    """
+    if not image_data or not isinstance(image_data, str):
+        return None
+
+    if image_data.startswith("/static/") or image_data.startswith("http"):
+        return image_data
+
+    # Ekstrak string Base64 murni
+    if ";base64," in image_data:
+        _, encoded = image_data.split(";base64,", 1)
+    elif image_data.startswith("data:image"):
+        _, encoded = image_data.split(",", 1)
+    else:
+        encoded = image_data
+
+    encoded = encoded.strip()
+    if not encoded:
+        return None
+
+    try:
+        raw_bytes = base64.b64decode(encoded)
+        upload_dir = os.path.join(current_app.root_path, "static", "uploads", "evidence")
+        os.makedirs(upload_dir, exist_ok=True)
+        filename = f"{prefix}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.jpg"
+        filepath = os.path.join(upload_dir, filename)
+        with open(filepath, "wb") as f:
+            f.write(raw_bytes)
+        return f"/static/uploads/evidence/{filename}"
+    except Exception as exc:
+        print("[EVIDENCE SAVE ERROR]", exc)
+        return image_data
 
 
 # =========================================================
@@ -1018,7 +1080,10 @@ def save_access_log(
             else None
         ),
 
-        evidence_image=evidence_image,
+        evidence_image=save_evidence_image_file(
+            evidence_image,
+            prefix="access",
+        ) if evidence_image and not str(evidence_image).startswith("/static/") else evidence_image,
 
         gate_status=gate_status,
 
@@ -3208,6 +3273,40 @@ def kiosk_status_endpoint():
 
     kiosk_info = get_kiosk_status(site_id=site_id)
     return api_success(kiosk=kiosk_info)
+
+
+@bp.route(
+    "/kiosk/verify-pin",
+    methods=["POST"],
+)
+def verify_kiosk_admin_pin():
+    """
+    Verifikasi otorisasi konfigurasi perangkat Kiosk di sisi server.
+    Menerima PIN atau password Admin.
+    """
+    data = request.get_json(silent=True) or {}
+    pin = str(data.get("pin") or "").strip()
+
+    if not pin:
+        return api_error("PIN / Password Admin wajib diisi.", 400, reason_code="PIN_REQUIRED")
+
+    # 1. Cek terhadap konfigurasi KIOSK_ADMIN_PIN jika diset
+    configured_pin = current_app.config.get("KIOSK_ADMIN_PIN", "").strip()
+    if configured_pin and pin == configured_pin:
+        return api_success(message="Otorisasi PIN Kiosk berhasil.")
+
+    # 2. Cek terhadap password Admin di database
+    admin = Admin.query.first()
+    if admin and admin.check_password(pin):
+        return api_success(message="Otorisasi Admin berhasil.")
+
+    # 3. Fallback jika belum diubah dan PIN khusus belum dikonfigurasi
+    if not configured_pin and pin in ("admin", "123456"):
+        # Hanya izinkan jika password admin default belum diganti atau tidak ada admin
+        if admin is None or admin.check_password("admin123") or admin.check_password("admin"):
+            return api_success(message="Otorisasi default berhasil.")
+
+    return api_error("PIN atau Password Admin tidak valid.", 401, reason_code="INVALID_PIN")
 
 
 # =========================================================

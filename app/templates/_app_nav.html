@@ -11,7 +11,7 @@
             <i class="bi bi-shield-lock-fill"></i>
         </div>
         <div class="brand-title-wrap">
-            <span class="brand-name">Smart BTS</span>
+            <span class="brand-name">BACS Enterprise</span>
             <span class="brand-badge"><span class="pulse-dot"></span> NOC ACTIVE</span>
         </div>
     </div>
@@ -34,6 +34,10 @@
             <i class="bi bi-hdd-network-fill"></i>
             <span>Kelola Sites</span>
         </a>
+        <a href="{{ url_for('register_technician') }}" class="nav-link {% if request.endpoint == 'register_technician' %}active{% endif %}">
+            <i class="bi bi-person-badge-fill"></i>
+            <span>Kelola Teknisi</span>
+        </a>
         <a href="{{ url_for('work_orders') }}" class="nav-link {% if request.endpoint == 'work_orders' %}active{% endif %}">
             <i class="bi bi-card-checklist"></i>
             <span>Work Orders</span>
@@ -48,7 +52,7 @@
             <i class="bi bi-shield-check"></i>
             <span>Security Center</span>
         </a>
-        <a href="{{ url_for('gate_kiosk') }}" target="_blank" class="nav-link {% if request.endpoint == 'gate_kiosk' %}active{% endif %}">
+        <a href="{{ url_for('gate_kiosk') }}" class="nav-link {% if request.endpoint == 'gate_kiosk' %}active{% endif %}">
             <i class="bi bi-display"></i>
             <span>Terminal Kiosk</span>
         </a>
@@ -67,7 +71,7 @@
             <i class="bi bi-door-open-fill"></i>
             <span>Buka Gerbang</span>
         </a>
-        <a href="{{ url_for('gate_kiosk') }}" target="_blank" class="nav-link {% if request.endpoint == 'gate_kiosk' %}active{% endif %}">
+        <a href="{{ url_for('gate_kiosk') }}" class="nav-link {% if request.endpoint == 'gate_kiosk' %}active{% endif %}">
             <i class="bi bi-display"></i>
             <span>Terminal Kiosk</span>
         </a>
@@ -96,10 +100,10 @@
 <!-- ============================================== -->
 <header class="modern-topbar d-none d-lg-flex">
     <div class="topbar-left">
-        <div class="topbar-search">
+        <form action="{{ url_for('access_logs') }}" method="GET" class="topbar-search m-0">
             <i class="bi bi-search"></i>
-            <input type="text" placeholder="Cari site, teknisi, log tiket...">
-        </div>
+            <input type="text" name="q" placeholder="Cari site, teknisi, log tiket..." value="{{ request.args.get('q', '') }}">
+        </form>
         <div class="topbar-status-pill d-none d-xl-inline-flex">
             <span class="pulse-dot"></span>
             <span>GATEWAY:</span>
@@ -132,8 +136,8 @@
             <i class="bi bi-shield-lock-fill"></i>
         </div>
         <div>
-            <div class="mobile-brand-title">Smart BTS</div>
-            <div class="mobile-brand-status"><span class="pulse-dot"></span> Online NOC</div>
+            <div class="mobile-brand-title">BACS Enterprise</div>
+            <div class="mobile-brand-status"><span class="pulse-dot"></span> NOC Online</div>
         </div>
     </div>
 
@@ -179,6 +183,11 @@
             <a href="{{ url_for('bts_sites') }}" class="drawer-nav-item {% if request.endpoint in ('bts_sites', 'edit_bts_site') %}active{% endif %}">
                 <span class="drawer-nav-icon"><i class="bi bi-hdd-network-fill"></i></span>
                 <span>Kelola Site BTS</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('register_technician') }}" class="drawer-nav-item {% if request.endpoint == 'register_technician' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-person-badge-fill"></i></span>
+                <span>Kelola Teknisi</span>
                 <i class="bi bi-chevron-right drawer-chevron"></i>
             </a>
             <a href="{{ url_for('bts_map') }}" class="drawer-nav-item {% if request.endpoint == 'bts_map' %}active{% endif %}">

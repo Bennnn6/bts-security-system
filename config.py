@@ -212,3 +212,23 @@ class Config:
         os.environ.get('GEOFENCE_RADIUS_METERS', '150')
     )
 
+    GEOFENCE_REQUIRE_COORDINATES = (
+        os.environ.get('GEOFENCE_REQUIRE_COORDINATES', 'True').strip().lower()
+        in ('true', '1', 'yes')
+    )
+
+    # =====================================================
+    # KIOSK PROVISIONING SECURITY
+    # =====================================================
+
+    KIOSK_ADMIN_PIN = os.environ.get('KIOSK_ADMIN_PIN', '').strip()
+
+    # =====================================================
+    # NETWORK & PROXY TRUST
+    # =====================================================
+
+    TRUST_PROXY = (
+        os.environ.get('TRUST_PROXY', 'False').strip().lower()
+        in ('true', '1', 'yes')
+    )
+

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Terminal Gerbang BTS | {{ site.site_name if site else 'Site Kiosk' }}</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icons/bacs_app.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/bacs_app.png') }}">
     <meta name="csrf-token" content="{{ csrf_token }}">
 
     <!-- Google Fonts: Plus Jakarta Sans, Space Grotesk, JetBrains Mono -->
@@ -17,9 +19,9 @@
 
     <style>
         :root {
-            --bg-base: #080C15;
-            --bg-card: rgba(17, 24, 39, 0.75);
-            --bg-card-elevated: rgba(30, 41, 59, 0.65);
+            --bg-base: #070B14;
+            --bg-card: rgba(13, 21, 39, 0.78);
+            --bg-card-elevated: rgba(22, 33, 58, 0.7);
             --border-subtle: rgba(255, 255, 255, 0.08);
             --border-glow: rgba(56, 189, 248, 0.3);
             
@@ -49,8 +51,8 @@
         body {
             background-color: var(--bg-base);
             background-image: 
-                radial-gradient(circle at 20% 15%, rgba(2, 132, 199, 0.12) 0%, transparent 50%),
-                radial-gradient(circle at 80% 85%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+                radial-gradient(circle at 15% 10%, rgba(2, 132, 199, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 85% 90%, rgba(124, 58, 237, 0.08) 0%, transparent 45%);
             color: var(--text-primary);
             font-family: var(--font-sans);
             margin: 0;
@@ -63,22 +65,24 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Minimalist Header Bar */
+        /* 1. Ultra-Clean Header Bar */
         .kiosk-header {
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(13, 21, 39, 0.85);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--border-subtle);
-            padding: 0.75rem 1.75rem;
+            padding: 0.65rem 1.75rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 1rem;
             z-index: 100;
+            flex-shrink: 0;
         }
 
         .terminal-brand {
             font-family: var(--font-display);
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             font-weight: 700;
             letter-spacing: -0.01em;
             color: #FFFFFF;
@@ -92,8 +96,9 @@
             height: 10px;
             background-color: var(--accent-emerald);
             border-radius: 50%;
-            box-shadow: 0 0 12px var(--accent-emerald);
+            box-shadow: 0 0 10px var(--accent-emerald);
             animation: pulse-ring 2s infinite ease-in-out;
+            flex-shrink: 0;
         }
 
         @keyframes pulse-ring {
@@ -102,12 +107,12 @@
         }
 
         .site-badge {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #E2E8F0;
             font-family: var(--font-sans);
-            font-size: 0.825rem;
-            padding: 0.35rem 0.85rem;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.75rem;
             border-radius: 99px;
             font-weight: 600;
             display: inline-flex;
@@ -116,77 +121,80 @@
 
         .digital-clock {
             font-family: var(--font-mono);
-            font-size: 1.35rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: #38BDF8;
             letter-spacing: 1px;
         }
 
-        /* Clean Mode Switcher Bar */
-        .kiosk-mode-nav {
+        /* 2. Integrated Mode Switcher (In Header Center) */
+        .kiosk-mode-nav-inline {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 0.75rem 1.75rem 0.25rem;
+            gap: 4px;
+            background: rgba(2, 6, 23, 0.5);
+            padding: 3px;
+            border-radius: 99px;
+            border: 1px solid var(--border-subtle);
         }
 
-        .mode-tab-btn {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        .kiosk-mode-nav-inline .mode-tab-btn {
+            background: transparent;
+            border: none;
             color: var(--text-secondary);
             font-family: var(--font-display);
             font-weight: 700;
-            font-size: 0.95rem;
-            padding: 0.65rem 1.4rem;
+            font-size: 0.85rem;
+            padding: 0.45rem 1.15rem;
             border-radius: 99px;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.45rem;
         }
 
-        .mode-tab-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
+        .kiosk-mode-nav-inline .mode-tab-btn:hover {
             color: #FFFFFF;
+            background: rgba(255, 255, 255, 0.06);
         }
 
-        .mode-tab-btn.active {
+        .kiosk-mode-nav-inline .mode-tab-btn.active {
             background: linear-gradient(135deg, #0284C7, #06B6D4);
-            border-color: rgba(56, 189, 248, 0.4);
             color: #FFFFFF;
-            box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35);
+            box-shadow: 0 2px 12px rgba(2, 132, 199, 0.4);
         }
 
-        /* Main Workspace Layout */
+        /* 3. Main Workspace Layout */
         .kiosk-main {
             flex: 1;
             display: grid;
-            grid-template-columns: 1.15fr 1fr;
-            gap: 1.25rem;
-            padding: 0.75rem 1.75rem 1.25rem;
+            grid-template-columns: 1.18fr 1fr;
+            gap: 1.15rem;
+            padding: 0.85rem 1.5rem;
             overflow: hidden;
-            max-width: 1500px;
+            max-width: 1560px;
             margin: 0 auto;
             width: 100%;
+            height: calc(100vh - 110px);
         }
 
         @media (max-width: 992px) {
             .kiosk-main {
                 grid-template-columns: 1fr;
                 overflow-y: auto;
+                height: auto;
                 padding: 0.75rem 1rem;
             }
         }
 
-        /* Minimalist Clean Cards */
+        /* 4. Minimalist Enterprise Panels */
         .kiosk-panel {
             background: var(--bg-card);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             border: 1px solid var(--border-subtle);
-            border-radius: 26px;
+            border-radius: 20px;
             box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.5);
             display: flex;
             flex-direction: column;
@@ -196,24 +204,25 @@
         }
 
         .panel-header {
-            padding: 0.85rem 1.25rem;
+            padding: 0.8rem 1.25rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            flex-wrap: wrap;
             gap: 0.6rem;
             font-family: var(--font-display);
-            font-size: 1.05rem;
+            font-size: 1rem;
             font-weight: 700;
             color: #FFFFFF;
             border-bottom: 1px solid var(--border-subtle);
+            background: rgba(15, 23, 42, 0.4);
+            flex-shrink: 0;
         }
 
-        /* Camera Scanner Viewport */
+        /* 5. Biometric Scanner Viewport */
         .scanner-viewport {
             flex: 1;
             position: relative;
-            background: #000000;
+            background: #020617;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -228,7 +237,7 @@
             transform: scaleX(-1);
         }
 
-        /* Biometric Clean Reticle */
+        /* Modern Biometric Face Guide (Airport / E-Gate Style) */
         .hud-overlay {
             position: absolute;
             inset: 0;
@@ -239,108 +248,139 @@
         }
 
         .target-box {
-            width: 270px;
-            height: 340px;
-            border: 2px solid rgba(56, 189, 248, 0.4);
-            border-radius: 36px;
+            width: 250px;
+            height: 310px;
+            border: 2px dashed rgba(56, 189, 248, 0.35);
+            border-radius: 48px;
             position: relative;
-            box-shadow: 0 0 35px rgba(56, 189, 248, 0.12);
+            box-shadow: 0 0 0 9999px rgba(7, 11, 20, 0.45), 0 0 35px rgba(56, 189, 248, 0.15);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Sleek Corner Brackets */
+        .target-box::before, .target-box::after {
+            content: '';
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            pointer-events: none;
+            border-color: #38BDF8;
+            border-style: solid;
+        }
+        .target-box::before {
+            top: -3px;
+            left: -3px;
+            border-width: 4px 0 0 4px;
+            border-top-left-radius: 48px;
+        }
+        .target-box::after {
+            bottom: -3px;
+            right: -3px;
+            border-width: 0 4px 4px 0;
+            border-bottom-right-radius: 48px;
         }
 
         .target-box.matched {
             border: 3px solid var(--accent-emerald) !important;
-            box-shadow: 0 0 45px rgba(16, 185, 129, 0.5) !important;
+            box-shadow: 0 0 0 9999px rgba(7, 11, 20, 0.35), 0 0 45px rgba(16, 185, 129, 0.5) !important;
             transform: scale(1.02);
+        }
+        .target-box.matched::before, .target-box.matched::after {
+            border-color: var(--accent-emerald) !important;
         }
 
         .target-box.denied {
             border: 3px solid var(--accent-rose) !important;
-            box-shadow: 0 0 45px rgba(239, 68, 68, 0.5) !important;
+            box-shadow: 0 0 0 9999px rgba(7, 11, 20, 0.35), 0 0 45px rgba(239, 68, 68, 0.5) !important;
             transform: scale(0.98);
         }
+        .target-box.denied::before, .target-box.denied::after {
+            border-color: var(--accent-rose) !important;
+        }
 
-        /* Smooth Scanner Laser */
+        /* Subtle Biometric Scan Line */
         .scan-laser {
             position: absolute;
-            left: 12px;
-            right: 12px;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, #38BDF8, #8B5CF6, transparent);
-            box-shadow: 0 0 16px #38BDF8;
+            left: 20px;
+            right: 20px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #38BDF8, #0284C7, transparent);
+            box-shadow: 0 0 12px #38BDF8;
             border-radius: 99px;
-            animation: scan-vertical 2s ease-in-out infinite alternate;
+            animation: scan-vertical 2.2s ease-in-out infinite alternate;
         }
 
         @keyframes scan-vertical {
-            0% { top: 8%; opacity: 0.3; }
-            50% { opacity: 1; }
-            100% { top: 90%; opacity: 0.3; }
+            0% { top: 12%; opacity: 0.3; }
+            50% { opacity: 0.9; }
+            100% { top: 88%; opacity: 0.3; }
         }
 
-        /* Clean Status Capsule */
+        /* Modern Status Capsule at Bottom of Camera */
         .scanner-status-banner {
             position: absolute;
-            bottom: 1.25rem;
-            left: 1.25rem;
-            right: 1.25rem;
-            background: rgba(15, 23, 42, 0.88);
+            bottom: 1rem;
+            left: 1rem;
+            right: 1rem;
+            background: rgba(11, 19, 36, 0.88);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 18px;
-            padding: 0.85rem 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 0.65rem 1.15rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
             z-index: 20;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
         .status-pill {
             font-family: var(--font-sans);
-            font-size: 0.925rem;
+            font-size: 0.885rem;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 0.65rem;
+            gap: 0.55rem;
         }
 
-        /* Big Friendly Scan Button */
+        /* Scan Trigger Action Button */
         .scan-action-container {
-            padding: 1.15rem 1.5rem;
-            background: rgba(15, 23, 42, 0.8);
+            padding: 0.95rem 1.25rem;
+            background: rgba(11, 19, 36, 0.7);
             border-top: 1px solid var(--border-subtle);
+            flex-shrink: 0;
         }
 
         .btn-scan-hero {
-            background: linear-gradient(135deg, #0284C7 0%, #06B6D4 100%);
-            border: none;
-            border-radius: 20px;
+            background: linear-gradient(135deg, #0284C7, #0369A1);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 14px;
             color: #FFFFFF;
             font-family: var(--font-display);
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
-            letter-spacing: 0.02em;
-            padding: 1.1rem;
+            letter-spacing: 0.03em;
+            padding: 0.85rem 1.25rem;
             width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.75rem;
-            box-shadow: 0 8px 24px rgba(2, 132, 199, 0.35);
+            gap: 0.65rem;
+            box-shadow: 0 4px 18px rgba(2, 132, 199, 0.3);
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
         }
 
         .btn-scan-hero:hover {
-            filter: brightness(1.08);
+            background: linear-gradient(135deg, #0369A1, #0284C7);
+            border-color: #38BDF8;
             transform: translateY(-2px);
-            box-shadow: 0 12px 28px rgba(2, 132, 199, 0.45);
+            box-shadow: 0 8px 24px rgba(2, 132, 199, 0.45);
         }
 
         .btn-scan-hero:active {
-            transform: scale(0.96);
+            transform: scale(0.97);
         }
 
         /* Gate Open Countdown Curtain */
@@ -367,19 +407,19 @@
         }
 
         .gate-countdown-circle {
-            width: 130px;
-            height: 130px;
+            width: 110px;
+            height: 110px;
             border-radius: 50%;
             border: 4px solid var(--accent-emerald);
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: var(--font-mono);
-            font-size: 3.5rem;
+            font-size: 3rem;
             font-weight: 800;
             color: var(--accent-emerald);
-            box-shadow: 0 0 45px rgba(16, 185, 129, 0.4);
-            margin-bottom: 1.5rem;
+            box-shadow: 0 0 35px rgba(16, 185, 129, 0.4);
+            margin-bottom: 1.25rem;
             animation: pulse-countdown 1s infinite alternate;
         }
 
@@ -388,99 +428,104 @@
             to { transform: scale(1.05); }
         }
 
-        /* Keypad Panel */
+        /* 6. Keypad Panel & Touch Grid */
         .keypad-container {
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 1.25rem 1.5rem;
+            padding: 1rem 1.25rem;
             justify-content: space-between;
+            overflow: hidden;
         }
 
-        /* Big Comfortable Access Switch (Masuk / Keluar) */
+        /* Segmented Access Switch (Masuk / Keluar) */
         .access-type-switch {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 1rem;
+            gap: 6px;
+            background: rgba(11, 19, 36, 0.6);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 0.75rem;
+            flex-shrink: 0;
         }
 
         .switch-opt {
-            padding: 0.9rem;
+            padding: 0.65rem 0.75rem;
             text-align: center;
             font-family: var(--font-display);
             font-weight: 700;
-            font-size: 0.95rem;
-            border-radius: 16px;
+            font-size: 0.85rem;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             color: var(--text-secondary);
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid var(--border-subtle);
+            background: transparent;
+            border: none;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
+            gap: 0.4rem;
         }
 
         .switch-opt:hover {
-            background: rgba(51, 65, 85, 0.6);
             color: #FFFFFF;
         }
 
         .switch-opt.active {
             background: linear-gradient(135deg, #0284C7, #06B6D4);
-            border-color: rgba(56, 189, 248, 0.5);
             color: #FFFFFF;
-            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
         }
 
-        /* Clean Technician Picker */
         .tech-select-container {
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
+            flex-shrink: 0;
         }
 
         .kiosk-select {
-            background-color: rgba(30, 41, 59, 0.5);
+            background-color: rgba(15, 23, 42, 0.7);
             border: 1px solid var(--border-subtle);
             color: var(--text-primary);
-            border-radius: 16px;
-            padding: 0.85rem 1.15rem;
+            border-radius: 12px;
+            padding: 0.6rem 0.95rem;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.885rem;
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
         .kiosk-select:focus {
-            background-color: rgba(30, 41, 59, 0.75);
+            background-color: rgba(15, 23, 42, 0.9);
             color: var(--text-primary);
             border-color: #38BDF8;
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
         }
 
         /* OTP 6-Digit Display Slots */
         .otp-display-box {
-            background: rgba(11, 15, 25, 0.6);
+            background: rgba(11, 15, 25, 0.7);
             border: 1px solid var(--border-subtle);
-            border-radius: 20px;
-            padding: 0.85rem;
+            border-radius: 14px;
+            padding: 0.6rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.85rem;
-            margin-bottom: 1.15rem;
+            gap: 0.65rem;
+            margin-bottom: 0.75rem;
+            flex-shrink: 0;
         }
 
         .otp-digit-slot {
-            width: 52px;
-            height: 60px;
-            background: rgba(30, 41, 59, 0.5);
+            width: 44px;
+            height: 50px;
+            background: rgba(30, 41, 59, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: var(--font-mono);
-            font-size: 2rem;
+            font-size: 1.65rem;
             font-weight: 700;
             color: #38BDF8;
             transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
@@ -490,53 +535,53 @@
             border-color: #38BDF8;
             background: rgba(2, 132, 199, 0.2);
             color: #FFFFFF;
-            box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
-            transform: scale(1.05);
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+            transform: scale(1.04);
         }
 
-        /* Big Touch Keypad Grid */
+        /* Touch Keypad Grid */
         .keypad-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
+            gap: 0.55rem;
             flex: 1;
         }
 
         .keypad-btn {
-            background: rgba(30, 41, 59, 0.45);
+            background: rgba(20, 30, 48, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.08);
             color: #F8FAFC;
             font-family: var(--font-display);
-            font-size: 2rem;
+            font-size: 1.65rem;
             font-weight: 700;
-            border-radius: 18px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            min-height: 64px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            min-height: 48px;
             cursor: pointer;
         }
 
         .keypad-btn:hover {
-            background: rgba(51, 65, 85, 0.75);
+            background: rgba(30, 45, 70, 0.75);
             border-color: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
+            transform: translateY(-1px);
         }
 
         .keypad-btn:active, .keypad-btn.touch-active {
-            transform: scale(0.92);
+            transform: scale(0.93);
             background: #0284C7 !important;
             color: #FFFFFF !important;
-            box-shadow: 0 0 25px rgba(2, 132, 199, 0.6) !important;
+            box-shadow: 0 0 20px rgba(2, 132, 199, 0.6) !important;
         }
 
         .keypad-btn.action-clear {
-            background: rgba(239, 68, 68, 0.12);
+            background: rgba(239, 68, 68, 0.1);
             color: #F87171;
             border-color: rgba(239, 68, 68, 0.2);
-            font-size: 1.5rem;
+            font-size: 1.35rem;
         }
         .keypad-btn.action-clear:hover {
             background: rgba(239, 68, 68, 0.25);
@@ -551,38 +596,59 @@
             background: linear-gradient(135deg, #10B981, #059669);
             color: #FFFFFF;
             border-color: rgba(16, 185, 129, 0.4);
-            font-size: 1.6rem;
-            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+            font-size: 1.45rem;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
         }
         .keypad-btn.action-enter:hover {
             filter: brightness(1.1);
         }
 
-        /* Minimalist Clean Footer */
+        /* 7. Minimalist Compact Footer */
         .kiosk-footer {
-            background: rgba(11, 15, 25, 0.75);
+            background: rgba(11, 15, 25, 0.85);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid var(--border-subtle);
-            padding: 0.65rem 1.75rem;
+            padding: 0.55rem 1.75rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 0.85rem;
+            font-size: 0.825rem;
             z-index: 100;
+            flex-shrink: 0;
         }
 
         .hardware-pill {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.35rem 0.85rem;
+            gap: 0.45rem;
+            padding: 0.3rem 0.75rem;
             border-radius: 99px;
             font-family: var(--font-sans);
-            font-size: 0.825rem;
+            font-size: 0.8rem;
             font-weight: 600;
             background: rgba(30, 41, 59, 0.4);
             border: 1px solid var(--border-subtle);
+        }
+
+        /* Dropdown Clean Styling */
+        .dropdown-menu {
+            background: #0B1324 !important;
+            border: 1px solid var(--border-subtle) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5) !important;
+            padding: 0.4rem !important;
+        }
+        .dropdown-item {
+            color: #E2E8F0 !important;
+            font-size: 0.85rem !important;
+            border-radius: 8px !important;
+            padding: 0.5rem 0.85rem !important;
+            transition: all 0.15s ease !important;
+        }
+        .dropdown-item:hover {
+            background: rgba(56, 189, 248, 0.12) !important;
+            color: #38BDF8 !important;
         }
 
         /* Fullscreen Alarm Flash */
@@ -599,13 +665,13 @@
 <body id="kioskBody">
 
     <!-- =====================================================
-         MINIMALIST HEADER BAR
+         MINIMALIST HEADER BAR (WITH INTEGRATED MODE NAVIGATION)
     ====================================================== -->
     <header class="kiosk-header">
         <div class="terminal-brand">
             <div class="badge-pulse" id="liveHeartbeatDot" title="Terminal Online"></div>
-            <span>Terminal Akses Gerbang</span>
-            <span class="site-badge ms-2" id="headerSiteBadge">
+            <span class="d-none d-sm-inline fw-bold font-display text-white" style="letter-spacing: 0.05em;">BACS TERMINAL</span>
+            <span class="site-badge ms-1 ms-sm-2" id="headerSiteBadge">
                 <i class="bi bi-broadcast me-1 text-info"></i>
                 {{ site.site_id if site else 'NO_SITE' }} • {{ site.site_name if site else 'Site Tidak Terpilih' }}
             </span>
@@ -614,28 +680,29 @@
             </button>
         </div>
 
-        <div class="d-flex align-items-center gap-3">
+        <!-- Integrated Mode Navigation in Header -->
+        <div class="kiosk-mode-nav-inline">
+            <button class="mode-tab-btn active" id="tabDualMode" onclick="switchKioskLayout('DUAL')" title="Mode Dual (Kamera & PIN)">
+                <i class="bi bi-grid-fill"></i> <span>Tampilan Lengkap</span>
+            </button>
+            <button class="mode-tab-btn" id="tabFaceMode" onclick="switchKioskLayout('FACE')" title="Fokus Kamera Wajah">
+                <i class="bi bi-person-bounding-box"></i> <span>Pindai Wajah</span>
+            </button>
+            <button class="mode-tab-btn" id="tabOtpMode" onclick="switchKioskLayout('OTP')" title="Fokus Input OTP">
+                <i class="bi bi-dialpad-fill"></i> <span>Input OTP</span>
+            </button>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 gap-sm-3">
             <div class="digital-clock" id="digitalClock">00:00:00</div>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 text-white border-secondary-subtle" title="Kembali ke Dashboard Utama NOC">
+                <i class="bi bi-grid-1x2-fill me-1 text-info"></i> <span class="d-none d-md-inline">DASHBOARD</span>
+            </a>
             <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 text-white border-secondary-subtle" id="btnToggleFullscreen" title="Layar Penuh (F11)">
-                <i class="bi bi-arrows-fullscreen me-1"></i> FULLSCREEN
+                <i class="bi bi-arrows-fullscreen me-1"></i> <span class="d-none d-md-inline">FULLSCREEN</span>
             </button>
         </div>
     </header>
-
-    <!-- =====================================================
-         CLEAN MODE NAVIGATION TABS
-    ====================================================== -->
-    <div class="kiosk-mode-nav">
-        <button class="mode-tab-btn active" id="tabDualMode" onclick="switchKioskLayout('DUAL')">
-            <i class="bi bi-grid-fill"></i> Tampilan Lengkap
-        </button>
-        <button class="mode-tab-btn" id="tabFaceMode" onclick="switchKioskLayout('FACE')">
-            <i class="bi bi-person-bounding-box"></i> Pindai Wajah
-        </button>
-        <button class="mode-tab-btn" id="tabOtpMode" onclick="switchKioskLayout('OTP')">
-            <i class="bi bi-dialpad-fill"></i> Input OTP
-        </button>
-    </div>
 
     <!-- =====================================================
          MODAL PENGATURAN & KUNCI PERANGKAT KE SITE
@@ -693,33 +760,56 @@
     <main class="kiosk-main" id="kioskMainArea">
 
         <!-- =================================================
-             PANEL 1: PEMINDAI WAJAH & QR
+             PANEL 1: PEMINDAI WAJAH & QR (E-GATE TERMINAL)
         ================================================== -->
         <section class="kiosk-panel" id="panelScanner">
             <div class="panel-header">
                 <div class="d-flex align-items-center gap-2">
                     <i class="bi bi-camera-video-fill text-info" id="scannerPanelIcon"></i>
-                    <span id="scannerPanelTitle">Pemindai Wajah & QR</span>
+                    <span id="scannerPanelTitle">Pemindai Biometrik</span>
                 </div>
-                <div class="d-flex align-items-center gap-2 flex-wrap" onclick="event.stopPropagation()">
-                    <!-- Camera Power Toggle -->
-                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill py-1 px-3 fw-semibold" id="btnToggleCamera" onclick="toggleCameraPower(event)" title="Nyalakan / Matikan Daya Kamera">
-                        <span id="cameraPowerLabel"><i class="bi bi-camera-video-fill me-1"></i> KAMERA: ON</span>
-                    </button>
-                    <!-- Auto-Scan Toggle -->
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-1 px-3 fw-semibold text-white-50 border-secondary-subtle" id="btnToggleAutoScan" onclick="toggleAutoScanMode(event)" title="Nyalakan / Matikan Pemindaian Otomatis (Hands-Free)">
-                        <span id="autoScanLabel"><i class="bi bi-hand-index-thumb me-1"></i> AUTO-SCAN: OFF</span>
-                    </button>
-                    <!-- Scanner Mode Toggle -->
+                <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation()">
+                    <!-- Scanner Mode Switch (Face vs QR) -->
                     <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-1 px-3 text-white border-secondary-subtle" id="btnToggleScannerMode" onclick="toggleScannerMode(event)" title="Ganti Mode (Wajah / QR Tiket)">
                         <i class="bi bi-qr-code-scan me-1" id="modeBtnIcon"></i> <span id="scannerModeLabel">QR TIKET</span>
                     </button>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1" id="camStatusBadge">
+
+                    <!-- Camera Status Pill -->
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1" id="camStatusBadge">
                         <i class="bi bi-record-circle-fill me-1"></i> AKTIF
                     </span>
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-1 px-2 text-white border-secondary-subtle" id="btnSwitchCamera" title="Ganti Kamera Depan/Belakang">
-                        <i class="bi bi-arrow-repeat"></i>
-                    </button>
+
+                    <!-- Discrete Camera & Sensor Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill py-1 px-2.5 text-white border-secondary-subtle" type="button" data-bs-toggle="dropdown" title="Pengaturan Sensor Kamera">
+                            <i class="bi bi-sliders"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg" style="min-width: 210px; background: #0B1324; border: 1px solid var(--border-subtle); border-radius: 14px;">
+                            <li><h6 class="dropdown-header text-secondary small py-1">KONTROL KAMERA</h6></li>
+                            <li>
+                                <div class="px-2 py-1">
+                                    <button type="button" class="btn btn-sm btn-outline-success w-100 rounded-pill py-1 px-3 fw-semibold text-start d-flex align-items-center justify-content-between" id="btnToggleCamera" onclick="toggleCameraPower(event)" title="Nyalakan / Matikan Daya Kamera">
+                                        <span id="cameraPowerLabel"><i class="bi bi-camera-video-fill me-1"></i> KAMERA: ON</span>
+                                    </button>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="px-2 py-1">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill py-1 px-3 fw-semibold text-white-50 border-secondary-subtle text-start d-flex align-items-center justify-content-between" id="btnToggleAutoScan" onclick="toggleAutoScanMode(event)" title="Nyalakan / Matikan Pemindaian Otomatis (Hands-Free)">
+                                        <span id="autoScanLabel"><i class="bi bi-hand-index-thumb me-1"></i> AUTO-SCAN: OFF</span>
+                                    </button>
+                                </div>
+                            </li>
+                            <li><hr class="dropdown-divider border-secondary-subtle my-1"></li>
+                            <li>
+                                <div class="px-2 py-1">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill py-1 px-3 text-white border-secondary-subtle text-start" id="btnSwitchCamera" title="Ganti Kamera Depan/Belakang">
+                                        <i class="bi bi-arrow-repeat me-1 text-info"></i> Putar Kamera
+                                    </button>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
@@ -1790,27 +1880,46 @@
             }
         }
 
-        function saveDeviceProvisioning() {
+        async function saveDeviceProvisioning() {
             const siteSelect = document.getElementById('configSiteSelect');
             const targetSite = siteSelect.value;
             const deviceId = document.getElementById('configDeviceId').value.trim() || `KIOSK-${targetSite}-01`;
             const pin = document.getElementById('configAdminPin').value.trim();
             const feedback = document.getElementById('configFeedback');
 
-            if (pin !== 'admin' && pin !== '123456') {
-                feedback.textContent = 'PIN Otorisasi Admin salah! (Gunakan password admin)';
+            if (!pin) {
+                feedback.textContent = 'Silakan masukkan PIN atau Password Admin.';
                 feedback.style.display = 'block';
                 return;
             }
 
-            // Simpan ke penyimpanan lokal perangkat
-            localStorage.setItem('kiosk_locked_site_id', targetSite);
-            localStorage.setItem('kiosk_device_id', deviceId);
+            try {
+                const res = await fetch('/api/kiosk/verify-pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pin })
+                });
+                const data = await res.json();
 
-            speakVoice(`Perangkat berhasil dikunci ke Site ${targetSite}`);
+                if (!res.ok || data.status !== 'success') {
+                    feedback.textContent = data.message || 'PIN Otorisasi Admin salah!';
+                    feedback.style.display = 'block';
+                    return;
+                }
 
-            // Arahkan perangkat ke URL Site terkunci
-            window.location.href = `/kiosk/${targetSite}`;
+                // Simpan ke penyimpanan lokal perangkat
+                localStorage.setItem('kiosk_locked_site_id', targetSite);
+                localStorage.setItem('kiosk_device_id', deviceId);
+
+                speakVoice(`Perangkat berhasil dikunci ke Site ${targetSite}`);
+
+                // Arahkan perangkat ke URL Site terkunci
+                window.location.href = `/kiosk/${targetSite}`;
+            } catch (err) {
+                console.error("Gagal verifikasi PIN admin kiosk:", err);
+                feedback.textContent = 'Gagal menghubungi server untuk verifikasi otorisasi.';
+                feedback.style.display = 'block';
+            }
         }
 
         // Start Camera on load

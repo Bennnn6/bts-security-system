@@ -74,9 +74,12 @@ def _qr_to_svg(uri):
         return b""
 
 
-# =========================================================
-# VERIFY TOTP
-# =========================================================
+import time
+
+# Cache kode OTP yang telah digunakan (RFC 6238 Anti-Replay)
+# key: (secret, user_code), value: expired_timestamp
+_used_otps = {}
+
 
 def verify_totp(secret, user_code):
     if not secret or not user_code:
@@ -85,7 +88,27 @@ def verify_totp(secret, user_code):
     user_code = str(user_code).strip()
     if not user_code.isdigit() or len(user_code) != 6:
         return False
-    return totp.verify(
+
+    now = time.time()
+    cache_key = (secret, user_code)
+
+    # Bersihkan cache lama jika sudah melewati batas
+    if len(_used_otps) > 1000:
+        stale = [k for k, exp in _used_otps.items() if now > exp]
+        for k in stale:
+            _used_otps.pop(k, None)
+
+    # Cegah penggunaan berulang kode yang sama dalam masa aktif (Anti-Replay)
+    if cache_key in _used_otps and now < _used_otps[cache_key]:
+        return False
+
+    is_valid = totp.verify(
         user_code,
         valid_window=1
     )
+    if is_valid:
+        # Kunci kode ini selama 120 detik (valid_window 1 step = ~90s)
+        _used_otps[cache_key] = now + 120
+        return True
+
+    return False

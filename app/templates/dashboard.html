@@ -13,11 +13,19 @@
     <div class="dashboard-hero p-4 mb-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
              <div>
-                 <h2 class="fw-bold mb-1" style="color: var(--jk-text-dark);">
-                     Security Operations
+                 <div class="d-flex align-items-center gap-2 mb-1">
+                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-0.5 fw-semibold" style="font-size: 0.72rem;">
+                         <i class="bi bi-shield-check me-1"></i> BACS ENTERPRISE • NOC & SOC
+                     </span>
+                     <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                         ISO/IEC 27001 COMPLIANT
+                     </span>
+                 </div>
+                 <h2 class="fw-bold mb-1" style="color: var(--jk-text-dark); letter-spacing: -0.02em;">
+                     Pusat Operasi Keamanan BTS (NOC)
                  </h2>
                  <p class="text-muted mb-0">
-                     Monitoring teknisi, site BTS, dan aktivitas akses gerbang.
+                     Pemantauan telemetri shelter, kontrol akses biometrik 2FA, dan kepatuhan K3 lapangan secara real-time.
                  </p>
 
                  <div class="mt-3 d-flex gap-2 flex-wrap" aria-label="Status operasi">
@@ -62,10 +70,16 @@
         <!-- TOTAL TEKNISI -->
         <div class="col-6 col-xl-3">
             <div class="stat-card-mini">
-                <div class="stat-card-mini-icon icon-purple"></div>
-                <div class="stat-card-mini-content">
-                    <h6>Total Teknisi</h6>
-                    <h3>{{ total_techs|default(0) }}</h3>
+                <div class="stat-card-header">
+                    <span class="stat-card-label">Total Teknisi</span>
+                    <span class="stat-card-icon-subtle"><i class="bi bi-people"></i></span>
+                </div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value">{{ total_techs|default(0) }}</div>
+                    <div class="stat-card-meta">
+                        <span class="meta-dot bg-success"></span>
+                        <span>{{ active_techs|default(0) }} Terverifikasi</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -73,10 +87,16 @@
         <!-- TEKNISI AKTIF -->
         <div class="col-6 col-xl-3">
             <div class="stat-card-mini">
-                <div class="stat-card-mini-icon icon-green"></div>
-                <div class="stat-card-mini-content">
-                    <h6>Teknisi Aktif</h6>
-                    <h3>{{ active_techs|default(0) }}</h3>
+                <div class="stat-card-header">
+                    <span class="stat-card-label">Teknisi Aktif</span>
+                    <span class="stat-card-icon-subtle"><i class="bi bi-person-check"></i></span>
+                </div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value text-success">{{ active_techs|default(0) }}</div>
+                    <div class="stat-card-meta">
+                        <span class="meta-dot bg-success"></span>
+                        <span>Standby Lapangan</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -84,10 +104,16 @@
         <!-- TOTAL SITE -->
         <div class="col-6 col-xl-3">
             <div class="stat-card-mini">
-                <div class="stat-card-mini-icon icon-yellow"></div>
-                <div class="stat-card-mini-content">
-                    <h6>Total Site BTS</h6>
-                    <h3>{{ total_sites|default(0) }}</h3>
+                <div class="stat-card-header">
+                    <span class="stat-card-label">Total Site BTS</span>
+                    <span class="stat-card-icon-subtle"><i class="bi bi-broadcast-pin"></i></span>
+                </div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value">{{ total_sites|default(0) }}</div>
+                    <div class="stat-card-meta">
+                        <span class="meta-dot bg-info"></span>
+                        <span>NOC Terhubung 24/7</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -95,10 +121,16 @@
         <!-- AKSES HARI INI -->
         <div class="col-6 col-xl-3">
             <div class="stat-card-mini">
-                <div class="stat-card-mini-icon icon-blue"></div>
-                <div class="stat-card-mini-content">
-                    <h6>Akses Hari Ini</h6>
-                    <h3>{{ access_today|default(0) }}</h3>
+                <div class="stat-card-header">
+                    <span class="stat-card-label">Akses Hari Ini</span>
+                    <span class="stat-card-icon-subtle"><i class="bi bi-door-open"></i></span>
+                </div>
+                <div class="stat-card-body">
+                    <div class="stat-card-value text-primary">{{ access_today|default(0) }}</div>
+                    <div class="stat-card-meta">
+                        <span class="meta-dot bg-primary"></span>
+                        <span>Otentikasi Gerbang</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -666,19 +698,18 @@
     ====================================================== -->
 
     <div class="card mb-4 border-0">
-        <!-- 🔑 Perbaikan Header agar tidak jadi gelap (dipaksa background putih) -->
-        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #FFFFFF !important; border-bottom: 1px solid var(--jk-bg-subtle) !important;">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface) !important; border-bottom: 1px solid var(--border-subtle) !important;">
             <div>
                 <h5 class="section-title mb-1" style="color: var(--jk-primary) !important;">Status Teknisi</h5>
-                <div class="section-subtitle" style="color: #64748B !important;">Status keberadaan teknisi berdasarkan akses terakhir yang berhasil.</div>
+                <div class="section-subtitle" style="color: var(--text-muted) !important;">Status keberadaan teknisi berdasarkan akses terakhir yang berhasil.</div>
             </div>
-            <!-- Tombol Tambah Teknisi (Dipaksa Ungu) -->
-            <a href="/technicians/register" class="btn btn-sm px-3 shadow-sm" style="background-color: var(--jk-primary) !important; color: #FFFFFF !important; border: none;">
-                Tambah Teknisi
+            <!-- Tombol Tambah Teknisi -->
+            <a href="{{ url_for('register_technician') }}" class="btn btn-sm px-3 shadow-sm btn-primary">
+                <i class="bi bi-person-plus-fill me-1"></i> Tambah Teknisi
             </a>
         </div>
 
-        <div class="card-body p-0" style="background-color: #FFFFFF !important;">
+        <div class="card-body p-0" style="background-color: var(--bg-surface) !important;">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 border-0">
                     <!-- 🔑 Perbaikan Header Tabel agar serasi dengan tema -->

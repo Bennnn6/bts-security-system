@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}BTS Security System{% endblock %}</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icons/bacs_app.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/bacs_app.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#0b1f35">
     <!-- Bootstrap 5 CSS CDN -->
@@ -43,18 +45,20 @@
         <main class="app-main">{% block content %}{% endblock %}</main>
 
         {% if request.endpoint != 'login' %}
-<footer class="app-footer">
+        <footer class="app-footer">
             <div class="app-footer__inner">
                 <div class="app-footer__brand">
-                    <span class="text-primary fw-bold">◈ BTS Security System</span>
-                    <span class="text-muted d-none d-md-inline">&bull; Integrated Access Control & Telecom Shelter Guard</span>
+                    <span class="text-primary fw-bold"><i class="bi bi-shield-check me-1"></i> BACS • Smart BTS Access Control System</span>
+                    <span class="text-muted d-none d-md-inline">&bull; Shelter Physical Security & Environmental Telemetry</span>
                 </div>
                 <div class="app-footer__meta">
-                    <span class="app-footer__status"><i class="bi bi-circle-fill text-success small"></i> Live Gateway</span>
+                    <span class="app-footer__status"><i class="bi bi-circle-fill text-success small"></i> NOC Gateway Online</span>
+                    <span class="text-muted d-none d-sm-inline">&bull;</span>
+                    <span class="d-none d-sm-inline">Face ID + TOTP 2FA</span>
+                    <span class="text-muted d-none d-md-inline">&bull;</span>
+                    <span class="d-none d-md-inline">ISO/IEC 27001 Standard</span>
                     <span class="text-muted">&bull;</span>
-                    <span>2FA + Face ID Multi-Factor</span>
-                    <span class="text-muted">&bull;</span>
-                    <span class="text-muted">&copy; 2026 Enterprise Edition</span>
+                    <span class="text-muted">&copy; 2026 Tugas Akhir & Enterprise Edition</span>
                 </div>
             </div>
         </footer>

@@ -9,7 +9,7 @@ _lock = threading.Lock()
 
 def subscribe():
     sid = str(time.time_ns())
-    q = queue.Queue()
+    q = queue.Queue(maxsize=100)
     with _lock:
         _subscribers[sid] = q
     return sid, q
