@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#070B14">
@@ -16,11 +17,34 @@
         android:visibility="gone"
         android:elevation="10dp" />
 
-    <!-- Container Utama WebView -->
-    <WebView
-        android:id="@+id/bacsWebView"
+    <!-- Swipe Refresh Container -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/bacsSwipeRefresh"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#070B14" />
+        android:layout_height="match_parent">
+
+        <!-- Container Utama WebView -->
+        <WebView
+            android:id="@+id/bacsWebView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#070B14" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <!-- Tombol Mengambang Pengaturan Server (Gear / Settings) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnServerSettings"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="16dp"
+        android:contentDescription="Pengaturan Server"
+        app:fabSize="mini"
+        app:backgroundTint="#1E293B"
+        app:tint="#38BDF8"
+        app:srcCompat="@android:drawable/ic_menu_preferences"
+        android:elevation="8dp" />
 
 </RelativeLayout>

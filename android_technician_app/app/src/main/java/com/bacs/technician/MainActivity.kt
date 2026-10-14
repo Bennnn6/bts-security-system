@@ -6,6 +6,7 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -16,18 +17,23 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var btnSettings: FloatingActionButton
     private lateinit var prefs: SharedPreferences
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
         private const val PREFS_NAME = "bacs_technician_prefs"
         private const val KEY_SERVER_URL = "server_url"
-        private const val DEFAULT_SERVER_URL = "http://192.168.1.100:5000"
+        private const val DEFAULT_SERVER_URL = "https://alternative-ruling-campaigns-type.trycloudflare.com"
+        private const val LOCAL_SERVER_URL = "http://10.66.136.195:5000"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +44,16 @@ class MainActivity : AppCompatActivity() {
 
         webView = findViewById(R.id.bacsWebView)
         progressBar = findViewById(R.id.bacsProgressBar)
+        swipeRefresh = findViewById(R.id.bacsSwipeRefresh)
+        btnSettings = findViewById(R.id.btnServerSettings)
+
+        btnSettings.setOnClickListener {
+            openServerConfigDialog()
+        }
+
+        swipeRefresh.setOnRefreshListener {
+            webView.reload()
+        }
 
         checkAndRequestPermissions()
         setupWebView()
@@ -65,11 +81,18 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
+                swipeRefresh.isRefreshing = false
+            }
+
+            override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
+                // Izinkan koneksi SSL tunnel atau self-signed agar kamera dan WebRTC selalu berfungsi
+                handler?.proceed()
             }
 
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                 super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
+                    swipeRefresh.isRefreshing = false
                     showConnectionErrorDialog()
                 }
             }
@@ -88,6 +111,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPermissionRequest(request: PermissionRequest?) {
                 runOnUiThread {
+                    // Berikan semua izin sumber daya WebRTC (kamera & mikrofon) ke halaman
                     request?.grant(request.resources)
                 }
             }
@@ -96,7 +120,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadPortalUrl() {
         val serverUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
-        // Arahkan teknisi langsung ke portal login atau tugas teknisi
         webView.loadUrl(serverUrl)
     }
 
@@ -120,12 +143,14 @@ class MainActivity : AppCompatActivity() {
         val currentUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         val input = EditText(this).apply {
             setText(currentUrl)
-            hint = "http://IP_SERVER:5000"
+            hint = "https://domain-anda.trycloudflare.com"
+            setSingleLine(true)
+            setSelection(text.length)
         }
 
         AlertDialog.Builder(this)
             .setTitle("Gagal Terhubung ke Server BTS")
-            .setMessage("Pastikan smartphone terhubung ke jaringan WiFi/Server BTS yang sama. Masukkan alamat IP Server:")
+            .setMessage("Periksa koneksi internet atau Wi-Fi. Masukkan URL Server BACS:")
             .setView(input)
             .setPositiveButton("Hubungkan Ulang") { _, _ ->
                 val newUrl = input.text.toString().trim()
@@ -133,6 +158,10 @@ class MainActivity : AppCompatActivity() {
                     prefs.edit().putString(KEY_SERVER_URL, newUrl).apply()
                     webView.loadUrl(newUrl)
                 }
+            }
+            .setNeutralButton("Reset Default") { _, _ ->
+                prefs.edit().putString(KEY_SERVER_URL, DEFAULT_SERVER_URL).apply()
+                webView.loadUrl(DEFAULT_SERVER_URL)
             }
             .setNegativeButton("Tutup", null)
             .show()
@@ -142,19 +171,27 @@ class MainActivity : AppCompatActivity() {
         val currentUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         val input = EditText(this).apply {
             setText(currentUrl)
+            hint = "https://..."
+            setSingleLine(true)
+            setSelection(text.length)
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Pengaturan Alamat Server BACS")
-            .setMessage("Masukkan IP Address atau Domain Server BTS:")
+            .setTitle("⚙️ Pengaturan Server BACS")
+            .setMessage("Masukkan alamat Server BTS (Gunakan HTTPS agar kamera Face ID aktif):")
             .setView(input)
-            .setPositiveButton("Simpan") { _, _ ->
+            .setPositiveButton("Simpan & Buka") { _, _ ->
                 val newUrl = input.text.toString().trim()
                 if (newUrl.isNotEmpty()) {
                     prefs.edit().putString(KEY_SERVER_URL, newUrl).apply()
                     webView.loadUrl(newUrl)
-                    Toast.makeText(this, "Server disimpan: $newUrl", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Menghubungkan ke: $newUrl", Toast.LENGTH_SHORT).show()
                 }
+            }
+            .setNeutralButton("Gunakan Default") { _, _ ->
+                prefs.edit().putString(KEY_SERVER_URL, DEFAULT_SERVER_URL).apply()
+                webView.loadUrl(DEFAULT_SERVER_URL)
+                Toast.makeText(this, "Kembali ke default HTTPS", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Batal", null)
             .show()
