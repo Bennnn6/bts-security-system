@@ -3,6 +3,9 @@ name: Python application
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'android_technician_app/**'
+      - '.github/workflows/build-apk.yml'
 
 jobs:
   build:
