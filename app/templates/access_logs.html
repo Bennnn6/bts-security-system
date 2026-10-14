@@ -483,9 +483,9 @@
                     </td>
                     <td class="border-light text-end pe-4">
                         ${logId ? `
-                            <a href="/access-logs/${logId}/berita-acara" target="_blank" class="btn btn-sm btn-outline-primary py-1 px-2 shadow-sm" title="Cetak Berita Acara Akses (BAA)" style="font-size: 0.75rem;">
+                            <button type="button" onclick="window.openBeritaAcaraModal(${logId})" class="btn btn-sm btn-outline-primary py-1 px-2 shadow-sm fw-semibold" title="Buka Berita Acara Akses (BAA) di BACS Desktop" style="font-size: 0.75rem;">
                                 <i class="bi bi-file-earmark-text me-1"></i> BAA
-                            </a>
+                            </button>
                         ` : '-'}
                     </td>
                 </tr>`;
@@ -493,6 +493,7 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
+
         const urlParams = new URLSearchParams(window.location.search);
         const paramSiteId = urlParams.get("site_id");
         const initialSite = paramSiteId || "{{ filters.site_id|default('', true) }}";

@@ -23,7 +23,7 @@
             <div class="d-flex gap-2">
                 <!-- Tombol Dashboard dengan warna teks tegas agar tidak hilang -->
                 <a href="{{ url_for('dashboard') }}" class="btn btn-outline-dark shadow-sm fw-semibold">
-                    ← Dashboard
+                    <i class="bi bi-arrow-left me-1"></i> Dashboard
                 </a>
                 <a href="{{ url_for('access_simulation') }}" class="btn btn-primary shadow-sm">
                     Simulasi Akses
@@ -394,7 +394,7 @@
                                             <td>
                                                 {% if log.evidence_image %}
                                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#evidenceModal{{ log.id }}">
-                                                        📷 Lihat
+                                                        <i class="bi bi-image me-1"></i> Lihat
                                                     </button>
                                                 {% else %}
                                                     <span class="text-muted small">Tidak ada</span>
@@ -512,10 +512,10 @@
                                             <i class="bi bi-qr-code me-1"></i> QR Polos
                                         </a>
                                     </div>
-                                    <a href="{{ url_for('access_simulation', site_id=site.site_id, from_qr=1) }}" target="_blank" class="btn btn-outline-success btn-sm">
-                                        <i class="bi bi-box-arrow-up-right me-1"></i> Uji Buka Simulasi Akses
+                                    <a href="{{ url_for('access_simulation', site_id=site.site_id, from_qr=1) }}" class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-box-arrow-in-right me-1"></i> Uji Buka Simulasi Akses
                                     </a>
-                                    <a href="{{ url_for('gate_kiosk', site_id=site.site_id) }}" target="_blank" class="btn btn-dark btn-sm fw-bold shadow-sm" style="background: #0F172A; border-color: #38BDF8; color: #38BDF8;">
+                                    <a href="{{ url_for('gate_kiosk', site_id=site.site_id) }}" class="btn btn-dark btn-sm fw-bold shadow-sm" style="background: #0F172A; border-color: #38BDF8; color: #38BDF8;">
                                         <i class="bi bi-display me-1"></i> Buka Terminal Kiosk Gerbang
                                     </a>
                                 </div>
@@ -544,7 +544,7 @@
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content border-0 shadow-lg" style="border-radius: var(--jk-radius-card);">
                             <div class="modal-header border-bottom">
-                                <h5 class="modal-title fw-bold text-primary">📷 Foto Bukti Akses</h5>
+                                <h5 class="modal-title fw-bold text-primary"><i class="bi bi-camera-fill me-2"></i>Foto Bukti Akses</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body text-center p-4">

@@ -48,6 +48,10 @@
             <i class="bi bi-journal-text"></i>
             <span>Access Logs</span>
         </a>
+        <a href="{{ url_for('berita_acara_list') }}" class="nav-link {% if request.endpoint in ('berita_acara_list', 'view_berita_acara', 'view_berita_acara_pekerjaan') %}active{% endif %}">
+            <i class="bi bi-file-earmark-text-fill"></i>
+            <span>Berita Acara</span>
+        </a>
         <a href="{{ url_for('security_features_page') }}" class="nav-link {% if request.endpoint in ('security_features_page', 'security_alerts', 'security_incidents') %}active{% endif %}">
             <i class="bi bi-shield-check"></i>
             <span>Security Center</span>
@@ -55,6 +59,10 @@
         <a href="{{ url_for('gate_kiosk') }}" class="nav-link {% if request.endpoint == 'gate_kiosk' %}active{% endif %}">
             <i class="bi bi-display"></i>
             <span>Terminal Kiosk</span>
+        </a>
+        <a href="{{ url_for('mobile_app_guide') }}" class="nav-link {% if request.endpoint == 'mobile_app_guide' %}active{% endif %}">
+            <i class="bi bi-phone"></i>
+            <span>Aplikasi Mobile</span>
         </a>
         {% else %}
         <!-- MENU TEKNISI LAPANGAN -->
@@ -67,6 +75,10 @@
             <i class="bi bi-journal-text"></i>
             <span>Riwayat Akses</span>
         </a>
+        <a href="{{ url_for('berita_acara_list') }}" class="nav-link {% if request.endpoint in ('berita_acara_list', 'view_berita_acara', 'view_berita_acara_pekerjaan') %}active{% endif %}">
+            <i class="bi bi-file-earmark-text-fill"></i>
+            <span>Berita Acara</span>
+        </a>
         <a href="{{ url_for('access_simulation') }}" class="nav-link {% if request.endpoint == 'access_simulation' %}active{% endif %}">
             <i class="bi bi-door-open-fill"></i>
             <span>Buka Gerbang</span>
@@ -74,6 +86,10 @@
         <a href="{{ url_for('gate_kiosk') }}" class="nav-link {% if request.endpoint == 'gate_kiosk' %}active{% endif %}">
             <i class="bi bi-display"></i>
             <span>Terminal Kiosk</span>
+        </a>
+        <a href="{{ url_for('mobile_app_guide') }}" class="nav-link {% if request.endpoint == 'mobile_app_guide' %}active{% endif %}">
+            <i class="bi bi-phone"></i>
+            <span>Aplikasi Mobile</span>
         </a>
         {% endif %}
     </nav>
@@ -205,15 +221,25 @@
                 <span>Access Logs</span>
                 <i class="bi bi-chevron-right drawer-chevron"></i>
             </a>
+            <a href="{{ url_for('berita_acara_list') }}" class="drawer-nav-item {% if request.endpoint in ('berita_acara_list', 'view_berita_acara', 'view_berita_acara_pekerjaan') %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-file-earmark-text-fill"></i></span>
+                <span>Berita Acara</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
             <a href="{{ url_for('security_features_page') }}" class="drawer-nav-item {% if request.endpoint in ('security_features_page', 'security_alerts', 'security_incidents') %}active{% endif %}">
                 <span class="drawer-nav-icon"><i class="bi bi-shield-lock-fill"></i></span>
                 <span>Pusat Keamanan</span>
                 <i class="bi bi-chevron-right drawer-chevron"></i>
             </a>
-            <a href="{{ url_for('gate_kiosk') }}" target="_blank" class="drawer-nav-item">
+            <a href="{{ url_for('gate_kiosk') }}" class="drawer-nav-item">
                 <span class="drawer-nav-icon"><i class="bi bi-display"></i></span>
                 <span>Terminal Kiosk</span>
-                <i class="bi bi-box-arrow-up-right drawer-chevron"></i>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('mobile_app_guide') }}" class="drawer-nav-item {% if request.endpoint == 'mobile_app_guide' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-phone"></i></span>
+                <span>Aplikasi Mobile</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
             </a>
             {% else %}
             <!-- TEKNISI -->
@@ -227,15 +253,25 @@
                 <span>Riwayat Akses</span>
                 <i class="bi bi-chevron-right drawer-chevron"></i>
             </a>
+            <a href="{{ url_for('berita_acara_list') }}" class="drawer-nav-item {% if request.endpoint in ('berita_acara_list', 'view_berita_acara', 'view_berita_acara_pekerjaan') %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-file-earmark-text-fill"></i></span>
+                <span>Berita Acara</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
             <a href="{{ url_for('access_simulation') }}" class="drawer-nav-item {% if request.endpoint == 'access_simulation' %}active{% endif %}">
                 <span class="drawer-nav-icon"><i class="bi bi-door-open-fill"></i></span>
                 <span>Buka Gate</span>
                 <i class="bi bi-chevron-right drawer-chevron"></i>
             </a>
-            <a href="{{ url_for('gate_kiosk') }}" target="_blank" class="drawer-nav-item">
+            <a href="{{ url_for('gate_kiosk') }}" class="drawer-nav-item">
                 <span class="drawer-nav-icon"><i class="bi bi-display"></i></span>
                 <span>Terminal Kiosk</span>
-                <i class="bi bi-box-arrow-up-right drawer-chevron"></i>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('mobile_app_guide') }}" class="drawer-nav-item {% if request.endpoint == 'mobile_app_guide' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-phone"></i></span>
+                <span>Aplikasi Mobile</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
             </a>
             {% endif %}
         </nav>

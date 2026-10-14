@@ -1319,7 +1319,7 @@ def verify_face():
             try:
                 from app.notifications import send_telegram_alert
                 send_telegram_alert(
-                    title="📍 PELANGGARAN GEOFENCE BTS!",
+                    title="[GEOFENCE ALERT] Pelanggaran Area BTS",
                     message=(
                         f"Permintaan akses ditolak karena teknisi di luar area BTS!\n"
                         f"Site: {site.site_name} ({site.site_id})\n"
@@ -1414,7 +1414,7 @@ def verify_face():
             try:
                 from app.notifications import send_telegram_alert
                 send_telegram_alert(
-                    title="🚨 PERINGATAN ANTI-SPOOFING!",
+                    title="[SECURITY ALERT] Peringatan Anti-Spoofing",
                     message=f"Percobaan buka gerbang menggunakan foto/layar HP tidak sah terdeteksi!\n"
                             f"Detail: {liveness_msg}\nSkor Liveness: {liveness_score}",
                     incident_level="HIGH",
@@ -2034,7 +2034,7 @@ def verify_otp():
             reason_code="SILENT_DURESS_ALARM",
             incident_level="CRITICAL",
             description=(
-                f"🚨 PERINGATAN DARURAT: Silent Duress PIN digunakan pada Keypad Kiosk "
+                f"[PERINGATAN DARURAT] Silent Duress PIN digunakan pada Keypad Kiosk "
                 f"oleh teknisi {technician.name} ({technician.technician_id}) di site {site.site_id}! "
                 f"Teknisi kemungkinan berada di bawah ancaman kekerasan atau disandera."
             ),
@@ -2050,7 +2050,7 @@ def verify_otp():
         create_activity_log(
             action="SILENT_DURESS_ALARM",
             description=(
-                f"🚨 SILENT DURESS ALARM: Kode darurat digunakan pada site {site.site_id} "
+                f"[SILENT DURESS ALARM] Kode darurat digunakan pada site {site.site_id} "
                 f"oleh {technician.name} ({technician.technician_id})."
             ),
             incident_level="CRITICAL",
@@ -2060,20 +2060,20 @@ def verify_otp():
         try:
             from app.notifications import send_telegram_alert
             send_telegram_alert(
-                title="🚨 SILENT DURESS ALARM (DARURAT)!",
+                title="[EMERGENCY ALERT] Silent Duress Alarm",
                 message=(
-                    f"⚠️ <b>KODE PIN DURESS DIGUNAKAN DI SITE BTS!</b>\n\n"
+                    f"<b>KODE PIN DURESS DIGUNAKAN DI SITE BTS!</b>\n\n"
                     f"<b>Site:</b> {site.site_name} (<code>{site.site_id}</code>)\n"
                     f"<b>Teknisi:</b> {technician.name} (<code>{technician.technician_id}</code>)\n"
                     f"<b>Tipe Akses:</b> {access_type}\n"
                     f"<b>Status Gerbang:</b> Terbuka (Tampilan normal pada kiosk)\n\n"
-                    f"🚨 <b>INDIKASI BAHAYA:</b> Teknisi diduga disandera atau dipaksa membuka pintu oleh pihak tidak berwenang!\n"
+                    f"<b>INDIKASI BAHAYA:</b> Teknisi diduga disandera atau dipaksa membuka pintu oleh pihak tidak berwenang!\n"
                     f"Segera hubungi tim patroli keamanan atau pihak berwajib ke lokasi!"
                 ),
                 incident_level="CRITICAL",
                 evidence_base64=evidence_image,
                 site_id=site.site_id,
-                header_badge="🚨 [SILENT DURESS ALARM]",
+                header_badge="[SILENT DURESS ALARM]",
             )
         except Exception as alert_err:
             print("[DURESS TELEGRAM ALERT ERROR]", alert_err)

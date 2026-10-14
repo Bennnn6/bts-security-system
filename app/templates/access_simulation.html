@@ -240,7 +240,7 @@
                     href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('worker_dashboard') }}"
                     class="btn btn-outline-light"
                 >
-                    ← Kembali
+                    <i class="bi bi-arrow-left me-1"></i> Kembali
                 </a>
 
             </div>
@@ -260,7 +260,7 @@
                     <div class="fs-3 me-3 text-primary"><i class="bi bi-qr-code-scan"></i></div>
                     <div class="flex-grow-1">
                         <div class="fw-bold text-primary" style="font-size: 0.95rem;">
-                            📍 Verifikasi Fisik di Gerbang: <span id="qrSiteNameDisplay">Site BTS</span>
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i> Verifikasi Fisik di Gerbang: <span id="qrSiteNameDisplay">Site BTS</span>
                         </div>
                         <div class="small text-muted">
                             Lokasi terdeteksi via QR Tag Resmi Gerbang BTS. Site otomatis terpilih untuk verifikasi keamanan.
@@ -382,7 +382,7 @@
                         class="btn btn-primary access-type-btn"
                         onclick="selectAccessType('MASUK')"
                     >
-                        MASUK
+                        <i class="bi bi-box-arrow-in-right me-1"></i> MASUK
                     </button>
 
 
@@ -392,7 +392,7 @@
                         class="btn btn-outline-secondary access-type-btn"
                         onclick="selectAccessType('KELUAR')"
                     >
-                        🔴 KELUAR
+                        <i class="bi bi-box-arrow-left me-1"></i> KELUAR
                     </button>
 
                 </div>
@@ -422,7 +422,7 @@
 
                         <div class="camera-anti-spoof-badge" style="position: absolute; top: 12px; left: 12px; z-index: 10; background: rgba(15, 23, 42, 0.80); backdrop-filter: blur(8px); color: #10B981; font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
                             <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 8px #10B981;"></span>
-                            <span>🛡️ Anti-Spoofing AI: Active</span>
+                            <span><i class="bi bi-shield-check me-1"></i>Anti-Spoofing AI: Active</span>
                         </div>
 
                         <video
@@ -445,8 +445,8 @@
 
                             <div>
 
-                                <div class="fs-1 mb-2">
-                                    📷
+                                <div class="fs-1 mb-2 text-secondary">
+                                    <i class="bi bi-camera-video"></i>
                                 </div>
 
                                 <div>
@@ -465,11 +465,11 @@
                         class="alert alert-warning mt-3"
                         style="display: none;"
                     >
-                        <strong>📱 Kamera Diblokir - Langkah Perbaikan:</strong>
+                        <strong><i class="bi bi-camera-video-off-fill text-danger me-1"></i>Kamera Diblokir - Langkah Perbaikan:</strong>
                         <ol class="mb-0 mt-2">
-                            <li>Tap ikon <strong>🔒 / 📷</strong> di address bar browser</li>
+                            <li>Tap ikon <strong><i class="bi bi-lock-fill"></i> / <i class="bi bi-camera-video"></i></strong> di address bar browser</li>
                             <li>Ubah permission <strong>Camera</strong> menjadi <strong>Allow</strong></li>
-                            <li>Klik tombol <strong>🔄 Coba Lagi</strong> di bawah</li>
+                            <li>Klik tombol <strong><i class="bi bi-arrow-repeat me-1"></i>Coba Lagi</strong> di bawah</li>
                         </ol>
                         <p class="mb-0 mt-2 small">
                             <strong>Catatan:</strong> Jika tidak ada icon di address bar, 
@@ -488,7 +488,7 @@
                               class="btn btn-dark"
                               onclick="toggleCamera()"
                           >
-                              📷 Nyalakan Kamera
+                              <i class="bi bi-camera-video me-1"></i> Nyalakan Kamera
                           </button>
 
 
@@ -499,7 +499,7 @@
                               style="display: none;"
                               onclick="retryCamera()"
                           >
-                              🔄 Coba Lagi
+                              <i class="bi bi-arrow-repeat me-1"></i> Coba Lagi
                           </button>
 
 
@@ -520,7 +520,7 @@
                               onclick="showOtpFallbackPanel()"
                               title="Gunakan jika kamera bermasalah atau wajah tidak cocok"
                           >
-                              🔑 Masuk via Kode OTP
+                              <i class="bi bi-key-fill me-1"></i> Masuk via Kode OTP
                           </button>
 
                      </div>
@@ -658,7 +658,7 @@
 
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h5 class="mb-0 text-dark">
-                                🔑 Masuk via Kode OTP
+                                <i class="bi bi-key-fill text-warning me-1"></i> Masuk via Kode OTP
                             </h5>
                             <button type="button" class="btn-close btn-sm" onclick="hideOtpFallbackPanel()" title="Tutup / Kembali ke Kamera"></button>
                         </div>
@@ -709,14 +709,14 @@
                                 class="btn btn-warning fw-bold text-dark"
                                 onclick="verifyOtp()"
                             >
-                                🔓 Verifikasi OTP & Buka Gerbang
+                                <i class="bi bi-unlock-fill me-1"></i> Verifikasi OTP & Buka Gerbang
                             </button>
                             <button
                                 type="button"
                                 class="btn btn-sm btn-outline-secondary"
                                 onclick="hideOtpFallbackPanel()"
                             >
-                                📷 Kembali ke Kamera Wajah
+                                <i class="bi bi-camera-video me-1"></i> Kembali ke Kamera Wajah
                             </button>
                         </div>
 
@@ -798,7 +798,7 @@
                             onclick="closeGateManually()"
                             style="display: none;"
                         >
-                            🔒 Tutup Gerbang Sekarang
+                            <i class="bi bi-lock-fill me-1"></i> Tutup Gerbang Sekarang
                         </button>
 
                     </div>
@@ -1056,8 +1056,8 @@ async function loadCSRFToken() {
             result.csrf_token;
 
 
-        csrfStatus.textContent =
-            '🔒 Keamanan sesi aktif.';
+        csrfStatus.innerHTML =
+            '<i class="bi bi-shield-check me-1"></i> Keamanan sesi aktif.';
 
         csrfStatus.className =
             'csrf-status text-success';
@@ -1579,8 +1579,8 @@ async function startCamera() {
 
         cameraActive = true;
         cameraPlaceholder.style.display = 'none';
-        document.getElementById('btnCamera').textContent =
-            '⏹ Matikan Kamera';
+        document.getElementById('btnCamera').innerHTML =
+            '<i class="bi bi-camera-video-off me-1"></i> Matikan Kamera';
 
         setStatus(
             'Kamera aktif. Gambar sudah diterima. Posisikan satu wajah di tengah kamera lalu klik Verifikasi Wajah.',
@@ -1690,8 +1690,8 @@ function stopCamera() {
 
     document.getElementById(
         'btnCamera'
-    ).textContent =
-        '📷 Nyalakan Kamera';
+    ).innerHTML =
+        '<i class="bi bi-camera-video me-1"></i> Nyalakan Kamera';
 
 
     updateVerifyButton();
@@ -1995,7 +1995,7 @@ async function verifyFace() {
         const isSpoof = String(error.message || '').includes('Anti-Spoofing') || String(error.message || '').includes('pemalsuan');
         if (isSpoof) {
             setStatus(
-                `🚨 <strong>PERINGATAN KEAMANAN:</strong> ${error.message}<br><span class="small text-muted mt-1 d-block">Sistem mendeteksi foto/layar digital. Silakan hadapkan wajah asli Anda langsung di depan kamera atau buka menggunakan alternatif Kode OTP.</span>`,
+                `<i class="bi bi-exclamation-octagon-fill text-danger me-1"></i> <strong>PERINGATAN KEAMANAN:</strong> ${error.message}<br><span class="small text-muted mt-1 d-block">Sistem mendeteksi foto/layar digital. Silakan hadapkan wajah asli Anda langsung di depan kamera atau buka menggunakan alternatif Kode OTP.</span>`,
                 'danger'
             );
         } else {

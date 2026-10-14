@@ -94,11 +94,11 @@
                     class="alert alert-warning mt-3"
                     style="display: none;"
                 >
-                    <strong>📱 Kamera Diblokir - Langkah Perbaikan:</strong>
+                    <strong><i class="bi bi-camera-video-off-fill text-danger me-1"></i> Kamera Diblokir - Langkah Perbaikan:</strong>
                     <ol class="mb-0 mt-2">
-                        <li>Tap ikon <strong>🔒 / 📷</strong> di address bar browser</li>
+                        <li>Tap ikon <strong><i class="bi bi-lock-fill"></i> / <i class="bi bi-camera-video"></i></strong> di address bar browser</li>
                         <li>Ubah permission <strong>Camera</strong> menjadi <strong>Allow</strong></li>
-                        <li>Klik tombol <strong>🔄 Coba Lagi</strong> di bawah</li>
+                        <li>Klik tombol <strong><i class="bi bi-arrow-repeat me-1"></i> Coba Lagi</strong> di bawah</li>
                     </ol>
                     <p class="mb-0 mt-2 small">
                         <strong>Catatan:</strong> Jika tidak ada icon di address bar, 
@@ -116,7 +116,7 @@
                         id="snap"
                         class="btn btn-success btn-lg px-4">
 
-                        📷 Ambil & Daftarkan Wajah
+                        <i class="bi bi-camera-fill me-1"></i> Ambil & Daftarkan Wajah
 
                     </button>
 
@@ -127,7 +127,7 @@
                         style="display: none;"
                         onclick="retryCamera()">
 
-                        🔄 Coba Lagi
+                        <i class="bi bi-arrow-repeat me-1"></i> Coba Lagi
 
                     </button>
 
@@ -136,7 +136,7 @@
                         id="nextBtn"
                         class="btn btn-dark btn-lg px-4 d-none">
 
-                        Lanjut Setup TOTP →
+                        Lanjut Setup TOTP <i class="bi bi-arrow-right ms-1"></i>
 
                     </a>
 
@@ -150,7 +150,7 @@
                         href="{{ url_for('dashboard') }}"
                         class="btn btn-outline-secondary">
 
-                        ← Kembali ke Dashboard
+                        <i class="bi bi-arrow-left me-1"></i> Kembali ke Dashboard
 
                     </a>
 
@@ -203,7 +203,7 @@ document.addEventListener("DOMContentLoaded", function () {
             );
 
             snapButton.disabled = false;
-            snapButton.innerText = "📷 Ambil & Daftarkan Wajah";
+            snapButton.innerText = "<i class="bi bi-camera-fill me-1"></i> Ambil & Daftarkan Wajah";
 
         } catch (error) {
             console.error("Camera Error:", error);
@@ -323,14 +323,14 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
                 setStatus(data.message || "Gagal mendaftarkan wajah.", "danger");
                 snapButton.disabled = false;
-                snapButton.innerText = "📷 Ambil & Daftarkan Wajah";
+                snapButton.innerText = "<i class="bi bi-camera-fill me-1"></i> Ambil & Daftarkan Wajah";
             }
         })
         .catch(function (error) {
             console.error("Enrollment Error:", error);
             setStatus("Terjadi kesalahan saat menghubungi server.", "danger");
             snapButton.disabled = false;
-            snapButton.innerText = "📷 Ambil & Daftarkan Wajah";
+            snapButton.innerText = "<i class="bi bi-camera-fill me-1"></i> Ambil & Daftarkan Wajah";
         });
     });
 

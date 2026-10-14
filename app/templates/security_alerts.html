@@ -24,7 +24,7 @@
                 href="{{ url_for('dashboard') }}"
                 class="btn btn-outline-dark"
             >
-                ← Dashboard
+                <i class="bi bi-arrow-left me-1"></i> Dashboard
             </a>
 
             <a
@@ -265,19 +265,19 @@
                                     {% if alert.level == 'CRITICAL' %}
 
                                         <span class="badge bg-danger">
-                                            🔴 CRITICAL
+                                            <i class="bi bi-shield-fill-exclamation me-1"></i> CRITICAL
                                         </span>
 
                                     {% elif alert.level == 'HIGH' %}
 
                                         <span class="badge bg-danger">
-                                            🟠 HIGH
+                                            <i class="bi bi-exclamation-circle-fill me-1"></i> HIGH
                                         </span>
 
                                     {% else %}
 
                                         <span class="badge bg-warning text-dark">
-                                            🟡 WARNING
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i> WARNING
                                         </span>
 
                                     {% endif %}
@@ -398,7 +398,7 @@
                                             data-bs-toggle="modal"
                                             data-bs-target="#evidenceModal{{ log.id }}"
                                         >
-                                            📷 Foto
+                                            <i class="bi bi-image me-1"></i> Foto
                                         </button>
 
                                     {% endif %}
@@ -468,7 +468,7 @@
                         <div class="modal-header">
 
                             <h5 class="modal-title fw-bold">
-                                📷 Bukti Security Alert
+                                <i class="bi bi-shield-exclamation me-2"></i>Bukti Security Alert
                             </h5>
 
                             <button

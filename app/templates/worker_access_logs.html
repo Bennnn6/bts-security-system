@@ -19,7 +19,8 @@
                             <th class="text-muted small text-uppercase border-0">Face Recog.</th>
                             <th class="text-muted small text-uppercase border-0">OTP 2FA</th>
                             <th class="text-muted small text-uppercase border-0">Status</th>
-                            <th class="pe-4 text-muted small text-uppercase border-0">Keterangan</th>
+                            <th class="text-muted small text-uppercase border-0">Keterangan</th>
+                            <th class="pe-4 text-muted small text-uppercase border-0 text-end">Dokumen</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -66,13 +67,18 @@
                                     <span class="badge bg-secondary rounded-pill shadow-sm">{{ log.access_result or '-' }}</span>
                                 {% endif %}
                             </td>
-                            <td class="pe-4">
+                            <td>
                                 <small class="text-muted">{{ log.reason_code or log.description or '-' }}</small>
+                            </td>
+                            <td class="pe-4 text-end">
+                                <button type="button" onclick="window.openBeritaAcaraModal({{ log.id }})" class="btn btn-sm btn-outline-primary py-1 px-2 shadow-sm fw-semibold" title="Buka Berita Acara Akses (BAA) di BACS Desktop" style="font-size: 0.75rem;">
+                                    <i class="bi bi-file-earmark-text me-1"></i> BAA
+                                </button>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7" class="p-0 border-0">
+                            <td colspan="8" class="p-0 border-0">
                                 <div class="app-empty-state border-0 my-3">
                                     <div class="empty-state-icon">
                                         <i class="bi bi-journal-text"></i>

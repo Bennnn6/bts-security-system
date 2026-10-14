@@ -6,15 +6,15 @@
 
     <div class="app-page-header">
         <div class="app-page-header__copy">
-            <h2 class="fw-bold mb-1">🗺️ BTS Site Security Map</h2>
+            <h2 class="fw-bold mb-1"><i class="bi bi-geo-alt-fill text-primary me-2"></i>BTS Site Security Map</h2>
             <p class="text-muted mb-0">
                 Peta lokasi Site BTS, status operasional, dan status keamanan berdasarkan Access Log.
             </p>
         </div>
         <div class="app-page-header__actions">
-            <a href="{{ url_for('dashboard') }}" class="btn btn-dark">⬅️ Dashboard</a>
-            <a href="{{ url_for('bts_sites') }}" class="btn btn-outline-primary">Direktori Site</a>
-            <button type="button" class="btn btn-outline-success" onclick="fitAllSites()">🎯 Lihat Semua</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-dark"><i class="bi bi-arrow-left me-1"></i> Dashboard</a>
+            <a href="{{ url_for('bts_sites') }}" class="btn btn-outline-primary"><i class="bi bi-hdd-network me-1"></i> Direktori Site</a>
+            <button type="button" class="btn btn-outline-success" onclick="fitAllSites()"><i class="bi bi-aspect-ratio me-1"></i> Lihat Semua</button>
         </div>
     </div>
 
@@ -72,7 +72,7 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()">↺ Reset</button>
+                    <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise me-1"></i> Reset</button>
                 </div>
             </div>
         </div>
@@ -81,7 +81,7 @@
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <h5 class="mb-0 fw-bold">🛰️ Monitoring Peta</h5>
+                <h5 class="mb-0 fw-bold"><i class="bi bi-broadcast me-2"></i>Monitoring Peta</h5>
                 <small class="text-white-50">Marker menampilkan kondisi operasional dan keamanan site.</small>
             </div>
             <div id="visibleCount" class="badge text-bg-light">0 site</div>
@@ -96,11 +96,11 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h6 class="fw-bold mb-3">Legenda Keamanan</h6>
-                    <div class="d-flex flex-wrap gap-3">
-                        <span>NORMAL</span>
-                        <span>🟡 WARNING</span>
-                        <span>🟠 HIGH</span>
-                        <span>🔴 CRITICAL</span>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>NORMAL</span>
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>WARNING</span>
+                        <span class="badge bg-warning-subtle text-danger border border-warning px-2 py-1" style="background: rgba(253, 126, 20, 0.15); color: #fd7e14;"><i class="bi bi-exclamation-circle-fill me-1"></i>HIGH</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-shield-fill-exclamation me-1"></i>CRITICAL</span>
                     </div>
                 </div>
             </div>
@@ -338,7 +338,7 @@
                 title: site.site_name
             });
             marker.bindPopup(popupHtml(site), { maxWidth: 360 });
-            marker.bindTooltip(`<b>🗼 ${escapeHtml(site.site_name)}</b>`, {
+            marker.bindTooltip(`<b><i class="bi bi-broadcast-pin me-1 text-primary"></i> ${escapeHtml(site.site_name)}</b>`, {
                 permanent: true,
                 direction: 'top',
                 offset: [0, -22],

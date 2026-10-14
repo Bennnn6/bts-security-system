@@ -48,6 +48,9 @@
         <!-- Interactive Toast Container -->
         <div id="appToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090;"></div>
 
+        <!-- Reusable Berita Acara Modal -->
+        {% include '_berita_acara_modal.html' %}
+
         <main class="app-main">{% block content %}{% endblock %}</main>
 
         {% if request.endpoint != 'login' %}

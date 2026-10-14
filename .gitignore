@@ -48,3 +48,13 @@ scratch/
 ~$*
 log.txt
 qr_online.png
+
+# Android build outputs & caches
+.gradle/
+android_technician_app/.gradle/
+android_technician_app/build/
+android_technician_app/app/build/
+local.properties
+*.apk
+*.aab
+

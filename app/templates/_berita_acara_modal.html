@@ -1,0 +1,108 @@
+<!-- MODAL PRATINJAU BERITA ACARA AKSES (BAA) TERPADU DI BACS ENTERPRISE -->
+<div class="modal fade" id="beritaAcaraModal" tabindex="-1" aria-labelledby="beritaAcaraModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 960px;">
+        <div class="modal-content shadow-lg border-0" style="border-radius: 14px; overflow: hidden;">
+            <div class="modal-header px-4 py-3 d-flex align-items-center justify-content-between" style="border-bottom: 1px solid var(--border-subtle) !important;">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="p-2 rounded-2 text-white bg-primary shadow-sm" style="width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-file-earmark-text fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-dark" id="beritaAcaraModalLabel">Berita Acara Akses Gerbang (BAA)</h5>
+                        <div class="small text-muted" id="baaModalSubtitle">Pratinjau Dokumen Resmi Kepatuhan Keamanan Fisik Site BTS</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" id="baaModalPrintBtn" class="btn btn-sm btn-outline-primary px-3 shadow-sm fw-semibold">
+                        <i class="bi bi-printer me-1"></i> Cetak Dokumen
+                    </button>
+                    <a id="baaModalPdfBtn" href="#" class="btn btn-sm btn-success px-3 shadow-sm fw-semibold">
+                        <i class="bi bi-file-earmark-arrow-down me-1"></i> Unduh PDF
+                    </a>
+                    <a id="baaModalFullBtn" href="#" class="btn btn-sm btn-outline-secondary px-2 shadow-sm" title="Buka Halaman Lengkap di BACS Desktop">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </a>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0 bg-light position-relative" style="min-height: 580px;">
+                <div id="baaLoadingSpinner" class="position-absolute top-50 start-50 translate-middle text-center py-5">
+                    <div class="spinner-border text-primary" role="status" style="width: 2.5rem; height: 2.5rem;"></div>
+                    <div class="small text-muted mt-2 fw-semibold">Menyiapkan Dokumen Berita Acara...</div>
+                </div>
+                <iframe id="baaFrame" src="" style="width: 100%; height: 75vh; border: none; display: none;" onload="const sp = document.getElementById('baaLoadingSpinner'); if (sp) sp.style.display='none'; this.style.display='block';"></iframe>
+            </div>
+            <div class="modal-footer bg-white border-top px-4 py-2 d-flex justify-content-between align-items-center">
+                <span class="small text-muted">
+                    <i class="bi bi-shield-check text-primary me-1"></i> Terintegrasi langsung dalam BACS Enterprise Desktop (Tanpa Browser Eksternal)
+                </span>
+                <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Fungsi Global Membuka Modal Berita Acara Akses (BAA) & Pekerjaan (BAP) di Seluruh Tampilan BACS
+    window.openBeritaAcaraModal = function(id, type = 'baa') {
+        if (!id) return;
+        const modalEl = document.getElementById("beritaAcaraModal");
+        const iframe = document.getElementById("baaFrame");
+        const spinner = document.getElementById("baaLoadingSpinner");
+        const pdfBtn = document.getElementById("baaModalPdfBtn");
+        const fullBtn = document.getElementById("baaModalFullBtn");
+        const titleEl = document.getElementById("beritaAcaraModalLabel");
+        const subtitle = document.getElementById("baaModalSubtitle");
+
+        if (!modalEl || !iframe) return;
+
+        if (spinner) spinner.style.display = "block";
+        iframe.style.display = "none";
+
+        if (type === 'bap') {
+            iframe.src = `/work-orders/${id}/berita-acara?embedded=1`;
+            if (pdfBtn) pdfBtn.href = `/work-orders/${id}/berita-acara/pdf`;
+            if (fullBtn) fullBtn.href = `/work-orders/${id}/berita-acara`;
+            if (titleEl) titleEl.textContent = 'Berita Acara Pekerjaan (BAP)';
+            if (subtitle) subtitle.textContent = `Nomor WO ID #${id} • Dokumen Resmi Penyelesaian Pekerjaan Maintenance Site BTS`;
+        } else {
+            iframe.src = `/access-logs/${id}/berita-acara?embedded=1`;
+            if (pdfBtn) pdfBtn.href = `/access-logs/${id}/berita-acara/pdf`;
+            if (fullBtn) fullBtn.href = `/access-logs/${id}/berita-acara`;
+            if (titleEl) titleEl.textContent = 'Berita Acara Akses Gerbang (BAA)';
+            if (subtitle) subtitle.textContent = `Log ID #${id} • Pratinjau Dokumen Kepatuhan Keamanan Fisik Site BTS`;
+        }
+
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        bsModal.show();
+    };
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const printBtn = document.getElementById("baaModalPrintBtn");
+        if (printBtn) {
+            printBtn.addEventListener("click", function() {
+                const iframe = document.getElementById("baaFrame");
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                }
+            });
+        }
+
+        // Intercept internal links with target="_blank" agar tidak keluar ke browser eksternal di Desktop
+        document.addEventListener("click", function(e) {
+            const a = e.target.closest("a");
+            if (a && a.href && a.target === "_blank") {
+                try {
+                    const targetUrl = new URL(a.href, window.location.origin);
+                    if (targetUrl.origin === window.location.origin) {
+                        e.preventDefault();
+                        window.location.href = a.href;
+                    }
+                } catch (err) {}
+            }
+        });
+    });
+})();
+</script>

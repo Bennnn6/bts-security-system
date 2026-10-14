@@ -28,7 +28,7 @@
                 href="{{ url_for('dashboard') }}"
                 class="btn btn-outline-dark"
             >
-                ← Dashboard
+                <i class="bi bi-arrow-left me-1"></i> Dashboard
             </a>
 
             <a
@@ -91,7 +91,7 @@
                                     selected
                                 {% endif %}
                             >
-                                🟡 WARNING
+                                WARNING
                             </option>
 
                             <option
@@ -100,7 +100,7 @@
                                     selected
                                 {% endif %}
                             >
-                                🟠 HIGH
+                                HIGH
                             </option>
 
                             <option
@@ -109,7 +109,7 @@
                                     selected
                                 {% endif %}
                             >
-                                🔴 CRITICAL
+                                CRITICAL
                             </option>
 
                         </select>
@@ -138,7 +138,7 @@
                                 type="submit"
                                 class="btn btn-danger"
                             >
-                                🔎 Filter
+                                <i class="bi bi-funnel-fill me-1"></i> Filter
                             </button>
 
                             <a
@@ -285,19 +285,19 @@
                                     {% if log.incident_level == 'CRITICAL' %}
 
                                         <span class="badge bg-danger">
-                                            🔴 CRITICAL
+                                            <i class="bi bi-shield-fill-exclamation me-1"></i> CRITICAL
                                         </span>
 
                                     {% elif log.incident_level == 'HIGH' %}
 
                                         <span class="badge bg-danger">
-                                            🟠 HIGH
+                                            <i class="bi bi-exclamation-circle-fill me-1"></i> HIGH
                                         </span>
 
                                     {% else %}
 
                                         <span class="badge bg-warning text-dark">
-                                            🟡 WARNING
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i> WARNING
                                         </span>
 
                                     {% endif %}
@@ -481,7 +481,7 @@
                                             data-bs-toggle="modal"
                                             data-bs-target="#incidentEvidence{{ log.id }}"
                                         >
-                                            📷 Lihat
+                                            <i class="bi bi-image me-1"></i> Lihat
                                         </button>
 
                                     {% else %}
@@ -569,7 +569,7 @@
                             <div>
 
                                 <h5 class="modal-title fw-bold">
-                                    📷 Bukti Security Incident
+                                    <i class="bi bi-shield-exclamation me-2"></i>Bukti Security Incident
                                 </h5>
 
                                 <small class="text-muted">

@@ -298,22 +298,23 @@
             border-color: var(--accent-rose) !important;
         }
 
-        /* Subtle Biometric Scan Line */
+        /* High-Tech Biometric Scan Laser with Glowing Wave */
         .scan-laser {
             position: absolute;
-            left: 20px;
-            right: 20px;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #38BDF8, #0284C7, transparent);
-            box-shadow: 0 0 12px #38BDF8;
+            left: 10px;
+            right: 10px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #38BDF8 20%, #FFFFFF 50%, #38BDF8 80%, transparent);
+            box-shadow: 0 0 18px #38BDF8, 0 0 35px #0284C7;
             border-radius: 99px;
-            animation: scan-vertical 2.2s ease-in-out infinite alternate;
+            animation: scan-vertical 1.6s ease-in-out infinite alternate;
+            z-index: 10;
         }
 
         @keyframes scan-vertical {
-            0% { top: 12%; opacity: 0.3; }
-            50% { opacity: 0.9; }
-            100% { top: 88%; opacity: 0.3; }
+            0% { top: 10%; opacity: 0.4; }
+            50% { opacity: 1; transform: scaleX(1.02); }
+            100% { top: 90%; opacity: 0.4; }
         }
 
         /* Modern Status Capsule at Bottom of Camera */
@@ -406,26 +407,59 @@
             pointer-events: all;
         }
 
+        /* Radial Circular Countdown Indicator */
+        .radial-countdown-wrapper {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .radial-countdown-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .radial-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-width: 8;
+        }
+
+        .radial-progress {
+            fill: none;
+            stroke: var(--accent-emerald, #10B981);
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 314.16;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 0.85s linear, stroke 0.3s ease;
+            filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.6));
+        }
+
         .gate-countdown-circle {
-            width: 110px;
-            height: 110px;
+            position: relative;
+            z-index: 2;
+            width: 95px;
+            height: 95px;
             border-radius: 50%;
-            border: 4px solid var(--accent-emerald);
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.15);
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: var(--font-mono);
-            font-size: 3rem;
+            font-size: 2.8rem;
             font-weight: 800;
-            color: var(--accent-emerald);
-            box-shadow: 0 0 35px rgba(16, 185, 129, 0.4);
-            margin-bottom: 1.25rem;
-            animation: pulse-countdown 1s infinite alternate;
-        }
-
-        @keyframes pulse-countdown {
-            from { transform: scale(1); }
-            to { transform: scale(1.05); }
+            color: #FFFFFF;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
 
         /* 6. Keypad Panel & Touch Grid */
@@ -856,9 +890,15 @@
                     </div>
                 </div>
 
-                <!-- Gate Open Success Curtain -->
+                <!-- Gate Open Success Curtain with SVG Radial Progress -->
                 <div class="gate-open-curtain" id="gateOpenCurtain">
-                    <div class="gate-countdown-circle" id="countdownNumber">5</div>
+                    <div class="radial-countdown-wrapper">
+                        <svg class="radial-countdown-svg" viewBox="0 0 120 120">
+                            <circle class="radial-bg" cx="60" cy="60" r="50"></circle>
+                            <circle class="radial-progress" id="radialCountdownBar" cx="60" cy="60" r="50"></circle>
+                        </svg>
+                        <div class="gate-countdown-circle" id="countdownNumber">5</div>
+                    </div>
                     <h2 class="text-white fw-bold mb-2 font-display" id="grantedWelcomeTitle">AKSES DITERIMA</h2>
                     <p class="text-info fs-5 mb-4 text-center" id="grantedTechName">Selamat datang, Teknisi</p>
                     <div class="badge bg-success fs-6 py-2 px-4 rounded-pill shadow">
@@ -1112,6 +1152,23 @@
 
         function playKeyClick() {
             playBeep(900, 'sine', 0.04, 0.08);
+        }
+
+        function playRelayClick() {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(140, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(35, ctx.currentTime + 0.045);
+                gain.gain.setValueAtTime(0.4, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.045);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.045);
+            } catch (e) {}
         }
 
         function playAlarmSiren() {
@@ -1530,7 +1587,7 @@
                             setScannerStatus("Wajah Tidak Terdeteksi! Posisikan wajah tepat di dalam kotak.", "warning", false);
                             speakVoice("Wajah tidak terdeteksi. Posisikan wajah Anda di depan kamera.");
                         } else {
-                            setScannerStatus("⚠️ Anti-Spoofing: Foto Layar/Cetak Terdeteksi! Gunakan wajah asli.", "danger", false);
+                            setScannerStatus("Anti-Spoofing: Foto Layar/Cetak Terdeteksi! Gunakan wajah asli.", "danger", false);
                             speakVoice("Peringatan anti spoofing. Wajah terindikasi foto atau layar digital. Silakan gunakan wajah asli Anda.");
                         }
                     } else if (reason === "FACE_NOT_DETECTED" || reason === "FACE_NOT_FOUND") {
@@ -1592,12 +1649,32 @@
             box.className = 'target-box';
         }
 
+        function updateRadialProgress(remaining, total) {
+            const circle = document.getElementById('radialCountdownBar');
+            if (!circle) return;
+            const circumference = 314.16;
+            const progress = Math.max(0, remaining / (total || 5));
+            const offset = circumference * (1 - progress);
+            circle.style.strokeDashoffset = offset;
+            if (remaining <= 2) {
+                circle.style.stroke = 'var(--accent-rose, #EF4444)';
+                circle.style.filter = 'drop-shadow(0 0 12px rgba(239, 68, 68, 0.7))';
+            } else if (remaining <= 4) {
+                circle.style.stroke = 'var(--accent-amber, #F59E0B)';
+                circle.style.filter = 'drop-shadow(0 0 12px rgba(245, 158, 11, 0.7))';
+            } else {
+                circle.style.stroke = 'var(--accent-emerald, #10B981)';
+                circle.style.filter = 'drop-shadow(0 0 12px rgba(16, 185, 129, 0.7))';
+            }
+        }
+
         // Gate Opened Flow & Countdown
         function onAccessGranted(techName, openSeconds = 5) {
             isGateOpen = true;
             scanPaused = true;
             markTargetBoxMatched();
             playChordSuccess();
+            playRelayClick(); // Mechanical solenoid click
 
             // Speak greeting
             speakVoice(`Selamat datang, ${techName}. Gerbang dibuka, silakan masuk.`);
@@ -1615,14 +1692,17 @@
 
             let remaining = openSeconds;
             countNum.textContent = remaining;
+            updateRadialProgress(remaining, openSeconds);
 
             const timer = setInterval(() => {
                 remaining--;
                 if (remaining > 0) {
                     countNum.textContent = remaining;
-                    playBeep(440, 'sine', 0.05, 0.1);
+                    updateRadialProgress(remaining, openSeconds);
+                    playBeep(remaining <= 2 ? 880 : 550, 'sine', 0.05, 0.1);
                 } else {
                     clearInterval(timer);
+                    playRelayClick(); // Solenoid lock latch
                     closeGateKiosk();
                 }
             }, 1000);
@@ -1799,7 +1879,7 @@
                     document.getElementById('kioskBody').classList.add('alarm-breach-mode');
                     document.getElementById('sensorIcon').className = 'bi bi-exclamation-diamond-fill text-danger';
                     document.getElementById('sensorStateText').className = 'text-danger';
-                    document.getElementById('sensorStateText').textContent = '🚨 BOBOL (ALARM AKTIF)';
+                    document.getElementById('sensorStateText').textContent = 'PELANGGARAN: BOBOL (ALARM AKTIF)';
 
                     playAlarmSiren();
                     speakVoice("Peringatan keamanan tingkat tinggi! Sensor mendeteksi pintu dibuka paksa!");

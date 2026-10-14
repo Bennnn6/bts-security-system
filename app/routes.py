@@ -3299,11 +3299,14 @@ def view_berita_acara(log_id):
     if log.technician_id:
         tech = Technician.query.filter_by(technician_id=log.technician_id).first()
 
+    is_embedded = request.args.get('embedded', '0') == '1'
+
     return render_template(
         'berita_acara.html',
         log=log,
         site=site,
-        tech=tech
+        tech=tech,
+        is_embedded=is_embedded
     )
 
 
@@ -3484,6 +3487,256 @@ def download_berita_acara_pdf(log_id):
     output.seek(0)
 
     filename = f"Berita_Acara_Akses_{log.site_id}_{log.timestamp.strftime('%Y%m%d')}_{log.id:04d}.pdf"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf"
+    )
+
+
+# =========================================================
+# BERITA ACARA MANAGEMENT HUB (BAA & BAP) - FITUR ENTERPRISE
+# =========================================================
+
+@app.route('/berita-acara', methods=['GET'])
+@login_required_any
+def berita_acara_list():
+    is_admin = current_user.is_authenticated
+    worker_id = session.get('worker_id')
+    site_id_filter = request.args.get('site_id', '').strip()
+    doc_type = request.args.get('type', 'all').strip().lower()
+
+    sites = BtsSite.query.order_by(BtsSite.site_name.asc()).all()
+    technicians = Technician.query.order_by(Technician.name.asc()).all() if is_admin else []
+
+    # 1. BAA - Berita Acara Akses (from AccessLog)
+    access_query = AccessLog.query
+    if not is_admin and worker_id:
+        access_query = access_query.filter(
+            (AccessLog.technician_id == worker_id) | 
+            (AccessLog.technician_id == session.get('auth_username'))
+        )
+    if site_id_filter:
+        access_query = access_query.filter_by(site_id=site_id_filter)
+    
+    baa_logs = access_query.order_by(AccessLog.timestamp.desc()).limit(150).all()
+
+    # 2. BAP - Berita Acara Pekerjaan (from WorkOrder)
+    wo_query = WorkOrder.query
+    if not is_admin and worker_id:
+        wo_query = wo_query.filter_by(technician_id=worker_id)
+    if site_id_filter:
+        wo_query = wo_query.filter_by(site_id=site_id_filter)
+    
+    bap_orders = wo_query.order_by(WorkOrder.scheduled_date.desc(), WorkOrder.id.desc()).limit(100).all()
+
+    total_baa = access_query.count()
+    total_granted = access_query.filter_by(access_result='GRANTED').count()
+    total_bap_completed = wo_query.filter(WorkOrder.status.in_(['COMPLETED', 'VERIFIED'])).count()
+
+    return render_template(
+        'berita_acara_list.html',
+        baa_logs=baa_logs,
+        bap_orders=bap_orders,
+        sites=sites,
+        technicians=technicians,
+        site_id_filter=site_id_filter,
+        doc_type=doc_type,
+        total_baa=total_baa,
+        total_granted=total_granted,
+        total_bap_completed=total_bap_completed,
+        is_admin=is_admin
+    )
+
+
+@app.route('/work-orders/<int:wo_id>/berita-acara', methods=['GET'])
+@login_required_any
+def view_berita_acara_pekerjaan(wo_id):
+    wo = WorkOrder.query.get_or_404(wo_id)
+    site = BtsSite.query.filter_by(site_id=wo.site_id).first()
+    tech = Technician.query.filter_by(technician_id=wo.technician_id).first()
+    is_embedded = request.args.get('embedded', '0') == '1'
+
+    return render_template(
+        'berita_acara_pekerjaan.html',
+        wo=wo,
+        site=site,
+        tech=tech,
+        is_embedded=is_embedded
+    )
+
+
+@app.route('/work-orders/<int:wo_id>/berita-acara/pdf', methods=['GET'])
+@login_required_any
+def download_berita_acara_pekerjaan_pdf(wo_id):
+    wo = WorkOrder.query.get_or_404(wo_id)
+    site = BtsSite.query.filter_by(site_id=wo.site_id).first()
+    tech = Technician.query.filter_by(technician_id=wo.technician_id).first()
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.platypus import (
+            SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
+        )
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    except ImportError:
+        flash("Pustaka ReportLab belum terpasang.", "danger")
+        return redirect(url_for('view_berita_acara_pekerjaan', wo_id=wo_id))
+
+    output = BytesIO()
+    doc = SimpleDocTemplate(
+        output,
+        pagesize=A4,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=13,
+        alignment=1,
+        spaceAfter=4,
+        textColor=colors.HexColor('#0F172A')
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubtitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        alignment=1,
+        textColor=colors.HexColor('#64748B'),
+        spaceAfter=12
+    )
+    kop_company = ParagraphStyle(
+        'KopCompany',
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        textColor=colors.HexColor('#0F172A')
+    )
+    section_head = ParagraphStyle(
+        'SectionHead',
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        textColor=colors.white,
+        spaceAfter=2
+    )
+    cell_bold = ParagraphStyle('CellBold', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor('#334155'))
+    cell_val = ParagraphStyle('CellVal', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#0F172A'))
+
+    story = []
+
+    kop_data = [
+        [
+            Paragraph("<b>PT TELEKOMUNIKASI INFRASTRUKTUR INDONESIA</b><br/><font size=7 color='#64748B'>DIVISI OPERASIONAL KEAMANAN MENARA & NOC (SMART GATE SYSTEM)<br/>Jl. Telekomunikasi No. 01, Jakarta 12950 &bull; ISO/IEC 27001 Certified</font>", kop_company),
+            Paragraph("<b>BERITA ACARA RESMI</b><br/><font size=7 color='#64748B'>Penyelesaian Pekerjaan (BAP)</font>", ParagraphStyle('KopRight', fontName='Helvetica', fontSize=8, alignment=2))
+        ]
+    ]
+    t_kop = Table(kop_data, colWidths=[380, 142])
+    t_kop.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_kop)
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0F172A'), spaceAfter=10))
+
+    story.append(Paragraph("BERITA ACARA PENYELESAIAN PEKERJAAN (BAP)", title_style))
+    bap_num = f"Nomor: BAP/WO/{wo.site_id}/{wo.scheduled_date.strftime('%Y%m%d') if wo.scheduled_date else '2026'}/{wo.id:04d}"
+    story.append(Paragraph(bap_num, subtitle_style))
+
+    # I. DATA SITE
+    h1 = Table([[Paragraph("I. DATA LOKASI SITE BTS", section_head)]], colWidths=[522])
+    h1.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#1E293B')), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
+    story.append(h1)
+
+    site_rows = [
+        [Paragraph("Site ID", cell_bold), Paragraph(str(site.site_id if site else wo.site_id), cell_val)],
+        [Paragraph("Nama Menara BTS", cell_bold), Paragraph(str(site.site_name if site else wo.site_name), cell_val)],
+        [Paragraph("Alamat / Lokasi", cell_bold), Paragraph(str(site.location if site else '-'), cell_val)],
+        [Paragraph("Status Tower", cell_bold), Paragraph(str(site.status if site else 'Normal'), cell_val)],
+    ]
+    t_site = Table(site_rows, colWidths=[140, 382])
+    t_site.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_site)
+    story.append(Spacer(1, 8))
+
+    # II. DATA TEKNISI
+    h2 = Table([[Paragraph("II. DATA PERSONEL TEKNISI PELAKSANA", section_head)]], colWidths=[522])
+    h2.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#1E293B')), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
+    story.append(h2)
+
+    tech_rows = [
+        [Paragraph("ID Teknisi", cell_bold), Paragraph(str(tech.technician_id if tech else wo.technician_id), cell_val)],
+        [Paragraph("Nama Lengkap", cell_bold), Paragraph(str(tech.name if tech else wo.technician_name), cell_val)],
+        [Paragraph("Jabatan / Posisi", cell_bold), Paragraph(str(tech.position if tech else 'Field Maintenance Engineer'), cell_val)],
+        [Paragraph("Nomor Telepon", cell_bold), Paragraph(str(tech.phone if tech else '-'), cell_val)],
+    ]
+    t_tech = Table(tech_rows, colWidths=[140, 382])
+    t_tech.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_tech)
+    story.append(Spacer(1, 8))
+
+    # III. RINCIAN PEKERJAAN
+    h3 = Table([[Paragraph("III. RINCIAN PEKERJAAN & REALISASI LAPANGAN", section_head)]], colWidths=[522])
+    h3.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#1E293B')), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
+    story.append(h3)
+
+    wo_rows = [
+        [Paragraph("Nomor Tiket SPK", cell_bold), Paragraph(str(wo.ticket_number), cell_val)],
+        [Paragraph("Tujuan / Scope Kerja", cell_bold), Paragraph(str(wo.purpose), cell_val)],
+        [Paragraph("Tanggal Terjadwal", cell_bold), Paragraph(wo.scheduled_date.strftime('%d/%m/%Y') if wo.scheduled_date else '-', cell_val)],
+        [Paragraph("Waktu Dimulai", cell_bold), Paragraph(wo.started_at.strftime('%d/%m/%Y %H:%M:%S WIB') if wo.started_at else '-', cell_val)],
+        [Paragraph("Waktu Diselesaikan", cell_bold), Paragraph(wo.completed_at.strftime('%d/%m/%Y %H:%M:%S WIB') if wo.completed_at else '-', cell_val)],
+        [Paragraph("Status Akhir", cell_bold), Paragraph(f"<b><font color='#10B981'>{wo.status}</font></b>", cell_val)],
+        [Paragraph("Catatan Penyelesaian", cell_bold), Paragraph(str(wo.completion_note or 'Pekerjaan selesai sesuai SOP.'), cell_val)],
+        [Paragraph("Verifikator NOC", cell_bold), Paragraph(str(wo.verified_by or 'NOC Automatic Compliance'), cell_val)],
+    ]
+    t_wo = Table(wo_rows, colWidths=[140, 382])
+    t_wo.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_wo)
+    story.append(Spacer(1, 14))
+
+    sig_data = [
+        [
+            Paragraph("<b>Teknisi Pelaksana,</b><br/><br/><br/><br/><b><u>" + str(tech.name if tech else wo.technician_name) + "</u></b><br/><font size=7 color='#64748B'>ID: " + str(wo.technician_id) + "</font>", cell_val),
+            Paragraph("<b>Pengawas Operasional & NOC,</b><br/><br/><br/><br/><b><u>" + str(wo.verified_by or 'SUPERVISOR NOC') + "</u></b><br/><font size=7 color='#64748B'>Validated Compliance Report</font>", cell_val)
+        ]
+    ]
+    t_sig = Table(sig_data, colWidths=[261, 261])
+    t_sig.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+    ]))
+    story.append(t_sig)
+
+    doc.build(story)
+    output.seek(0)
+
+    filename = f"Berita_Acara_Pekerjaan_{wo.site_id}_{wo.ticket_number}.pdf"
     return send_file(
         output,
         as_attachment=True,
@@ -4833,6 +5086,55 @@ def sse_events():
 @app.route('/offline.html')
 def offline():
     return render_template('offline.html')
+
+
+# =========================================================
+# MOBILE APP INSTALLATION & QR CODE
+# =========================================================
+
+def _get_local_ip_address():
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return '127.0.0.1'
+
+
+@app.route('/mobile-app')
+@app.route('/install-mobile')
+def mobile_app_guide():
+    local_ip = _get_local_ip_address()
+    host = request.host
+    scheme = request.scheme
+    if 'localhost' in host or '127.0.0.1' in host:
+        local_url = f"{scheme}://{local_ip}:5000"
+    else:
+        local_url = f"{scheme}://{host}"
+    return render_template('mobile_install.html', local_url=local_url, local_ip=local_ip)
+
+
+@app.route('/api/mobile-qr')
+def mobile_qr_image():
+    import qrcode
+    from io import BytesIO
+    local_ip = _get_local_ip_address()
+    host = request.host
+    scheme = request.scheme
+    if 'localhost' in host or '127.0.0.1' in host:
+        target_url = f"{scheme}://{local_ip}:5000"
+    else:
+        target_url = f"{scheme}://{host}"
+
+    qr = qrcode.make(target_url)
+    buf = BytesIO()
+    qr.save(buf, format='PNG')
+    buf.seek(0)
+    return Response(buf.getvalue(), mimetype='image/png')
+
 
 
 

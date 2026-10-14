@@ -393,7 +393,7 @@ function copySecretKey() {
 
     function showSuccess() {
         if (copyBtn) copyBtn.classList.replace("btn-totp-primary", "btn-success");
-        if (copyText) copyText.textContent = "✓ Disalin!";
+        if (copyText) copyText.textContent = "Tersalin";
         if (copyIcon) copyIcon.className = "bi bi-check-lg me-1";
         setTimeout(() => {
             if (copyBtn) copyBtn.classList.replace("btn-success", "btn-totp-primary");

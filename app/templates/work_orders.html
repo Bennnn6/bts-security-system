@@ -111,13 +111,24 @@
 
     <!-- TABEL WORK ORDERS -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header pt-4 px-4 pb-3 d-flex justify-content-between align-items-center">
-            <h5 class="section-title mb-0" style="font-size: 1.25rem;">Daftar Work Order Terjadwal</h5>
-            <span class="badge bg-secondary rounded-pill px-3 py-2 shadow-sm">{{ orders|length }} Tiket</span>
+        <div class="card-header pt-4 px-4 pb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="section-title mb-0" style="font-size: 1.25rem;">
+                    Daftar Work Order Terjadwal
+                    <small id="woMatchCounter" class="text-primary small fw-semibold ms-2" style="font-size: 0.85rem;"></small>
+                </h5>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="input-group input-group-sm" style="width: 260px;">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" id="liveWoSearch" class="form-control border-start-0" placeholder="Ketik cari cepat...">
+                </div>
+                <span class="badge bg-secondary rounded-pill px-3 py-2 shadow-sm">{{ orders|length }} Tiket</span>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 border-0">
+                <table class="table table-hover align-middle mb-0 border-0" id="woTable">
                     <thead style="background-color: var(--jk-bg-main) !important;">
                         <tr>
                             <th class="ps-4 text-muted small text-uppercase border-0">Nomor Tiket</th>
@@ -189,6 +200,11 @@
                             </td>
                             <td class="pe-4 border-light text-center">
                                 <div class="d-flex justify-content-center gap-1">
+                                    {% if wo.status in ('COMPLETED', 'VERIFIED') %}
+                                    <button type="button" onclick="window.openBeritaAcaraModal({{ wo.id }}, 'bap')" class="btn btn-sm btn-outline-success shadow-sm fw-semibold" title="Buka Berita Acara Pekerjaan (BAP)">
+                                        <i class="bi bi-file-earmark-check me-1"></i> BAP
+                                    </button>
+                                    {% endif %}
                                     {% if wo.status == 'COMPLETED' %}
                                     <form method="POST" action="{{ url_for('verify_work_order', wo_id=wo.id) }}" class="d-inline-block">
                                         <button type="submit" class="btn btn-sm btn-success">Verifikasi</button>
@@ -199,6 +215,11 @@
                                             Aksi
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius: 10px;">
+                                            {% if wo.status in ('COMPLETED', 'VERIFIED') %}
+                                            <li><a class="dropdown-item text-success fw-semibold" href="javascript:void(0)" onclick="window.openBeritaAcaraModal({{ wo.id }}, 'bap')"><i class="bi bi-file-earmark-text me-2"></i>Pratinjau BAP</a></li>
+                                            <li><a class="dropdown-item text-muted" href="/work-orders/{{ wo.id }}/berita-acara/pdf"><i class="bi bi-file-earmark-arrow-down me-2"></i>Unduh PDF BAP</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            {% endif %}
                                             <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='APPROVED') }}"><i class="bi bi-check-lg me-2"></i>Setujui (Approved)</a></li>
                                             <li><a class="dropdown-item text-primary fw-semibold" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='COMPLETED') }}"><i class="bi bi-flag me-2"></i>Selesai (Completed)</a></li>
                                             <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='VERIFIED') }}"><i class="bi bi-shield-check me-2"></i>Verifikasi</a></li>
@@ -216,4 +237,27 @@
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('liveWoSearch')?.addEventListener('input', function(e) {
+    const q = e.target.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#woTable tbody tr');
+    let visibleCount = 0;
+    let totalCount = 0;
+
+    rows.forEach(row => {
+        if (row.querySelector('.app-empty-state')) return;
+        totalCount++;
+        const text = row.textContent.toLowerCase();
+        const match = !q || text.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visibleCount++;
+    });
+
+    const counter = document.getElementById('woMatchCounter');
+    if (counter) {
+        counter.textContent = q ? `(${visibleCount} dari ${totalCount} ditemukan)` : '';
+    }
+});
+</script>
 {% endblock %}

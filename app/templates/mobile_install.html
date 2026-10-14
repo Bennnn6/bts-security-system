@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Pasang Aplikasi Mobile - BACS Enterprise{% endblock %}
+
+{% block content %}
+<div class="app-page">
+    <div class="app-page-header">
+        <div class="app-page-header__copy">
+            <h2 class="fw-bold mb-1">
+                <i class="bi bi-phone-fill text-primary me-2"></i>Aplikasi Mobile BACS Technician
+            </h2>
+            <p class="text-muted mb-0">
+                Pasang aplikasi sistem keamanan BTS langsung di smartphone teknisi lapangan tanpa perlu Play Store.
+            </p>
+        </div>
+        <div class="app-page-header__actions">
+            <a href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('worker_dashboard') }}" class="btn btn-dark">
+                <i class="bi bi-arrow-left me-1"></i> Kembali
+            </a>
+        </div>
+    </div>
+
+    <!-- PWA INSTALL BANNER IF OPENED ON SMARTPHONE -->
+    <div id="pwaDirectInstallBox" class="alert alert-primary border-primary shadow-sm mb-4 d-none" style="border-radius: 14px; background: rgba(13, 110, 253, 0.08);">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary text-white rounded-3 p-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 52px; height: 52px;">
+                    <i class="bi bi-cloud-arrow-down-fill fs-3"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-1 text-primary">Smartphone Terdeteksi!</h5>
+                    <div class="small text-muted">Pasang aplikasi BACS langsung ke menu aplikasi (App Drawer) smartphone Anda sekarang.</div>
+                </div>
+            </div>
+            <button id="btnPwaInstall" type="button" class="btn btn-primary btn-lg px-4 fw-bold shadow-sm">
+                <i class="bi bi-download me-2"></i>Pasang Aplikasi di HP Ini
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- 1. SCAN QR CODE KE HP -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 mb-2">
+                        <i class="bi bi-qr-code-scan me-1"></i> METODE 1 (REKOMENDASI INSTAN)
+                    </span>
+                    <h5 class="fw-bold mb-1">Scan QR Code dengan HP</h5>
+                    <p class="text-muted small mb-0">Buka kamera HP atau scanner untuk langsung membuka aplikasi di smartphone Anda.</p>
+                </div>
+                <div class="card-body p-4 text-center">
+                    <div class="p-3 bg-white d-inline-block rounded-4 shadow-sm border mb-3">
+                        <img src="{{ url_for('mobile_qr_image') }}" alt="QR Code BACS Mobile" class="img-fluid" style="width: 210px; height: 210px; object-fit: contain;">
+                    </div>
+                    
+                    <div class="text-start bg-light p-3 rounded-3 border mb-3">
+                        <label class="form-label small text-muted fw-bold mb-1">URL Jaringan Wi-Fi Server:</label>
+                        <div class="input-group">
+                            <input type="text" id="serverUrlInput" class="form-control form-control-sm font-monospace bg-white" value="{{ local_url }}" readonly>
+                            <button class="btn btn-sm btn-outline-primary" type="button" onclick="copyServerUrl()">
+                                <i class="bi bi-clipboard me-1" id="copyUrlIcon"></i> <span id="copyUrlText">Salin</span>
+                            </button>
+                        </div>
+                        <small class="text-muted mt-1 d-block" style="font-size: 0.78rem;">
+                            <i class="bi bi-info-circle me-1 text-primary"></i> Pastikan HP dan Laptop terhubung di Wi-Fi / Hotspot yang sama.
+                        </small>
+                    </div>
+
+                    <div class="alert alert-warning py-2 px-3 text-start mb-0 border-warning-subtle" style="font-size: 0.85rem; border-radius: 10px;">
+                        <i class="bi bi-globe me-1 text-warning"></i>
+                        <strong>Mau akses di luar rumah/jaringan?</strong> Jalankan file <code>BACS_Bagi_Akses_Publik.bat</code> di laptop untuk mendapatkan link internet publik HTTPS resmi.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. CARA INSTALASI DI ANDROID & IPHONE -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2">
+                    <h5 class="fw-bold mb-1">Petunjuk Pemasangan di Layar Utama HP</h5>
+                    <p class="text-muted small mb-0">Aplikasi BACS berbasis Progressive Web App (PWA) berjalan native tanpa address bar browser.</p>
+                </div>
+                <div class="card-body p-4 pt-2">
+                    <!-- ANDROID TAB -->
+                    <div class="p-3 mb-3 rounded-3 border bg-body-tertiary">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="bi bi-android2 fs-4 text-success"></i>
+                            <h6 class="fw-bold mb-0">Pengguna Android (Google Chrome)</h6>
+                        </div>
+                        <ol class="small text-muted mb-0 ps-3">
+                            <li class="mb-1">Scan QR Code atau ketik alamat <code>{{ local_url }}</code> di browser <strong>Google Chrome</strong> di HP.</li>
+                            <li class="mb-1">Akan muncul banner di bawah: <strong>"Tambahkan BACS ke Layar Utama"</strong>. Jika tidak muncul, ketuk <strong>Titik Tiga (&vellip;)</strong> di pojok kanan atas browser.</li>
+                            <li class="mb-1">Pilih menu <strong>"Instal aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>.</li>
+                            <li>Ketuk <strong>Instal</strong>. Aplikasi langsung terpasang di menu HP dengan ikon resmi BACS!</li>
+                        </ol>
+                    </div>
+
+                    <!-- IPHONE TAB -->
+                    <div class="p-3 mb-3 rounded-3 border bg-body-tertiary">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="bi bi-apple fs-4 text-dark"></i>
+                            <h6 class="fw-bold mb-0">Pengguna iPhone / iOS (Safari)</h6>
+                        </div>
+                        <ol class="small text-muted mb-0 ps-3">
+                            <li class="mb-1">Buka link <code>{{ local_url }}</code> menggunakan browser <strong>Safari</strong>.</li>
+                            <li class="mb-1">Ketuk tombol <strong>Bagikan (Share / Kotak dengan panah atas)</strong> di bagian bawah layar.</li>
+                            <li>Pilih <strong>"Add to Home Screen" (Tambahkan ke Layar Utama)</strong> lalu ketuk <strong>Add</strong>.</li>
+                        </ol>
+                    </div>
+
+                    <!-- METODE 2: ANDROID STUDIO NATIVE APK -->
+                    <div class="p-3 rounded-3 border border-secondary-subtle">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-filetype-apk fs-4 text-primary"></i>
+                                <h6 class="fw-bold mb-0">Metode 2: Source Code Native Android (.apk)</h6>
+                            </div>
+                            <span class="badge bg-secondary-subtle text-secondary border">Untuk Sidang TA</span>
+                        </div>
+                        <p class="small text-muted mb-2">
+                            Jika dosen penguji meminta source code proyek Android Studio asli atau file <code>.apk</code> fisik:
+                        </p>
+                        <div class="bg-dark text-light p-2 rounded small font-monospace mb-2" style="font-size: 0.8rem;">
+                            d:\GASKEN TA\NYOBA CODING\bts-security-system\android_technician_app\
+                        </div>
+                        <p class="small text-muted mb-0">
+                            Buka folder di atas menggunakan software <strong>Android Studio</strong> $\rightarrow$ menu <strong>Build</strong> $\rightarrow$ <strong>Build APK(s)</strong>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let deferredPrompt = null;
+
+// Tangkap event instalasi PWA native
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const installBox = document.getElementById('pwaDirectInstallBox');
+    if (installBox) {
+        installBox.classList.remove('d-none');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btnPwaInstall');
+    if (btn) {
+        btn.addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                alert('Silakan gunakan menu browser di HP Anda: Titik 3 di kanan atas -> "Instal aplikasi" atau "Tambahkan ke Layar Utama".');
+                return;
+            }
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                const installBox = document.getElementById('pwaDirectInstallBox');
+                if (installBox) installBox.classList.add('d-none');
+            }
+            deferredPrompt = null;
+        });
+    }
+});
+
+function copyServerUrl() {
+    const input = document.getElementById('serverUrlInput');
+    const textEl = document.getElementById('copyUrlText');
+    const iconEl = document.getElementById('copyUrlIcon');
+    if (!input) return;
+
+    navigator.clipboard.writeText(input.value).then(() => {
+        if (textEl) textEl.textContent = 'Tersalin!';
+        if (iconEl) iconEl.className = 'bi bi-check-lg text-success me-1';
+        setTimeout(() => {
+            if (textEl) textEl.textContent = 'Salin';
+            if (iconEl) iconEl.className = 'bi bi-clipboard me-1';
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}
