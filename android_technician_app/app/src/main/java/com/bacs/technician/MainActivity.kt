@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
         private const val PERMISSION_REQUEST_CODE = 1001
         private const val PREFS_NAME = "bacs_technician_prefs"
         private const val KEY_SERVER_URL = "server_url"
-        private const val DEFAULT_SERVER_URL = "https://alternative-ruling-campaigns-type.trycloudflare.com"
+        private const val DEFAULT_SERVER_URL = "http://10.66.136.195:5000"
         private const val LOCAL_SERVER_URL = "http://10.66.136.195:5000"
     }
 
