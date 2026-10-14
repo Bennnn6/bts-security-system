@@ -72,9 +72,14 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-5">
-                                <i class="bi bi-journal-x fs-2 d-block mb-2 text-light"></i>
-                                Belum ada riwayat akses gerbang yang tercatat.
+                            <td colspan="7" class="p-0 border-0">
+                                <div class="app-empty-state border-0 my-3">
+                                    <div class="empty-state-icon">
+                                        <i class="bi bi-journal-text"></i>
+                                    </div>
+                                    <div class="empty-state-title">Belum Ada Riwayat Akses</div>
+                                    <div class="empty-state-desc">Belum ada catatan aktivitas buka/tutup gerbang untuk akun Anda. Riwayat otentikasi biometrik & gerbang akan muncul di sini.</div>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

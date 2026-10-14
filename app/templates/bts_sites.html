@@ -219,10 +219,17 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted border-0">
-                                <div class="fs-1 mb-2">🏢</div>
-                                <div class="fw-semibold">Belum ada Site BTS.</div>
-                                <div class="small">Tambahkan site menggunakan tombol "Tambah Site BTS".</div>
+                            <td colspan="7" class="p-0 border-0">
+                                <div class="app-empty-state border-0 my-3">
+                                    <div class="empty-state-icon">
+                                        <i class="bi bi-hdd-network"></i>
+                                    </div>
+                                    <div class="empty-state-title">Belum Ada Site BTS Terdaftar</div>
+                                    <div class="empty-state-desc">Belum ada lokasi shelter menara telekomunikasi yang ditambahkan ke sistem.</div>
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createSiteModal">
+                                        <i class="bi bi-plus-circle me-1"></i> Tambah Site BTS Pertama
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     {% endif %}

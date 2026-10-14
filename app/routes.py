@@ -264,41 +264,62 @@ def get_technician_state(
     technician_id,
     site_id=None
 ):
-
-    query = (
-        AccessLog.query
-        .filter(
-            AccessLog.technician_id
-            == technician_id,
-
-            AccessLog.access_result
-            == 'GRANTED',
-
-            AccessLog.access_type.in_(
-                (
-                    'MASUK',
-                    'KELUAR'
-                )
+    """
+    Mengambil state (di dalam / di luar) seorang teknisi.
+    Dipanggil per-teknisi, gunakan get_bulk_technician_states()
+    bila perlu memproses banyak teknisi sekaligus.
+    """
+    try:
+        query = (
+            AccessLog.query
+            .filter(
+                AccessLog.technician_id == technician_id,
+                AccessLog.access_result == 'GRANTED',
+                AccessLog.access_type.in_(('MASUK', 'KELUAR'))
             )
         )
-    )
 
-    if site_id:
-        query = query.filter(
-            AccessLog.site_id
-            == site_id
+        if site_id:
+            query = query.filter(
+                AccessLog.site_id == site_id
+            )
+
+        latest = (
+            query
+            .order_by(AccessLog.timestamp.desc())
+            .first()
         )
 
-    latest = (
-        query
-        .order_by(
-            AccessLog.timestamp.desc()
-        )
-        .first()
-    )
+        if not latest:
+            return {
+                'inside': False,
+                'state': 'DI LUAR',
+                'site_id': None,
+                'site_name': None,
+                'last_access': None,
+                'last_access_type': None
+            }
 
-    if not latest:
+        inside = (latest.access_type == 'MASUK')
 
+        return {
+            'inside': inside,
+            'state': 'DI DALAM' if inside else 'DI LUAR',
+            'site_id': latest.site_id,
+            'site_name': (
+                latest.site.site_name
+                if latest.site
+                else None
+            ),
+            'last_access': (
+                latest.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                if latest.timestamp
+                else None
+            ),
+            'last_access_type': latest.access_type
+        }
+
+    except Exception:
         return {
             'inside': False,
             'state': 'DI LUAR',
@@ -308,222 +329,237 @@ def get_technician_state(
             'last_access_type': None
         }
 
-    inside = (
-        latest.access_type
-        == 'MASUK'
-    )
 
-    return {
-        'inside': inside,
+def get_bulk_technician_states(technician_ids):
+    """
+    B3/B7 FIX: Optimasi bulk query untuk mengambil state semua teknisi
+    dalam SATU query, menghindari N+1 query problem.
 
-        'state': (
-            'DI DALAM'
-            if inside
-            else 'DI LUAR'
-        ),
+    Mengembalikan dict: {technician_id: state_dict}
+    """
+    if not technician_ids:
+        return {}
 
-        'site_id': latest.site_id,
+    try:
+        from sqlalchemy import func
 
-        'site_name': (
-            latest.site.site_name
-            if latest.site
-            else None
-        ),
-
-        'last_access': (
-            latest.timestamp.strftime(
-                '%Y-%m-%d %H:%M:%S'
+        # Subquery: ambil ID (primary key) dari AccessLog terbaru
+        # per teknisi yang memiliki result GRANTED
+        subq = (
+            db.session.query(
+                func.max(AccessLog.id).label('max_id')
             )
-            if latest.timestamp
-            else None
-        ),
-
-        'last_access_type': (
-            latest.access_type
+            .filter(
+                AccessLog.technician_id.in_(technician_ids),
+                AccessLog.access_result == 'GRANTED',
+                AccessLog.access_type.in_(('MASUK', 'KELUAR'))
+            )
+            .group_by(AccessLog.technician_id)
+            .subquery()
         )
-    }
 
-
-def build_site_metrics(
-    sites
-):
-
-    today_start = datetime.utcnow().replace(
-        hour=0,
-        minute=0,
-        second=0,
-        microsecond=0
-    )
-
-    technicians = (
-        Technician.query
-        .filter_by(
-            status='Active'
-        )
-        .all()
-    )
-
-    metrics = {}
-
-    for site in sites:
-
-        site_logs = (
+        # Ambil semua AccessLog yang ID-nya ada di subquery
+        latest_logs = (
             AccessLog.query
-            .filter_by(
-                site_id=site.site_id
-            )
-            .order_by(
-                AccessLog.timestamp.desc()
-            )
+            .filter(AccessLog.id.in_(subq))
             .all()
         )
 
-        today_logs = [
-            log
-            for log in site_logs
-            if (
-                log.timestamp
-                and
-                log.timestamp >= today_start
-            )
-        ]
+        # Buat lookup dict
+        result = {}
+        for log in latest_logs:
+            inside = (log.access_type == 'MASUK')
+            result[log.technician_id] = {
+                'inside': inside,
+                'state': 'DI DALAM' if inside else 'DI LUAR',
+                'site_id': log.site_id,
+                'site_name': (
+                    log.site.site_name if log.site else None
+                ),
+                'last_access': (
+                    log.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                    if log.timestamp
+                    else None
+                ),
+                'last_access_type': log.access_type
+            }
 
-        access_today = len(
-            today_logs
+        # Teknisi yang tidak ada di log = di luar
+        for tech_id in technician_ids:
+            if tech_id not in result:
+                result[tech_id] = {
+                    'inside': False,
+                    'state': 'DI LUAR',
+                    'site_id': None,
+                    'site_name': None,
+                    'last_access': None,
+                    'last_access_type': None
+                }
+
+        return result
+
+    except Exception:
+        # Fallback jika subquery gagal
+        return {
+            tech_id: {
+                'inside': False,
+                'state': 'DI LUAR',
+                'site_id': None,
+                'site_name': None,
+                'last_access': None,
+                'last_access_type': None
+            }
+            for tech_id in technician_ids
+        }
+
+
+def build_site_metrics(sites):
+    """
+    B3 FIX: Optimasi dengan bulk query.
+    Sebelumnya: N queries per site + M queries per teknisi = N*M total.
+    Sekarang  : 3 queries total untuk semua sites.
+    """
+    if not sites:
+        return {}
+
+    site_ids = [site.site_id for site in sites]
+
+    today_start = datetime.utcnow().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    # ---------------------------------------------------------
+    # BULK QUERY 1: Semua AccessLog hari ini untuk semua sites
+    # ---------------------------------------------------------
+    try:
+        all_today_logs = (
+            AccessLog.query
+            .filter(
+                AccessLog.site_id.in_(site_ids),
+                AccessLog.timestamp >= today_start
+            )
+            .all()
         )
+    except Exception:
+        all_today_logs = []
+
+    # ---------------------------------------------------------
+    # BULK QUERY 2: AccessLog terbaru per site (untuk last_access)
+    # ---------------------------------------------------------
+    try:
+        from sqlalchemy import func
+        subq_last = (
+            db.session.query(
+                func.max(AccessLog.id).label('max_id')
+            )
+            .filter(AccessLog.site_id.in_(site_ids))
+            .group_by(AccessLog.site_id)
+            .subquery()
+        )
+        last_logs_list = (
+            AccessLog.query
+            .filter(AccessLog.id.in_(subq_last))
+            .all()
+        )
+        last_access_map = {
+            log.site_id: log for log in last_logs_list
+        }
+    except Exception:
+        last_access_map = {}
+
+    # ---------------------------------------------------------
+    # BULK QUERY 3: State teknisi aktif (satu query)
+    # ---------------------------------------------------------
+    try:
+        technicians = (
+            Technician.query
+            .filter_by(status='Active')
+            .all()
+        )
+        tech_ids = [t.technician_id for t in technicians]
+        bulk_states = get_bulk_technician_states(tech_ids)
+    except Exception:
+        technicians = []
+        bulk_states = {}
+
+    # ---------------------------------------------------------
+    # Grouping: log per site
+    # ---------------------------------------------------------
+    today_logs_by_site = {}
+    for log in all_today_logs:
+        today_logs_by_site.setdefault(log.site_id, []).append(log)
+
+    # ---------------------------------------------------------
+    # Hitung inside_count per site dari bulk_states
+    # ---------------------------------------------------------
+    inside_by_site = {}
+    for state in bulk_states.values():
+        if state['inside'] and state['site_id']:
+            inside_by_site[state['site_id']] = (
+                inside_by_site.get(state['site_id'], 0) + 1
+            )
+
+    # ---------------------------------------------------------
+    # Build metrics dict
+    # ---------------------------------------------------------
+    metrics = {}
+
+    for site in sites:
+        today_logs = today_logs_by_site.get(site.site_id, [])
+
+        access_today = len(today_logs)
 
         granted_today = sum(
-            1
-            for log in today_logs
-            if log.access_result
-            == 'GRANTED'
+            1 for log in today_logs
+            if log.access_result == 'GRANTED'
         )
 
         denied_today = sum(
-            1
-            for log in today_logs
-            if log.access_result
-            == 'DENIED'
+            1 for log in today_logs
+            if log.access_result == 'DENIED'
         )
 
         incidents_today = sum(
-            1
-            for log in today_logs
-            if log.incident_level in (
-                'WARNING',
-                'HIGH',
-                'CRITICAL'
-            )
+            1 for log in today_logs
+            if log.incident_level in ('WARNING', 'HIGH', 'CRITICAL')
         )
 
         critical_today = sum(
-            1
-            for log in today_logs
-            if log.incident_level
-            == 'CRITICAL'
+            1 for log in today_logs
+            if log.incident_level == 'CRITICAL'
         )
 
-        # -------------------------------------------------
-        # SECURITY STATE
-        # -------------------------------------------------
-
-        if (
-            critical_today >= 1
-            or denied_today >= 5
-            or incidents_today >= 5
-        ):
-
-            security_status = (
-                'CRITICAL'
-            )
-
-        elif (
-            denied_today >= 3
-            or incidents_today >= 3
-        ):
-
-            security_status = (
-                'HIGH'
-            )
-
-        elif (
-            denied_today >= 1
-            or incidents_today >= 1
-        ):
-
-            security_status = (
-                'WARNING'
-            )
-
+        # Security state
+        if critical_today >= 1 or denied_today >= 5 or incidents_today >= 5:
+            security_status = 'CRITICAL'
+        elif denied_today >= 3 or incidents_today >= 3:
+            security_status = 'HIGH'
+        elif denied_today >= 1 or incidents_today >= 1:
+            security_status = 'WARNING'
         else:
+            security_status = 'NORMAL'
 
-            security_status = (
-                'NORMAL'
-            )
+        last_access = last_access_map.get(site.site_id)
+        inside_count = inside_by_site.get(site.site_id, 0)
 
-        # -------------------------------------------------
-        # TECHNICIANS INSIDE
-        # -------------------------------------------------
-
-        inside_count = 0
-
-        for technician in technicians:
-
-            state = get_technician_state(
-                technician.technician_id,
-                site.site_id
-            )
-
-            if state['inside']:
-                inside_count += 1
-
-        # -------------------------------------------------
-        # LAST ACCESS
-        # -------------------------------------------------
-
-        last_access = (
-            site_logs[0]
-            if site_logs
-            else None
-        )
-
-        metrics[
-            site.site_id
-        ] = {
-
+        metrics[site.site_id] = {
             'site_id': site.site_id,
-
             'site_name': site.site_name,
-
             'access_today': access_today,
-
             'granted_today': granted_today,
-
             'denied_today': denied_today,
-
             'failed_today': denied_today,
-
             'incident_count': incidents_today,
-
             'critical_today': critical_today,
-
             'inside_count': inside_count,
-
             'security_status': security_status,
-
             'last_access': (
-                last_access.timestamp.strftime(
-                    '%Y-%m-%d %H:%M:%S'
-                )
-                if last_access
-                and last_access.timestamp
+                last_access.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                if last_access and last_access.timestamp
                 else None
             ),
-
             'last_access_type': (
-                last_access.access_type
-                if last_access
-                else None
+                last_access.access_type if last_access else None
             )
         }
 
@@ -538,6 +574,7 @@ def build_site_metrics(
 #
 
 _login_fail_store = {}
+_login_fail_lock = __import__('threading').Lock()  # B11 FIX: Thread-safe access
 LOGIN_MAX_FAILURES = 5
 LOGIN_LOCKOUT_MINUTES = 5
 LOGIN_WINDOW_MINUTES = 5
@@ -549,7 +586,8 @@ def _check_login_brute_force(ip):
     Return: (is_locked: bool, seconds_remaining: int)
     """
     now = datetime.utcnow()
-    record = _login_fail_store.get(ip)
+    with _login_fail_lock:  # B11 FIX: Thread-safe read
+        record = _login_fail_store.get(ip)
 
     if not record:
         return False, 0
@@ -562,45 +600,48 @@ def _check_login_brute_force(ip):
     # Reset jika window sudah lewat
     first_fail = record.get('first_fail', now)
     if (now - first_fail).total_seconds() > LOGIN_WINDOW_MINUTES * 60:
-        _login_fail_store.pop(ip, None)
+        with _login_fail_lock:
+            _login_fail_store.pop(ip, None)
 
     return False, 0
 
 
 def _record_login_failure(ip):
-    """Catat kegagalan login dari IP ini."""
+    """Catat kegagalan login dari IP ini (thread-safe)."""
     now = datetime.utcnow()
-    record = _login_fail_store.get(ip, {
-        'count': 0,
-        'first_fail': now,
-        'locked_until': None,
-    })
+    with _login_fail_lock:  # B11 FIX: Thread-safe write
+        record = _login_fail_store.get(ip, {
+            'count': 0,
+            'first_fail': now,
+            'locked_until': None,
+        })
 
-    # Reset counter jika window sudah lewat
-    if (now - record['first_fail']).total_seconds() > LOGIN_WINDOW_MINUTES * 60:
-        record = {'count': 0, 'first_fail': now, 'locked_until': None}
+        # Reset counter jika window sudah lewat
+        if (now - record['first_fail']).total_seconds() > LOGIN_WINDOW_MINUTES * 60:
+            record = {'count': 0, 'first_fail': now, 'locked_until': None}
 
-    record['count'] += 1
+        record['count'] += 1
 
-    if record['count'] >= LOGIN_MAX_FAILURES:
-        record['locked_until'] = now + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+        if record['count'] >= LOGIN_MAX_FAILURES:
+            record['locked_until'] = now + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
 
-    _login_fail_store[ip] = record
+        _login_fail_store[ip] = record
 
-    # Bersihkan entri lama agar tidak bocor memori
-    if len(_login_fail_store) > 2000:
-        stale = [
-            k for k, v in _login_fail_store.items()
-            if (now - v.get('first_fail', now)).total_seconds() > LOGIN_WINDOW_MINUTES * 60
-            and not v.get('locked_until')
-        ]
-        for k in stale[:500]:
-            _login_fail_store.pop(k, None)
+        # Bersihkan entri lama agar tidak bocor memori
+        if len(_login_fail_store) > 2000:
+            stale = [
+                k for k, v in _login_fail_store.items()
+                if (now - v.get('first_fail', now)).total_seconds() > LOGIN_WINDOW_MINUTES * 60
+                and not v.get('locked_until')
+            ]
+            for k in stale[:500]:
+                _login_fail_store.pop(k, None)
 
 
 def _reset_login_failures(ip):
-    """Hapus catatan kegagalan login setelah login berhasil."""
-    _login_fail_store.pop(ip, None)
+    """Hapus catatan kegagalan login setelah login berhasil (thread-safe)."""
+    with _login_fail_lock:  # B11 FIX
+        _login_fail_store.pop(ip, None)
 
 
 # =========================================================
@@ -752,14 +793,15 @@ def login():
                 ActivityLog(
                     username=username,
                     action='LOGIN_SUCCESS',
-                    description=(
-                        'Admin berhasil login.'
-                    ),
+                    description='Admin berhasil login.',
                     incident_level='NORMAL'
                 )
             )
 
-            db.session.commit()
+            try:  # B9 FIX: Jangan crash jika ActivityLog gagal commit
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
             return redirect(
                 url_for('dashboard')
@@ -832,7 +874,10 @@ def login():
                 )
             )
 
-            db.session.commit()
+            try:  # B9 FIX: Jangan crash jika ActivityLog gagal commit
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
             return redirect(
                 url_for('worker_dashboard')
@@ -847,10 +892,7 @@ def login():
 
         db.session.add(
             ActivityLog(
-                username=(
-                    username
-                    or 'Unknown'
-                ),
+                username=(username or 'Unknown'),
                 action='LOGIN_FAILED',
                 description=(
                     f'Percobaan login gagal dari IP {client_ip}.'
@@ -859,7 +901,10 @@ def login():
             )
         )
 
-        db.session.commit()
+        try:  # B9 FIX: Jangan crash jika ActivityLog gagal commit
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         flash(
             'Username atau password salah.',
@@ -877,48 +922,42 @@ def login():
 
 @app.route('/setup_admin')
 def setup_admin():
+    """
+    B12 FIX: Proteksi route setup_admin agar hanya bisa diakses
+    dari localhost. Mencegah reset admin dari internet.
+    """
+    client_ip = request.remote_addr or '127.0.0.1'
+    allowed_ips = ('127.0.0.1', '::1', 'localhost')
 
-    admin = (
-        Admin.query
-        .filter_by(
-            username='admin'
-        )
-        .first()
-    )
+    if client_ip not in allowed_ips:
+        return 'Akses ditolak.', 403
 
-    if not admin:
+    # Tambahan: cek apakah admin sudah ada
+    existing_count = Admin.query.count()
+    if existing_count > 0:
+        return 'Admin sudah ada. Setup tidak diperlukan.', 200
 
-        admin = Admin(
-            username='admin'
-        )
-
-        admin.set_password(
-            'admin123'
-        )
-
-        db.session.add(
-            admin
-        )
-
+    try:
+        admin = Admin(username='admin')
+        admin.set_password('admin123')
+        db.session.add(admin)
         db.session.add(
             ActivityLog(
                 username='SYSTEM',
                 action='ADMIN_CREATED',
-                description=(
-                    'Admin default dibuat.'
-                ),
+                description='Admin default dibuat via setup_admin.',
                 incident_level='NORMAL'
             )
         )
-
         db.session.commit()
-
         return (
             'Admin default berhasil dibuat. '
-            'Silakan login dan segera ganti password.'
+            'Silakan login dan SEGERA ganti password default!'
         ), 201
 
-    return 'Admin sudah ada.', 200
+    except Exception as exc:
+        db.session.rollback()
+        return f'Gagal membuat admin: {exc}', 500
 
 
 # =========================================================
@@ -1004,22 +1043,16 @@ def dashboard():
     # TECH STATES
     # -----------------------------------------------------
 
-    technician_states = {}
+    # B7 FIX: Gunakan bulk query untuk semua teknisi sekaligus
+    tech_ids = [t.technician_id for t in techs]
+    bulk_states = get_bulk_technician_states(tech_ids)
 
-    inside_count = 0
+    technician_states = bulk_states
 
-    for technician in techs:
-
-        state = get_technician_state(
-            technician.technician_id
-        )
-
-        technician_states[
-            technician.technician_id
-        ] = state
-
-        if state['inside']:
-            inside_count += 1
+    inside_count = sum(
+        1 for state in bulk_states.values()
+        if state['inside']
+    )
 
     # -----------------------------------------------------
     # SITE METRICS

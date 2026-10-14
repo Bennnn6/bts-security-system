@@ -6,6 +6,7 @@ import os
 import uuid
 import base64
 import math
+import threading
 
 from flask import (
     Blueprint,
@@ -111,6 +112,7 @@ SENSITIVE_ENDPOINTS = (
 )
 
 _rate_limit_store = {}
+_rate_limit_lock = threading.Lock()
 
 # Challenge liveness
 _liveness_sessions = {}
@@ -236,50 +238,44 @@ def check_rate_limit():
         f"{request.endpoint or request.path}"
     )
 
-    history = _rate_limit_store.get(key, [])
+    with _rate_limit_lock:
+        history = _rate_limit_store.get(key, [])
 
-    history = [
-        timestamp
-        for timestamp in history
-        if now - timestamp < RATE_LIMIT_WINDOW
-    ]
+        history = [
+            timestamp
+            for timestamp in history
+            if now - timestamp < RATE_LIMIT_WINDOW
+        ]
 
-    max_requests = (
-        SENSITIVE_RATE_LIMIT_MAX
-        if any(path.endswith(ep) for ep in SENSITIVE_ENDPOINTS)
-        else RATE_LIMIT_MAX_REQUESTS
-    )
+        max_requests = (
+            SENSITIVE_RATE_LIMIT_MAX
+            if any(path.endswith(ep) for ep in SENSITIVE_ENDPOINTS)
+            else RATE_LIMIT_MAX_REQUESTS
+        )
 
-    if len(history) >= max_requests:
+        if len(history) >= max_requests:
+            _rate_limit_store[key] = history
+            return False
 
+        history.append(now)
         _rate_limit_store[key] = history
 
-        return False
+        # Bersihkan store yang sudah lama.
+        if len(_rate_limit_store) > 5000:
+            stale_keys = []
+            for store_key, values in _rate_limit_store.items():
+                if not values:
+                    stale_keys.append(store_key)
+                    continue
 
-    history.append(now)
+                if now - values[-1] > RATE_LIMIT_WINDOW:
+                    stale_keys.append(store_key)
 
-    _rate_limit_store[key] = history
-
-    # Bersihkan store yang sudah lama.
-    if len(_rate_limit_store) > 5000:
-
-        stale_keys = []
-
-        for store_key, values in _rate_limit_store.items():
-
-            if not values:
-                stale_keys.append(store_key)
-                continue
-
-            if now - values[-1] > RATE_LIMIT_WINDOW:
-
-                stale_keys.append(store_key)
-
-        for stale_key in stale_keys[:1000]:
-            _rate_limit_store.pop(
-                stale_key,
-                None,
-            )
+            for stale_key in stale_keys[:1000]:
+                _rate_limit_store.pop(
+                    stale_key,
+                    None,
+                )
 
     return True
 

@@ -794,7 +794,18 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-5 border-0">Belum ada data teknisi.</td>
+                            <td colspan="7" class="p-0 border-0">
+                                <div class="app-empty-state border-0 my-3">
+                                    <div class="empty-state-icon">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <div class="empty-state-title">Belum Ada Data Teknisi</div>
+                                    <div class="empty-state-desc">Belum ada akun teknisi lapangan yang terdaftar dalam sistem NOC.</div>
+                                    <a href="{{ url_for('register_technician') }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-person-plus me-1"></i> Daftarkan Teknisi Pertama
+                                    </a>
+                                </div>
+                            </td>
                         </tr>
                     {% endif %}
                     </tbody>
@@ -834,9 +845,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     {
                         label: 'GRANTED',
                         data: chartData.granted,
-                        borderColor: '#7C3AED',
-                        backgroundColor: 'rgba(124, 58, 237, 0.15)',
-                        tension: 0.4, borderWidth: 3, fill: true, pointBackgroundColor: '#7C3AED'
+                        borderColor: '#1D4ED8',
+                        backgroundColor: 'rgba(29, 78, 216, 0.15)',
+                        tension: 0.4, borderWidth: 3, fill: true, pointBackgroundColor: '#1D4ED8'
                     },
                     {
                         label: 'DENIED',
@@ -897,7 +908,7 @@ document.addEventListener('DOMContentLoaded', function () {
             for (let h=0; h<24; h++) { labels.push(h+':00'); values.push(pattern[h] || 0); }
             new Chart(hourlyCtx, {
                 type: 'bar',
-                data: { labels: labels, datasets: [{ data: values, backgroundColor: '#A78BFA', hoverBackgroundColor: '#7C3AED', borderRadius: 4 }] },
+                data: { labels: labels, datasets: [{ data: values, backgroundColor: '#60A5FA', hoverBackgroundColor: '#1D4ED8', borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: {maxTicksLimit: 8} }, y: { display: false } } }
             });
         } else if (hourlyCtx) {
@@ -914,7 +925,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 type: 'doughnut',
                 data: {
                     labels: reasons.map(function(r) { return r.reason; }),
-                    datasets: [{ data: reasons.map(function(r) { return r.count; }), backgroundColor: ['#F43F5E', '#F59E0B', '#10B981', '#7C3AED'], borderWidth: 2, borderColor: '#fff' }]
+                    datasets: [{ data: reasons.map(function(r) { return r.count; }), backgroundColor: ['#F43F5E', '#F59E0B', '#10B981', '#0284C7'], borderWidth: 2, borderColor: '#fff' }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#0F172A' } } }, cutout: '70%' }
             });

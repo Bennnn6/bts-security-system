@@ -132,9 +132,17 @@
                     <tbody>
                         {% if not orders %}
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted border-0">
-                                <i class="bi bi-journal-x fs-1 text-light d-block mb-2"></i>
-                                Belum ada Surat Perintah Kerja yang diterbitkan.
+                            <td colspan="7" class="p-0 border-0">
+                                <div class="app-empty-state border-0 my-3">
+                                    <div class="empty-state-icon">
+                                        <i class="bi bi-journal-x"></i>
+                                    </div>
+                                    <div class="empty-state-title">Belum Ada Surat Perintah Kerja</div>
+                                    <div class="empty-state-desc">Belum ada SPK yang diterbitkan atau sesuai dengan kriteria filter yang Anda pilih.</div>
+                                    <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#createWoCard">
+                                        <i class="bi bi-plus-circle me-1"></i> Terbitkan SPK Baru
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {% endif %}

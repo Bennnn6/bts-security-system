@@ -4,103 +4,15 @@
 {% block page_class %}login-layout{% endblock %}
 
 {% block content %}
-<style>
-    html:has(body.login-layout) {
-        background-color: #070B14;
-    }
-    
-    body.login-layout {
-        background-image: url("{{ url_for('static', filename='IMG/tower bts.jpeg') }}");
-        background-size: cover;
-        background-position: center center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-        min-height: 100vh;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        background-color: #070B14;
-        position: relative;
-        overflow-x: hidden;
-    }
-
-    body.login-layout::before {
-        content: '';
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        background: radial-gradient(circle at 50% 35%, rgba(15, 23, 42, 0.45) 0%, rgba(7, 11, 20, 0.88) 100%);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        pointer-events: none;
-        z-index: 1;
-    }
-    
-    body.login-layout .app-shell {
-        min-height: 100vh;
-        width: 100%;
-        background: transparent !important;
-        position: relative;
-        z-index: 2;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
-
-    body.login-layout .app-main {
-        width: 100%;
-        background: transparent !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2.5rem 1rem;
-        margin: 0 !important;
-        min-height: 100vh;
-    }
-    
-    body.login-layout .app-flash-stack {
-        position: absolute;
-        top: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 90%;
-        max-width: 600px;
-        z-index: 1050;
-    }
-
-    .demo-account-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.35rem 0.65rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        border-radius: 8px;
-        background: rgba(30, 41, 59, 0.65);
-        border: 1px solid rgba(148, 163, 184, 0.25);
-        color: #CBD5E1;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .demo-account-pill:hover {
-        background: rgba(124, 58, 237, 0.25);
-        border-color: #8B5CF6;
-        color: #FFFFFF;
-        transform: translateY(-1px);
-    }
-</style>
-
 <div class="glass-login-wrapper">
     <div class="glass-login-container">
         
         <!-- Left Banner: Telecom & Cyber Security Brand -->
         <div class="glass-login-left">
             <div class="login-brand">
-                <i class="bi bi-shield-lock-fill text-primary me-1"></i> BACS • ENTERPRISE SECURITY
+                <i class="bi bi-shield-lock-fill text-info me-1"></i> BACS • ENTERPRISE SECURITY
             </div>
-            <h2>SMART BTS<br><span style="color: #A78BFA;">ACCESS GATEWAY</span></h2>
+            <h2>SMART BTS<br><span style="color: #38BDF8;">ACCESS GATEWAY</span></h2>
             <p>Sistem Manajemen & Kontrol Akses Fisik Terpadu Shelter Menara Telekomunikasi. Otentikasi ganda biometrik Face Recognition, TOTP RFC 6238, pemantauan K3 lapangan, dan kontrol gerbang solenoid 24/7.</p>
             
             <div class="login-security-pills">
@@ -124,7 +36,7 @@
                 <div class="d-flex align-items-center justify-content-between mb-1">
                     <div class="d-flex align-items-center gap-2">
                         <span class="pulse-dot"></span>
-                        <span class="text-uppercase small fw-bold" style="color: #A78BFA; letter-spacing: 1px;">Portal Autentikasi</span>
+                        <span class="text-uppercase small fw-bold" style="color: #38BDF8; letter-spacing: 1px;">Portal Autentikasi</span>
                     </div>
                     <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" style="font-size: 0.7rem;">
                         <i class="bi bi-lock-fill me-1"></i> SSL 256-BIT
@@ -132,21 +44,6 @@
                 </div>
                 <h3 class="fw-bold text-white mb-1">Masuk ke Sistem</h3>
                 <p class="small text-muted mb-0">Silakan masukkan kredensial Administrator NOC atau Teknisi.</p>
-            </div>
-
-            <!-- Quick Demo Account Pills (Sidang Tugas Akhir / Company Demo) -->
-            <div class="p-2 mb-3 rounded-3" style="background: rgba(15, 23, 42, 0.45); border: 1px dashed rgba(148, 163, 184, 0.2);">
-                <div class="text-white-50" style="font-size: 0.72rem; margin-bottom: 0.35rem;">
-                    <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Akses Cepat Demo / Pengujian:
-                </div>
-                <div class="d-flex gap-2 flex-wrap">
-                    <button type="button" class="demo-account-pill" onclick="fillLogin('admin', 'admin123')">
-                        <i class="bi bi-person-fill-gear text-info"></i> Admin NOC
-                    </button>
-                    <button type="button" class="demo-account-pill" onclick="fillLogin('TECH-001', 'rahasia123')">
-                        <i class="bi bi-tools text-warning"></i> Teknisi Lapangan
-                    </button>
-                </div>
             </div>
             
             <form method="POST">
@@ -170,7 +67,7 @@
                 </div>
                 
                 <div class="d-grid gap-2 mt-4">
-                    <button type="submit" class="btn btn-primary glass-btn">
+                    <button type="submit" id="loginSubmitBtn" class="btn btn-primary glass-btn">
                         <span>MASUK KE SISTEM</span>
                         <i class="bi bi-arrow-right ms-1"></i>
                     </button>
@@ -186,16 +83,4 @@
         
     </div>
 </div>
-
-<script>
-    function fillLogin(user, pass) {
-        var u = document.getElementById('username');
-        var p = document.getElementById('password');
-        if (u && p) {
-            u.value = user;
-            p.value = pass;
-            u.focus();
-        }
-    }
-</script>
 {% endblock %}

@@ -33,14 +33,20 @@
             {% if messages %}
                 <div class="app-flash-stack">
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
+                        {% set cat = 'danger' if category in ['error', 'danger'] else ('warning' if category in ['warning', 'warn'] else ('success' if category in ['success'] else 'info')) %}
+                        {% set icon = 'bi-exclamation-octagon-fill text-danger' if cat == 'danger' else ('bi-exclamation-triangle-fill text-warning' if cat == 'warning' else ('bi-check-circle-fill text-success' if cat == 'success' else 'bi-info-circle-fill text-primary')) %}
+                        <div class="alert alert-{{ cat }} alert-dismissible fade show d-flex align-items-center gap-2 shadow-sm border-0" role="alert">
+                            <i class="bi {{ icon }} fs-5 flex-shrink-0"></i>
+                            <div class="flex-grow-1 fw-medium">{{ message }}</div>
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
+
+        <!-- Interactive Toast Container -->
+        <div id="appToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090;"></div>
 
         <main class="app-main">{% block content %}{% endblock %}</main>
 
@@ -70,7 +76,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+                navigator.serviceWorker.register('/static/sw.js', { scope: '/' }).catch(() => {});
             });
         }
         (function() {
@@ -97,6 +103,67 @@
                         var current = document.body.getAttribute('data-theme') || 'light';
                         applyTheme(current === 'dark' ? 'light' : 'dark');
                     });
+                }
+            });
+
+            // Global Toast Notification Helper
+            window.showAppToast = function(title, message, type = 'info', duration = 4000) {
+                const container = document.getElementById('appToastContainer');
+                if (!container) return;
+                const iconMap = {
+                    success: 'bi-check-circle-fill text-success',
+                    danger: 'bi-exclamation-octagon-fill text-danger',
+                    error: 'bi-exclamation-octagon-fill text-danger',
+                    warning: 'bi-exclamation-triangle-fill text-warning',
+                    info: 'bi-info-circle-fill text-primary'
+                };
+                const icon = iconMap[type] || iconMap.info;
+                const toastEl = document.createElement('div');
+                toastEl.className = 'toast align-items-center border-0 shadow-lg mb-2 show app-toast';
+                toastEl.setAttribute('role', 'alert');
+                toastEl.setAttribute('aria-live', 'assertive');
+                toastEl.setAttribute('aria-atomic', 'true');
+                toastEl.innerHTML = `
+                    <div class="d-flex p-3 align-items-start gap-2">
+                        <i class="bi ${icon} fs-5 mt-0.5"></i>
+                        <div class="flex-grow-1">
+                            ${title ? `<div class="fw-bold mb-0.5 small">${title}</div>` : ''}
+                            <div class="text-body-secondary small">${message}</div>
+                        </div>
+                        <button type="button" class="btn-close ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                `;
+                container.appendChild(toastEl);
+                if (window.bootstrap && bootstrap.Toast) {
+                    const bsToast = new bootstrap.Toast(toastEl, { delay: duration });
+                    bsToast.show();
+                    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+                } else {
+                    setTimeout(() => {
+                        toastEl.style.opacity = '0';
+                        setTimeout(() => toastEl.remove(), 300);
+                    }, duration);
+                }
+            };
+
+            // Global Form Submit Button Loading & Double-Click Prevention
+            document.addEventListener('submit', function(e) {
+                const form = e.target;
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn && !submitBtn.classList.contains('no-auto-loading')) {
+                    submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+                    submitBtn.classList.add('btn-loading');
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Memproses...';
+                    setTimeout(function() {
+                        if (submitBtn && submitBtn.disabled) {
+                            submitBtn.disabled = false;
+                            submitBtn.classList.remove('btn-loading');
+                            if (submitBtn.dataset.originalHtml) {
+                                submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+                            }
+                        }
+                    }, 10000);
                 }
             });
         })();

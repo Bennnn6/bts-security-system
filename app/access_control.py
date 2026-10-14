@@ -35,13 +35,15 @@ def _send_gate_hardware_webhook(event, site_id, device_id):
                 "Content-Type": "application/json",
             }
             if webhook_secret:
+                # B1 FIX: Gunakan hmac.new() bukan hmac.new (AttributeError)
+                # B2 FIX: Hanya kirim HMAC signature, BUKAN raw secret plaintext
                 signature = hmac.new(
                     webhook_secret.encode("utf-8"),
                     body_bytes,
                     hashlib.sha256
                 ).hexdigest()
                 headers["X-Gate-Signature"] = f"sha256={signature}"
-                headers["X-Gate-Secret"] = webhook_secret
+                # JANGAN kirim X-Gate-Secret: headers ini bocorkan secret dalam plaintext!
 
             requests.post(webhook_url, data=body_bytes, headers=headers, timeout=3)
         except Exception as err:

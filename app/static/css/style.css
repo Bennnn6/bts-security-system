@@ -7,14 +7,14 @@
    1. DESIGN TOKENS & COLOR PALETTES (LIGHT & DARK NOC MODES)
    -------------------------------------------------------------------------- */
 :root {
-    /* Brand Accent Colors (Vibrant Violet / Indigo & Telecom Cyan) */
-    --brand-primary: #7C3AED;
-    --brand-primary-hover: #6D28D9;
-    --brand-primary-light: #A78BFA;
-    --brand-primary-subtle: #EDE9FE;
-    --brand-primary-glow: rgba(124, 58, 237, 0.22);
+    /* Brand Accent Colors (Enterprise Telecom Blue & Electric Cyan) */
+    --brand-primary: #1D4ED8;
+    --brand-primary-hover: #1E40AF;
+    --brand-primary-light: #3B82F6;
+    --brand-primary-subtle: #EFF6FF;
+    --brand-primary-glow: rgba(29, 78, 216, 0.22);
     
-    --accent-cyan: #06B6D4;
+    --accent-cyan: #0284C7;
     --accent-cyan-subtle: #E0F2FE;
     --accent-emerald: #10B981;
     --accent-emerald-subtle: #D1FAE5;
@@ -31,18 +31,18 @@
     --bg-input: #FFFFFF;
     
     --border-subtle: #E2E8F0;
-    --border-focus: #A78BFA;
+    --border-focus: #3B82F6;
     
     --text-main: #0F172A;
     --text-muted: #64748B;
     --text-subtle: #94A3B8;
 
-    /* Sidebar Tokens (Ungu Tua Luxury Deep Theme) */
-    --sidebar-bg: #140826;
-    --sidebar-text: #E9D5FF;
-    --sidebar-text-muted: #A855F7;
-    --sidebar-border: rgba(168, 85, 247, 0.16);
-    --sidebar-active-bg: #4C1D95;
+    /* Sidebar Tokens (Deep Oceanic Telecom Navy) */
+    --sidebar-bg: #0A1628;
+    --sidebar-text: #E2E8F0;
+    --sidebar-text-muted: #94A3B8;
+    --sidebar-border: rgba(59, 130, 246, 0.15);
+    --sidebar-active-bg: linear-gradient(135deg, #1D4ED8, #0284C7);
     --sidebar-active-text: #FFFFFF;
     
     --topbar-bg: rgba(255, 255, 255, 0.85);
@@ -53,7 +53,7 @@
     --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
     --shadow-md: 0 8px 24px -4px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
     --shadow-lg: 0 16px 36px -6px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
-    --shadow-card-hover: 0 12px 30px -4px rgba(124, 58, 237, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+    --shadow-card-hover: 0 12px 30px -4px rgba(29, 78, 216, 0.14), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
 
     /* Tables */
     --table-th-bg: #F8FAFC;
@@ -97,14 +97,14 @@
    -------------------------------------------------------------------------- */
 html[data-theme="dark"],
 body[data-theme="dark"] {
-    --brand-primary: #8B5CF6;
-    --brand-primary-hover: #7C3AED;
-    --brand-primary-light: #C4B5FD;
-    --brand-primary-subtle: rgba(139, 92, 246, 0.18);
-    --brand-primary-glow: rgba(139, 92, 246, 0.35);
+    --brand-primary: #3B82F6;
+    --brand-primary-hover: #2563EB;
+    --brand-primary-light: #60A5FA;
+    --brand-primary-subtle: rgba(59, 130, 246, 0.16);
+    --brand-primary-glow: rgba(59, 130, 246, 0.35);
 
-    --accent-cyan: #22D3EE;
-    --accent-cyan-subtle: rgba(34, 211, 238, 0.15);
+    --accent-cyan: #38BDF8;
+    --accent-cyan-subtle: rgba(56, 189, 248, 0.15);
     --accent-emerald: #34D399;
     --accent-emerald-subtle: rgba(52, 211, 153, 0.15);
     --accent-amber: #FBBF24;
@@ -113,37 +113,37 @@ body[data-theme="dark"] {
     --accent-rose-subtle: rgba(248, 113, 113, 0.15);
 
     /* Deep Cyber Obsidian Surfaces */
-    --bg-app: #0B0F19;
-    --bg-surface: #111827;
-    --bg-surface-soft: #1E293B;
-    --bg-surface-elevated: #1F293D;
-    --bg-input: #151D30;
+    --bg-app: #070D18;
+    --bg-surface: #0E1726;
+    --bg-surface-soft: #162236;
+    --bg-surface-elevated: #1B2942;
+    --bg-input: #101B2E;
 
     --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-focus: #8B5CF6;
+    --border-focus: #3B82F6;
 
     --text-main: #F8FAFC;
     --text-muted: #94A3B8;
     --text-subtle: #64748B;
 
-    --sidebar-bg: #10061E;
-    --sidebar-text: #E9D5FF;
-    --sidebar-text-muted: #C084FC;
-    --sidebar-border: rgba(168, 85, 247, 0.18);
-    --sidebar-active-bg: #4C1D95;
+    --sidebar-bg: #070E1A;
+    --sidebar-text: #E2E8F0;
+    --sidebar-text-muted: #60A5FA;
+    --sidebar-border: rgba(59, 130, 246, 0.2);
+    --sidebar-active-bg: linear-gradient(135deg, #2563EB, #0284C7);
     --sidebar-active-text: #FFFFFF;
 
-    --topbar-bg: rgba(17, 24, 39, 0.85);
+    --topbar-bg: rgba(14, 23, 38, 0.85);
     --topbar-border: rgba(255, 255, 255, 0.08);
 
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 8px 26px rgba(0, 0, 0, 0.45);
     --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
-    --shadow-card-hover: 0 12px 30px rgba(139, 92, 246, 0.2), 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-card-hover: 0 12px 30px rgba(59, 130, 246, 0.22), 0 4px 12px rgba(0, 0, 0, 0.4);
 
-    --table-th-bg: #151D30;
-    --table-hover-bg: #1E293B;
+    --table-th-bg: #101B2E;
+    --table-hover-bg: #162236;
 
     --jk-bg-main: var(--bg-app);
     --jk-white: var(--bg-surface);
@@ -158,8 +158,8 @@ body[data-theme="dark"] {
     --text: var(--text-main);
     --muted: var(--text-muted);
 
-    --telecom-light: rgba(34, 211, 238, 0.1);
-    --telecom-soft: rgba(34, 211, 238, 0.2);
+    --telecom-light: rgba(56, 189, 248, 0.1);
+    --telecom-soft: rgba(56, 189, 248, 0.2);
     --telecom-card-bg: var(--bg-surface);
     --telecom-border: var(--border-subtle);
 }
@@ -305,15 +305,15 @@ body:not(.login-layout) .app-main {
 .brand-icon-box {
     width: 40px;
     height: 40px;
-    background: linear-gradient(135deg, #4C1D95, #3B0764);
-    border: 1px solid rgba(192, 132, 252, 0.35);
+    background: linear-gradient(135deg, #1D4ED8, #0284C7);
+    border: 1px solid rgba(56, 189, 248, 0.35);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.3rem;
     color: #FFFFFF;
-    box-shadow: 0 4px 14px rgba(59, 7, 100, 0.55);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
     flex-shrink: 0;
 }
 
@@ -331,7 +331,7 @@ body:not(.login-layout) .app-main {
 }
 .brand-badge {
     font-size: 0.68rem;
-    color: #C4B5FD;
+    color: #60A5FA;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -341,13 +341,13 @@ body:not(.login-layout) .app-main {
 
 /* Section dividers */
 .sidebar-menu-title {
-    color: #C084FC;
+    color: #38BDF8;
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     padding: 0.85rem 0.75rem 0.4rem;
-    opacity: 0.85;
+    opacity: 0.9;
 }
 
 /* Navigation Links */
@@ -373,27 +373,27 @@ body:not(.login-layout) .app-main {
 
 .sidebar-nav .nav-link i {
     font-size: 1.15rem;
-    color: #C084FC;
+    color: #38BDF8;
     transition: color 0.2s ease, transform 0.2s ease;
     width: 22px;
     text-align: center;
 }
 
 .sidebar-nav .nav-link:hover {
-    background-color: rgba(168, 85, 247, 0.16);
+    background-color: rgba(59, 130, 246, 0.16);
     color: #FFFFFF;
     transform: translateX(3px);
 }
 .sidebar-nav .nav-link:hover i {
-    color: #F3E8FF;
+    color: #93C5FD;
 }
 
-/* Active option: Ungu Tua (Dark Purple) with crisp lavender border & subtle inner sheen */
+/* Active option: Electric Telecom Blue with cyan accent glow */
 .sidebar-nav .nav-link.active {
-    background: linear-gradient(135deg, #4C1D95, #3B0764) !important;
-    border: 1px solid rgba(192, 132, 252, 0.38);
+    background: linear-gradient(135deg, #1D4ED8, #0284C7) !important;
+    border: 1px solid rgba(56, 189, 248, 0.4);
     color: #FFFFFF !important;
-    box-shadow: 0 4px 18px rgba(59, 7, 100, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+    box-shadow: 0 4px 18px rgba(2, 132, 199, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
 .sidebar-nav .nav-link.active i {
     color: #FFFFFF !important;
@@ -415,15 +415,15 @@ body:not(.login-layout) .app-main {
     gap: 0.75rem;
     padding: 0.65rem 0.75rem;
     border-radius: 12px;
-    background: rgba(59, 7, 100, 0.35);
-    border: 1px solid rgba(192, 132, 252, 0.2);
+    background: rgba(14, 28, 50, 0.7);
+    border: 1px solid rgba(56, 189, 248, 0.25);
 }
 .sidebar-user-avatar {
     width: 38px;
     height: 38px;
     border-radius: 10px;
-    background: linear-gradient(135deg, #4C1D95, #3B0764);
-    border: 1px solid rgba(192, 132, 252, 0.35);
+    background: linear-gradient(135deg, #1D4ED8, #0284C7);
+    border: 1px solid rgba(56, 189, 248, 0.35);
     color: #FFFFFF;
     display: flex;
     align-items: center;
@@ -447,8 +447,8 @@ body:not(.login-layout) .app-main {
 }
 .sidebar-user-role {
     font-size: 0.72rem;
-    color: #C084FC;
-    opacity: 0.85;
+    color: #38BDF8;
+    opacity: 0.9;
 }
 
 .sidebar-footer .logout-btn {
@@ -599,7 +599,7 @@ body:not(.login-layout) .app-main {
 .user-avatar {
     width: 44px;
     height: 44px;
-    background: linear-gradient(135deg, var(--brand-primary), #6366F1);
+    background: linear-gradient(135deg, var(--brand-primary), #0284C7);
     color: #FFFFFF;
     border-radius: 12px;
     display: flex;
@@ -627,7 +627,7 @@ body:not(.login-layout) .app-main {
 .telecom-card:hover,
 .modern-card:hover {
     box-shadow: var(--shadow-card-hover) !important;
-    border-color: rgba(124, 58, 237, 0.25) !important;
+    border-color: rgba(29, 78, 216, 0.25) !important;
 }
 
 .card-header,
@@ -845,7 +845,7 @@ body:not(.login-layout) .app-main {
 .btn-telecom-primary:hover {
     filter: brightness(1.08);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+    box-shadow: 0 6px 16px rgba(29, 78, 216, 0.35);
 }
 
 .btn-outline-primary {
@@ -1155,13 +1155,13 @@ body.login-layout .app-topbar {
     display: flex;
     width: 100%;
     min-height: 560px;
-    background: rgba(15, 23, 42, 0.80);
+    background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(124, 58, 237, 0.2);
+    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(29, 78, 216, 0.25);
 }
 
 .glass-login-left {
@@ -1181,7 +1181,7 @@ body.login-layout .app-topbar {
     left: 0;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at 0% 100%, rgba(124, 58, 237, 0.25) 0%, transparent 65%);
+    background: radial-gradient(circle at 0% 100%, rgba(29, 78, 216, 0.3) 0%, transparent 65%);
     pointer-events: none;
 }
 
@@ -1190,7 +1190,7 @@ body.login-layout .app-topbar {
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 2.5px;
-    color: #C4B5FD;
+    color: #60A5FA;
     margin-bottom: 1.5rem;
     display: flex;
     align-items: center;
@@ -1258,27 +1258,27 @@ body.login-layout .app-topbar {
 }
 .glass-input:focus {
     background: rgba(255, 255, 255, 0.12) !important;
-    border-color: #A78BFA !important;
-    box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.25) !important;
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25) !important;
 }
 .glass-input::placeholder {
     color: rgba(255, 255, 255, 0.4) !important;
 }
 
 .glass-btn {
-    background: linear-gradient(135deg, #7C3AED, #6366F1) !important;
+    background: linear-gradient(135deg, #1D4ED8, #0284C7) !important;
     border: none !important;
     border-radius: 12px !important;
     padding: 0.85rem !important;
     font-size: 1rem;
     font-weight: 700;
     letter-spacing: 0.05em;
-    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4) !important;
+    box-shadow: 0 8px 24px rgba(29, 78, 216, 0.4) !important;
 }
 .glass-btn:hover {
     filter: brightness(1.1);
     transform: translateY(-2px);
-    box-shadow: 0 12px 28px rgba(124, 58, 237, 0.55) !important;
+    box-shadow: 0 12px 28px rgba(29, 78, 216, 0.55) !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -1379,8 +1379,8 @@ body.login-layout .app-topbar {
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #4C1D95, #3B0764);
-    border: 1px solid rgba(192, 132, 252, 0.35);
+    background: linear-gradient(135deg, #1D4ED8, #0284C7);
+    border: 1px solid rgba(56, 189, 248, 0.35);
     color: #FFFFFF;
     display: flex;
     align-items: center;
@@ -1403,10 +1403,10 @@ body.login-layout .app-topbar {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #C084FC;
+    color: #38BDF8;
     margin-bottom: 0.5rem;
     padding-left: 0.5rem;
-    opacity: 0.85;
+    opacity: 0.9;
 }
 
 .mobile-drawer-nav {
@@ -1427,24 +1427,24 @@ body.login-layout .app-topbar {
     transition: all 0.2s ease;
 }
 .drawer-nav-item:hover {
-    background: rgba(168, 85, 247, 0.16);
+    background: rgba(59, 130, 246, 0.16);
     color: #FFFFFF;
 }
 .drawer-nav-item.active {
-    background: linear-gradient(135deg, #4C1D95, #3B0764) !important;
-    border: 1px solid rgba(192, 132, 252, 0.38);
+    background: linear-gradient(135deg, #1D4ED8, #0284C7) !important;
+    border: 1px solid rgba(56, 189, 248, 0.4);
     color: #FFFFFF;
-    box-shadow: 0 4px 14px rgba(59, 7, 100, 0.6);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5);
 }
 .drawer-nav-icon {
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: rgba(168, 85, 247, 0.18);
+    background: rgba(59, 130, 246, 0.18);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #C084FC;
+    color: #38BDF8;
 }
 .drawer-nav-item.active .drawer-nav-icon {
     background: rgba(255, 255, 255, 0.2);
@@ -1453,14 +1453,14 @@ body.login-layout .app-topbar {
 .drawer-chevron {
     margin-left: auto;
     font-size: 0.8rem;
-    color: #C084FC;
+    color: #38BDF8;
     opacity: 0.7;
 }
 
 .mobile-drawer-footer {
     padding: 1rem 1.25rem;
     border-top: 1px solid var(--sidebar-border);
-    background: rgba(20, 9, 38, 0.6);
+    background: rgba(10, 22, 40, 0.8);
 }
 .mobile-drawer-logout {
     display: flex;
@@ -1687,4 +1687,116 @@ body[data-theme="dark"] .inner-box-light {
     background-color: var(--bg-surface-soft) !important;
     border-color: var(--border-subtle) !important;
     color: var(--text-main) !important;
+}
+
+/* --------------------------------------------------------------------------
+   18. EMPTY STATE COMPONENT (.app-empty-state)
+   -------------------------------------------------------------------------- */
+.app-empty-state {
+    padding: 3.5rem 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    border-radius: 16px;
+    border: 1px dashed var(--border-subtle);
+    margin: 1rem 0;
+}
+.empty-state-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--brand-primary-subtle);
+    color: var(--brand-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.85rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 4px 16px var(--brand-primary-glow);
+}
+.empty-state-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+.empty-state-desc {
+    color: var(--text-muted);
+    font-size: 0.885rem;
+    max-width: 440px;
+    line-height: 1.55;
+    margin-bottom: 1.25rem;
+}
+.empty-state-action {
+    display: inline-flex;
+    gap: 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   19. BUTTON LOADING STATES & SPINNERS
+   -------------------------------------------------------------------------- */
+.btn-loading,
+.btn.is-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.82;
+    cursor: not-allowed !important;
+}
+.btn-loading .spinner-border,
+.btn.is-loading .spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+    vertical-align: -0.125em;
+}
+
+/* --------------------------------------------------------------------------
+   20. INTERACTIVE TOAST NOTIFICATION SYSTEM
+   -------------------------------------------------------------------------- */
+.app-toast {
+    background: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--shadow-lg) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+.app-toast .btn-close {
+    opacity: 0.6;
+}
+.app-toast .btn-close:hover {
+    opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   21. PRINT OPTIMIZATION
+   -------------------------------------------------------------------------- */
+@media print {
+    .modern-sidebar,
+    .modern-topbar,
+    .mobile-topbar,
+    .mobile-bottom-bar,
+    .app-footer,
+    .btn,
+    .app-flash-stack,
+    #appToastContainer {
+        display: none !important;
+    }
+    body.app-body {
+        background: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    .app-main {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .card, .table-responsive {
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: none !important;
+    }
 }

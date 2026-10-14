@@ -179,7 +179,7 @@ class Technician(db.Model):
         'AccessLog',
         back_populates='technician',
         foreign_keys='AccessLog.technician_id',
-        lazy='dynamic'
+        lazy='select'
     )
 
     # -----------------------------------------------------
@@ -330,7 +330,7 @@ class BtsSite(db.Model):
         'AccessLog',
         back_populates='site',
         foreign_keys='AccessLog.site_id',
-        lazy='dynamic'
+        lazy='select'
     )
 
     # -----------------------------------------------------

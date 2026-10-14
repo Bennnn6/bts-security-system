@@ -292,7 +292,7 @@
         const otp = String(log.otp_result || "").toUpperCase();
         const reason = String(log.reason_code || "").toUpperCase();
 
-        const badgeDual = `<span class="badge text-white rounded-pill px-2" style="background-color: #6D28D9;"><i class="bi bi-person-bounding-box me-1"></i>Wajah + <i class="bi bi-123 me-1"></i>OTP</span>`;
+        const badgeDual = `<span class="badge text-white rounded-pill px-2" style="background-color: var(--brand-primary);"><i class="bi bi-person-bounding-box me-1"></i>Wajah + <i class="bi bi-123 me-1"></i>OTP</span>`;
         const badgeFace = `<span class="badge bg-info text-dark rounded-pill px-2"><i class="bi bi-person-bounding-box me-1"></i>Wajah</span>`;
         const badgeOtp  = `<span class="badge bg-warning text-dark rounded-pill px-2"><i class="bi bi-123 me-1"></i>Kode OTP</span>`;
         const badgeDoor = `<span class="badge bg-secondary rounded-pill px-2"><i class="bi bi-door-open-fill me-1"></i>Sensor Pintu</span>`;
