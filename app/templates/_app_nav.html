@@ -104,10 +104,12 @@
                 <div class="sidebar-user-role">{{ 'Admin NOC' if is_admin else 'Field Technician' }}</div>
             </div>
         </div>
-        <a href="{{ url_for('logout') }}" class="logout-btn" onclick="return confirm('Yakin ingin logout?')">
-            <i class="bi bi-box-arrow-right"></i>
-            <span>Keluar Akun</span>
-        </a>
+        <form method="POST" action="{{ url_for('logout') }}">
+            <button type="submit" class="logout-btn border-0 bg-transparent w-100" onclick="return confirm('Yakin ingin logout?')">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Keluar Akun</span>
+            </button>
+        </form>
     </div>
 </aside>
 
@@ -285,10 +287,12 @@
     </div>
 
     <div class="offcanvas-footer mobile-drawer-footer">
-        <a href="{{ url_for('logout') }}" class="mobile-drawer-logout" onclick="return confirm('Yakin ingin logout?')">
-            <i class="bi bi-box-arrow-right"></i>
-            <span>Keluar Akun</span>
-        </a>
+        <form method="POST" action="{{ url_for('logout') }}">
+            <button type="submit" class="mobile-drawer-logout border-0 bg-transparent w-100" onclick="return confirm('Yakin ingin logout?')">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Keluar Akun</span>
+            </button>
+        </form>
     </div>
 </div>
 

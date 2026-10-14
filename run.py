@@ -92,6 +92,10 @@ def check_face_recognition_env():
 if __name__ == '__main__':
     check_face_recognition_env()
     use_https = '--https' in sys.argv
+    debug_enabled = (
+        app.config.get('APP_ENV') != 'production'
+        and os.environ.get('FLASK_DEBUG', 'False').strip().lower() in ('true', '1', 'yes')
+    )
     
     if use_https:
         cert_file = 'cert.pem'
@@ -111,14 +115,14 @@ if __name__ == '__main__':
         print('Note: Browser will show security warning for self-signed certificate.')
         print('Click "Advanced" -> "Proceed to localhost" to access.')
         app.run(
-            debug=True,
+            debug=debug_enabled,
             host='0.0.0.0',
             port=5000,
             ssl_context=(cert_file, key_file)
         )
     else:
         app.run(
-            debug=True,
+            debug=debug_enabled,
             host='0.0.0.0',
             port=5000
         )

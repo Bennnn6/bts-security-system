@@ -15,6 +15,13 @@ import socket
 import threading
 import subprocess
 
+# Windows terminals may use legacy code pages that cannot encode status symbols.
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(errors="replace")
+    except (AttributeError, OSError):
+        pass
+
 # Pastikan direktori kerja di root project
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR)

@@ -21,6 +21,7 @@ from app.models import (
 )
 
 from app.auth_helpers import admin_required
+from app.api import csrf_protected
 
 from app.access_control import (
     force_open_gate,
@@ -50,7 +51,7 @@ features_bp = Blueprint(
 # CONFIGURATION
 # =========================================================
 
-GATE_OPEN_SECONDS = 30
+GATE_OPEN_SECONDS = 10
 
 
 # =========================================================
@@ -1059,6 +1060,7 @@ def risk_api(site_id):
     "/gate/open"
 )
 @admin_required
+@csrf_protected
 def gate_open():
 
     if _emergency["enabled"]:
@@ -1108,7 +1110,7 @@ def gate_open():
                 get_gate_status(),
 
             "auto_close_seconds":
-                GATE_OPEN_SECONDS,
+                app.config.get("GATE_OPEN_SECONDS", 10),
 
             "opened_at":
                 dt(
@@ -1126,6 +1128,7 @@ def gate_open():
     "/gate/close"
 )
 @admin_required
+@csrf_protected
 def gate_close():
 
     success = force_close_gate(
@@ -1180,6 +1183,7 @@ def gate_close():
     methods=["GET", "POST"],
 )
 @admin_required
+@csrf_protected
 def emergency():
 
     if request.method == "POST":
@@ -2230,6 +2234,7 @@ def get_telegram_status():
 
 @features_bp.post("/telegram/config")
 @admin_required
+@csrf_protected
 def update_telegram_config():
     payload = request.get_json(silent=True) or {}
     token = payload.get("bot_token", "").strip()
@@ -2261,6 +2266,7 @@ def update_telegram_config():
 
 @features_bp.post("/telegram/test")
 @admin_required
+@csrf_protected
 def test_telegram_alert():
     payload = request.get_json(silent=True) or {}
     token = payload.get("bot_token", "").strip() or app.config.get("TELEGRAM_BOT_TOKEN", "").strip()

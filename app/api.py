@@ -84,11 +84,36 @@ VALID_ACCESS_RESULTS = (
     "PENDING",
 )
 
-OTP_MAX_FAILURES = 3
-OTP_LOCKOUT_MINUTES = 5
-
-GATE_OPEN_SECONDS = 30
 GATE_COOLDOWN_SECONDS = 3
+
+def get_gate_open_seconds():
+    try:
+        return int(current_app.config.get("GATE_OPEN_SECONDS", 10))
+    except Exception:
+        return 10
+
+def get_otp_max_failures():
+    try:
+        return int(current_app.config.get("OTP_MAX_FAILURES", 3))
+    except Exception:
+        return 3
+
+def get_otp_lockout_minutes():
+    try:
+        return int(current_app.config.get("OTP_LOCKOUT_MINUTES", 5))
+    except Exception:
+        return 5
+
+
+def get_operational_date():
+    """Tanggal operasional BTS dalam zona waktu Indonesia Barat."""
+    return (datetime.utcnow() + timedelta(hours=7)).date()
+
+def is_strict_2fa_enabled():
+    try:
+        return bool(current_app.config.get("STRICT_2FA_MODE", False))
+    except Exception:
+        return False
 
 MAX_EVIDENCE_LENGTH = 2_000_000
 MAX_JSON_LENGTH = 3_000_000
@@ -135,6 +160,13 @@ def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     except (TypeError, ValueError):
         return None
 
+    if not all(math.isfinite(value) for value in (lat1, lon1, lat2, lon2)):
+        return None
+    if not (-90 <= lat1 <= 90 and -90 <= lat2 <= 90):
+        return None
+    if not (-180 <= lon1 <= 180 and -180 <= lon2 <= 180):
+        return None
+
     # Radius bumi dalam meter
     R = 6371000.0
 
@@ -150,6 +182,31 @@ def calculate_haversine_distance(lat1, lon1, lat2, lon2):
     c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
 
     return R * c
+
+
+def validate_geofence(site, latitude, longitude):
+    """Return (distance_meters, reason_code) for configured geofence policy."""
+    if not current_app.config.get("GEOFENCE_ENABLED", True):
+        return None, None
+
+    has_lat = latitude is not None and str(latitude).strip() != ""
+    has_lon = longitude is not None and str(longitude).strip() != ""
+    if not (has_lat and has_lon):
+        if current_app.config.get("GEOFENCE_REQUIRE_COORDINATES", True):
+            return None, "GEOFENCE_COORDINATES_REQUIRED"
+        return None, None
+
+    distance = calculate_haversine_distance(
+        latitude, longitude, site.latitude, site.longitude
+    )
+    if distance is None:
+        return None, "GEOFENCE_COORDINATES_INVALID"
+
+    try:
+        radius = float(current_app.config.get("GEOFENCE_RADIUS_METERS", 150))
+    except (TypeError, ValueError):
+        radius = 150.0
+    return distance, "OUT_OF_GEOFENCE" if distance > radius else None
 
 
 # =========================================================
@@ -344,6 +401,9 @@ def csrf_protected(function):
     @wraps(function)
     def wrapper(*args, **kwargs):
 
+        if request.method in {"GET", "HEAD", "OPTIONS"}:
+            return function(*args, **kwargs)
+
         expected = session.get("csrf_token")
 
         if not expected:
@@ -353,6 +413,7 @@ def csrf_protected(function):
         received = (
             request.headers.get("X-CSRFToken")
             or request.headers.get("X-CSRF-Token")
+            or request.form.get("csrf_token")
             or ""
         ).strip()
 
@@ -460,6 +521,34 @@ def api_login_required(function):
                 401,
                 reason_code="AUTH_REQUIRED",
             )
+
+        has_regular_session = bool(
+            (current_user and current_user.is_authenticated)
+            or session.get("auth_role") in ("ADMIN", "TECHNICIAN")
+            or get_logged_worker_id()
+        )
+        if (session.get("is_kiosk") or session.get("kiosk_site_id")) and not has_regular_session:
+            allowed_kiosk_endpoints = {
+                "api.verify_face",
+                "api.verify_otp",
+                "api.verify_qr",
+            }
+            if request.endpoint not in allowed_kiosk_endpoints:
+                return api_error(
+                    "Kiosk hanya diizinkan menjalankan alur verifikasi akses.",
+                    403,
+                    reason_code="KIOSK_SCOPE_DENIED",
+                )
+
+            payload = request.get_json(silent=True) or {}
+            requested_site = str(payload.get("site_id") or "").strip()
+            kiosk_site = str(session.get("kiosk_site_id") or "").strip()
+            if not kiosk_site or not secrets.compare_digest(requested_site, kiosk_site):
+                return api_error(
+                    "Site pada request tidak sesuai dengan kiosk ini.",
+                    403,
+                    reason_code="KIOSK_SITE_MISMATCH",
+                )
 
         return function(*args, **kwargs)
 
@@ -691,14 +780,15 @@ def validate_evidence(image_data):
 
 def save_evidence_image_file(image_data, prefix="evidence"):
     """
-    Menyimpan snapshot gambar Base64 ke disk (app/static/uploads/evidence/)
-    dan mengembalikan path URL statis agar database tidak mengalami bloat.
+    Menyimpan snapshot ke penyimpanan privat di instance/uploads/evidence.
     """
     if not image_data or not isinstance(image_data, str):
         return None
 
-    if image_data.startswith("/static/") or image_data.startswith("http"):
+    if image_data.startswith("/static/"):
         return image_data
+    if image_data.startswith("http"):
+        return None
 
     # Ekstrak string Base64 murni
     if ";base64," in image_data:
@@ -714,16 +804,16 @@ def save_evidence_image_file(image_data, prefix="evidence"):
 
     try:
         raw_bytes = base64.b64decode(encoded)
-        upload_dir = os.path.join(current_app.root_path, "static", "uploads", "evidence")
+        upload_dir = os.path.join(current_app.instance_path, "uploads", "evidence")
         os.makedirs(upload_dir, exist_ok=True)
         filename = f"{prefix}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.jpg"
         filepath = os.path.join(upload_dir, filename)
         with open(filepath, "wb") as f:
             f.write(raw_bytes)
-        return f"/static/uploads/evidence/{filename}"
+        return f"private:evidence:{filename}"
     except Exception as exc:
         print("[EVIDENCE SAVE ERROR]", exc)
-        return image_data
+        return None
 
 
 # =========================================================
@@ -976,7 +1066,7 @@ def get_recent_otp_failures(
     cutoff = (
         datetime.utcnow()
         - timedelta(
-            minutes=OTP_LOCKOUT_MINUTES
+            minutes=get_otp_lockout_minutes()
         )
     )
 
@@ -1003,7 +1093,7 @@ def otp_locked(
         technician_id
     )
 
-    return failures >= OTP_MAX_FAILURES
+    return failures >= get_otp_max_failures()
 
 
 # =========================================================
@@ -1126,7 +1216,8 @@ def save_access_log(
     '/simulate/denied',
     methods=['POST'],
 )
-@api_login_required
+@api_admin_required
+@csrf_protected
 def simulate_denied():
     from app.models import BtsSite, Technician
 
@@ -1161,7 +1252,7 @@ def simulate_denied():
     "/technicians/sync",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def technicians_sync():
 
     technicians = (
@@ -1286,36 +1377,51 @@ def verify_face():
     # GPS GEOFENCING VALIDATION
     # =====================================================
 
-    geofence_enabled = current_app.config.get("GEOFENCE_ENABLED", True)
-    geofence_radius = current_app.config.get("GEOFENCE_RADIUS_METERS", 150)
     user_lat = data.get("latitude")
     user_lon = data.get("longitude")
-    geofence_distance = None
-
-    if geofence_enabled and user_lat is not None and user_lon is not None and str(user_lat).strip() != "" and str(user_lon).strip() != "":
-        geofence_distance = calculate_haversine_distance(user_lat, user_lon, site.latitude, site.longitude)
-        if geofence_distance is not None and geofence_distance > geofence_radius:
-            dist_str = f"{geofence_distance:.0f} meter" if geofence_distance < 1000 else f"{(geofence_distance / 1000.0):.2f} km"
-            reason_code = "OUT_OF_GEOFENCE"
-            desc_text = (
+    geofence_distance, geofence_reason = validate_geofence(site, user_lat, user_lon)
+    if geofence_reason:
+        geofence_radius = current_app.config.get("GEOFENCE_RADIUS_METERS", 150)
+        dist_str = (
+            f"{geofence_distance:.0f} meter"
+            if geofence_distance is not None and geofence_distance < 1000
+            else (
+                f"{geofence_distance / 1000.0:.2f} km"
+                if geofence_distance is not None else None
+            )
+        )
+        if geofence_reason == "OUT_OF_GEOFENCE":
+            message = (
                 f"Akses ditolak di luar radius BTS: {dist_str} dari tower "
                 f"(izin radius: {geofence_radius}m). Koordinat: {user_lat}, {user_lon}"
             )
-            save_access_log(
-                site_id=site.site_id,
-                access_type=access_type,
-                face_result="FAILED",
-                access_result="DENIED",
-                reason_code=reason_code,
-                incident_level="HIGH",
-                description=desc_text,
-                evidence_image=image if image else None,
+            user_message = (
+                f"Akses ditolak: Anda berada di luar area BTS ({dist_str}, "
+                f"batas izin {geofence_radius}m)."
             )
-            create_activity_log(
-                action="GEOFENCE_VIOLATION",
-                description=f"Pelanggaran Geofence pada site {site.site_id}: {desc_text}",
-                incident_level="HIGH",
-            )
+        elif geofence_reason == "GEOFENCE_COORDINATES_REQUIRED":
+            message = "Akses ditolak karena koordinat GPS wajib dikirim untuk verifikasi geofence."
+            user_message = "Lokasi GPS wajib diizinkan untuk memverifikasi akses di site ini."
+        else:
+            message = "Akses ditolak karena koordinat GPS tidak valid atau koordinat site belum tersedia."
+            user_message = "Koordinat GPS atau koordinat site tidak valid. Hubungi administrator."
+
+        save_access_log(
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="FAILED",
+            access_result="DENIED",
+            reason_code=geofence_reason,
+            incident_level="HIGH",
+            description=message,
+            evidence_image=image if image else None,
+        )
+        create_activity_log(
+            action="GEOFENCE_VIOLATION",
+            description=f"Pelanggaran Geofence pada site {site.site_id}: {message}",
+            incident_level="HIGH",
+        )
+        if geofence_reason == "OUT_OF_GEOFENCE":
             try:
                 from app.notifications import send_telegram_alert
                 send_telegram_alert(
@@ -1332,14 +1438,13 @@ def verify_face():
                 )
             except Exception:
                 pass
-
-            return api_error(
-                f"Akses ditolak: Anda terdeteksi berada di luar area BTS ({dist_str} dari tower, batas izin {geofence_radius}m).",
-                403,
-                reason_code=reason_code,
-                distance_meters=round(geofence_distance, 1),
-                max_radius=geofence_radius,
-            )
+        return api_error(
+            user_message,
+            403,
+            reason_code=geofence_reason,
+            distance_meters=round(geofence_distance, 1) if geofence_distance is not None else None,
+            max_radius=geofence_radius,
+        )
 
     # =====================================================
     # VALIDASI EVIDENCE
@@ -1711,21 +1816,21 @@ def verify_face():
         )
 
     # =====================================================
-    # WORK ORDER CHECK (TELCO GRADE)
+    # WORK ORDER CHECK (tanggal operasional WIB)
     # =====================================================
 
     try:
         if current_app.config.get("ENABLE_WORK_ORDER_CHECK", False) and access_type != "KELUAR":
             from app.models import WorkOrder
             from sqlalchemy import or_
-            today = datetime.utcnow().date()
+            today_wib = get_operational_date()
             active_wo = WorkOrder.query.filter(
                 WorkOrder.technician_id == best_technician.technician_id,
                 WorkOrder.site_id == site.site_id,
                 WorkOrder.status.in_(["APPROVED", "IN_PROGRESS"])
             ).filter(
                 or_(
-                    WorkOrder.scheduled_date == today,
+                    WorkOrder.scheduled_date == today_wib,
                     WorkOrder.status == "IN_PROGRESS"
                 )
             ).first()
@@ -1759,6 +1864,41 @@ def verify_face():
                 db.session.commit()
     except Exception as wo_err:
         print("[WORK ORDER CHECK ERROR]", wo_err)
+
+    # =====================================================
+    # STRICT 2FA MODE CHECK (BIOMETRIC + OTP REQUIRED)
+    # =====================================================
+
+    if is_strict_2fa_enabled():
+        access_log = save_access_log(
+            technician_id=best_technician.technician_id,
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="MATCHED",
+            face_distance=best_distance,
+            otp_result="PENDING",
+            access_result="PENDING",
+            reason_code="AWAITING_OTP",
+            incident_level="NORMAL",
+            description=f"Wajah cocok ({best_technician.name}). Menunggu input kode OTP (Strict 2FA).",
+            evidence_image=image,
+        )
+        db.session.commit()
+        return api_success(
+            message="Verifikasi wajah berhasil! Silakan masukkan 6 digit kode OTP Anda (Strict 2FA).",
+            access_granted=False,
+            require_otp=True,
+            pending_log_id=access_log.id,
+            tech_id=best_technician.technician_id,
+            technician_name=best_technician.name,
+            face_result="MATCHED",
+            face_distance=best_distance,
+            site_id=site.site_id,
+            access_type=access_type,
+            is_live=True,
+            liveness_score=liveness_score,
+            liveness_details=liveness_details,
+        )
 
     # =====================================================
     # OPEN GATE VIA FACE RECOGNITION (PRIMARY METHOD)
@@ -1796,6 +1936,7 @@ def verify_face():
         )
 
     opened_at = get_gate_opened_at(site.site_id) or datetime.utcnow()
+    open_sec = get_gate_open_seconds()
 
     access_log = save_access_log(
         technician_id=best_technician.technician_id,
@@ -1842,8 +1983,8 @@ def verify_face():
         access_log_id=access_log.id,
         site_id=site.site_id,
         access_type=access_type,
-        gate_open_duration=GATE_OPEN_SECONDS,
-        gate_open_seconds=GATE_OPEN_SECONDS,
+        gate_open_duration=open_sec,
+        gate_open_seconds=open_sec,
         is_live=True,
         liveness_score=liveness_score,
         liveness_details=liveness_details,
@@ -1950,46 +2091,68 @@ def verify_otp():
             reason_code=reason_code,
         )
 
+    duress_pin = str(current_app.config.get("DURESS_PIN", "")).strip()
+    duress_enabled = len(duress_pin) == 6 and duress_pin.isdigit()
+    is_duress_attempt = duress_enabled and secrets.compare_digest(otp, duress_pin)
+
     # =====================================================
     # GPS GEOFENCING VALIDATION (OTP)
     # =====================================================
 
-    geofence_enabled = current_app.config.get("GEOFENCE_ENABLED", True)
-    geofence_radius = current_app.config.get("GEOFENCE_RADIUS_METERS", 150)
     user_lat = data.get("latitude")
     user_lon = data.get("longitude")
-
-    if geofence_enabled and user_lat is not None and user_lon is not None and str(user_lat).strip() != "" and str(user_lon).strip() != "":
-        geofence_distance = calculate_haversine_distance(user_lat, user_lon, site.latitude, site.longitude)
-        if geofence_distance is not None and geofence_distance > geofence_radius:
-            dist_str = f"{geofence_distance:.0f} meter" if geofence_distance < 1000 else f"{(geofence_distance / 1000.0):.2f} km"
-            reason_code = "OUT_OF_GEOFENCE"
+    geofence_distance, geofence_reason = (
+        (None, None)
+        if is_duress_attempt
+        else validate_geofence(site, user_lat, user_lon)
+    )
+    if geofence_reason:
+        geofence_radius = current_app.config.get("GEOFENCE_RADIUS_METERS", 150)
+        dist_str = (
+            f"{geofence_distance:.0f} meter"
+            if geofence_distance is not None and geofence_distance < 1000
+            else (
+                f"{geofence_distance / 1000.0:.2f} km"
+                if geofence_distance is not None else None
+            )
+        )
+        if geofence_reason == "OUT_OF_GEOFENCE":
             desc_text = (
                 f"Akses OTP ditolak di luar radius BTS: {dist_str} dari tower "
                 f"(izin radius: {geofence_radius}m). Koordinat: {user_lat}, {user_lon}"
             )
-            save_access_log(
-                technician_id=tech_id,
-                site_id=site.site_id,
-                access_type=access_type,
-                otp_result="FAILED",
-                access_result="DENIED",
-                reason_code=reason_code,
-                incident_level="HIGH",
-                description=desc_text,
+            user_message = (
+                f"Akses ditolak: Anda berada di luar area BTS ({dist_str}, "
+                f"batas izin {geofence_radius}m)."
             )
-            create_activity_log(
-                action="GEOFENCE_VIOLATION_OTP",
-                description=f"Pelanggaran Geofence OTP pada site {site.site_id}: {desc_text}",
-                incident_level="HIGH",
-            )
-            return api_error(
-                f"Akses ditolak: Anda terdeteksi berada di luar area BTS ({dist_str} dari tower, batas izin {geofence_radius}m).",
-                403,
-                reason_code=reason_code,
-                distance_meters=round(geofence_distance, 1),
-                max_radius=geofence_radius,
-            )
+        elif geofence_reason == "GEOFENCE_COORDINATES_REQUIRED":
+            desc_text = "Akses OTP ditolak karena koordinat GPS wajib dikirim untuk geofence."
+            user_message = "Lokasi GPS wajib diizinkan untuk memverifikasi akses di site ini."
+        else:
+            desc_text = "Akses OTP ditolak karena koordinat GPS atau koordinat site tidak valid."
+            user_message = "Koordinat GPS atau koordinat site tidak valid. Hubungi administrator."
+        save_access_log(
+            technician_id=tech_id,
+            site_id=site.site_id,
+            access_type=access_type,
+            otp_result="FAILED",
+            access_result="DENIED",
+            reason_code=geofence_reason,
+            incident_level="HIGH",
+            description=desc_text,
+        )
+        create_activity_log(
+            action="GEOFENCE_VIOLATION_OTP",
+            description=f"Pelanggaran Geofence OTP pada site {site.site_id}: {desc_text}",
+            incident_level="HIGH",
+        )
+        return api_error(
+            user_message,
+            403,
+            reason_code=geofence_reason,
+            distance_meters=round(geofence_distance, 1) if geofence_distance is not None else None,
+            max_radius=geofence_radius,
+        )
 
     technician = (
         Technician.query
@@ -2011,16 +2174,15 @@ def verify_otp():
     # =====================================================
     # SILENT DURESS PIN (EMERGENCY HOSTAGE / COERCION ALARM)
     # =====================================================
-    duress_pin = str(current_app.config.get("DURESS_PIN", "999999")).strip()
     evidence_image = data.get("image") or None
 
-    if duress_pin and otp == duress_pin:
+    if is_duress_attempt:
         device_id = get_request_device()
         try:
             gate_opened = open_gate(device_id=device_id, site_id=site.site_id)
         except Exception as exc:
             print("[DURESS GATE OPEN ERROR]", exc)
-            gate_opened = True
+            gate_opened = False
 
         opened_at = get_gate_opened_at(site.site_id) or datetime.utcnow()
 
@@ -2030,8 +2192,8 @@ def verify_otp():
             access_type=access_type,
             face_result="SKIPPED",
             otp_result="DURESS_TRIGGERED",
-            access_result="GRANTED",
-            reason_code="SILENT_DURESS_ALARM",
+            access_result="GRANTED" if gate_opened else "DENIED",
+            reason_code="SILENT_DURESS_ALARM" if gate_opened else "SILENT_DURESS_GATE_FAILURE",
             incident_level="CRITICAL",
             description=(
                 f"[PERINGATAN DARURAT] Silent Duress PIN digunakan pada Keypad Kiosk "
@@ -2066,7 +2228,7 @@ def verify_otp():
                     f"<b>Site:</b> {site.site_name} (<code>{site.site_id}</code>)\n"
                     f"<b>Teknisi:</b> {technician.name} (<code>{technician.technician_id}</code>)\n"
                     f"<b>Tipe Akses:</b> {access_type}\n"
-                    f"<b>Status Gerbang:</b> Terbuka (Tampilan normal pada kiosk)\n\n"
+                    f"<b>Status Gerbang:</b> {'Terbuka' if gate_opened else 'Gagal dibuka'}\n\n"
                     f"<b>INDIKASI BAHAYA:</b> Teknisi diduga disandera atau dipaksa membuka pintu oleh pihak tidak berwenang!\n"
                     f"Segera hubungi tim patroli keamanan atau pihak berwajib ke lokasi!"
                 ),
@@ -2078,6 +2240,15 @@ def verify_otp():
         except Exception as alert_err:
             print("[DURESS TELEGRAM ALERT ERROR]", alert_err)
 
+        if not gate_opened:
+            return api_error(
+                "Alarm duress tercatat, tetapi gerbang gagal dibuka.",
+                503,
+                reason_code="SILENT_DURESS_GATE_FAILURE",
+                is_duress=True,
+                gate_opened=False,
+            )
+
         return api_success(
             message="Kode OTP terverifikasi. Gerbang dibuka!",
             access_granted=True,
@@ -2086,8 +2257,8 @@ def verify_otp():
             technician_name=technician.name,
             site_id=site.site_id,
             access_type=access_type,
-            gate_open_duration=GATE_OPEN_SECONDS,
-            gate_open_seconds=GATE_OPEN_SECONDS,
+            gate_open_duration=get_gate_open_seconds(),
+            gate_open_seconds=get_gate_open_seconds(),
             is_duress=True,
         )
 
@@ -2120,7 +2291,7 @@ def verify_otp():
 
         return api_error(
             "OTP terkunci. Silakan coba lagi "
-            f"setelah {OTP_LOCKOUT_MINUTES} menit.",
+            f"setelah {get_otp_lockout_minutes()} menit.",
             429,
             reason_code="OTP_LOCKED",
         )
@@ -2129,36 +2300,33 @@ def verify_otp():
     # FIND PENDING LOG
     # =====================================================
 
-    pending_log = (
-        AccessLog.query
-        .filter(
-            AccessLog.id
-            == (
-                data.get("pending_log_id")
-                if data.get("pending_log_id")
-                else -1
-            ),
-
-            AccessLog.technician_id
-            == technician.technician_id,
-
-            AccessLog.site_id
-            == site.site_id,
-
-            AccessLog.access_type
-            == access_type,
-
-            AccessLog.access_result
-            == "PENDING",
+    strict_2fa = is_strict_2fa_enabled()
+    provided_pending_id = data.get("pending_log_id")
+    if strict_2fa and not provided_pending_id:
+        return api_error(
+            "Verifikasi wajah wajib diselesaikan sebelum OTP pada mode Strict 2FA.",
+            403,
+            reason_code="FACE_VERIFICATION_REQUIRED",
         )
-        .order_by(
-            AccessLog.timestamp.desc()
-        )
-        .first()
+
+    pending_query = AccessLog.query.filter(
+        AccessLog.technician_id == technician.technician_id,
+        AccessLog.site_id == site.site_id,
+        AccessLog.access_type == access_type,
+        AccessLog.access_result == "PENDING",
     )
+    if provided_pending_id:
+        try:
+            pending_id = int(provided_pending_id)
+        except (TypeError, ValueError):
+            pending_id = -1
+        pending_query = pending_query.filter(AccessLog.id == pending_id)
+    elif strict_2fa:
+        pending_query = pending_query.filter(AccessLog.id == -1)
+    pending_log = pending_query.order_by(AccessLog.timestamp.desc()).first()
 
-    # Fallback: cari pending terbaru
-    if not pending_log:
+    # Fallback OTP tetap tersedia hanya bila Strict 2FA tidak aktif.
+    if not pending_log and not strict_2fa:
 
         pending_log = (
             AccessLog.query
@@ -2181,9 +2349,23 @@ def verify_otp():
             .first()
         )
 
-    if not pending_log or (
-        datetime.utcnow() - pending_log.timestamp > timedelta(minutes=5)
+    is_pending_expired = bool(
+        pending_log
+        and pending_log.timestamp
+        and datetime.utcnow() - pending_log.timestamp > timedelta(minutes=5)
+    )
+    if strict_2fa and (
+        not pending_log
+        or is_pending_expired
+        or pending_log.face_result != "MATCHED"
     ):
+        return api_error(
+            "Sesi Face ID tidak ditemukan, sudah kedaluwarsa, atau belum cocok. Ulangi pemindaian wajah.",
+            403,
+            reason_code="FACE_VERIFICATION_REQUIRED",
+        )
+
+    if not pending_log or is_pending_expired:
         # Standalone / Fallback OTP Verification (teknisi memilih akses via OTP tanpa / setelah gagal scan wajah)
         pending_log = save_access_log(
             technician_id=technician.technician_id,
@@ -2248,15 +2430,15 @@ def verify_otp():
             ),
             incident_level=(
                 "HIGH"
-                if failures >= OTP_MAX_FAILURES
+                if failures >= get_otp_max_failures()
                 else "WARNING"
             ),
         )
 
-        if failures >= OTP_MAX_FAILURES:
+        if failures >= get_otp_max_failures():
 
             return api_error(
-                "OTP salah 3 kali. "
+                f"OTP salah {get_otp_max_failures()} kali. "
                 "Akses dikunci sementara.",
                 429,
                 reason_code="OTP_LOCKED",
@@ -2270,7 +2452,7 @@ def verify_otp():
             failures=failures,
             remaining_attempts=max(
                 0,
-                OTP_MAX_FAILURES - failures,
+                max(0, get_otp_max_failures() - failures),
             ),
         )
 
@@ -2348,14 +2530,14 @@ def verify_otp():
         if current_app.config.get("ENABLE_WORK_ORDER_CHECK", False) and access_type != "KELUAR":
             from app.models import WorkOrder
             from sqlalchemy import or_
-            today = datetime.utcnow().date()
+            today_wib = get_operational_date()
             active_wo = WorkOrder.query.filter(
                 WorkOrder.technician_id == technician.technician_id,
                 WorkOrder.site_id == site.site_id,
                 WorkOrder.status.in_(["APPROVED", "IN_PROGRESS"])
             ).filter(
                 or_(
-                    WorkOrder.scheduled_date == today,
+                    WorkOrder.scheduled_date == today_wib,
                     WorkOrder.status == "IN_PROGRESS"
                 )
             ).first()
@@ -2498,9 +2680,9 @@ def verify_otp():
         access_type=access_type,
         access_result="GRANTED",
         gate_status="OPEN",
-        gate_open_seconds=GATE_OPEN_SECONDS,
-        gate_auto_close_seconds=GATE_OPEN_SECONDS,
-        remaining_seconds=GATE_OPEN_SECONDS,
+        gate_open_seconds=get_gate_open_seconds(),
+        gate_auto_close_seconds=get_gate_open_seconds(),
+        remaining_seconds=get_gate_open_seconds(),
         log_id=pending_log.id,
     )
 
@@ -2661,7 +2843,7 @@ def gate_status():
 
         remaining = max(
             0,
-            GATE_OPEN_SECONDS - elapsed,
+            get_gate_open_seconds() - elapsed,
         )
 
     health = check_gate_health(site.site_id)
@@ -2905,7 +3087,7 @@ def manual_gate_close():
     "/technician-state/<string:tech_id>",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def technician_state(tech_id):
 
     technician = (
@@ -2955,7 +3137,7 @@ def technician_state(tech_id):
     "/security-status",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def security_status():
 
     site_id = (request.args.get("site_id") or "").strip()
@@ -3056,7 +3238,7 @@ def security_status():
     "/ai/face-accuracy",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def ai_face_accuracy():
     from app.ai_analytics import get_face_accuracy_distribution
     data = get_face_accuracy_distribution()
@@ -3071,7 +3253,7 @@ def ai_face_accuracy():
     "/ai/anomalies",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def ai_anomalies():
     from app.ai_analytics import detect_access_anomalies
     data = detect_access_anomalies()
@@ -3086,7 +3268,7 @@ def ai_anomalies():
     "/ai/threat-scores",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def ai_threat_scores():
     from app.ai_analytics import predict_threat_scores
     sites = BtsSite.query.all()
@@ -3102,7 +3284,7 @@ def ai_threat_scores():
     "/ai/hourly-pattern",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def ai_hourly_pattern():
     from app.ai_analytics import get_hourly_access_pattern
     data = get_hourly_access_pattern()
@@ -3117,7 +3299,7 @@ def ai_hourly_pattern():
     "/ai/denial-reasons",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def ai_denial_reasons():
     from app.ai_analytics import get_denial_reasons
     data = get_denial_reasons()
@@ -3132,7 +3314,7 @@ def ai_denial_reasons():
     "/ai/tech-risk",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def ai_technician_risk():
     from app.ai_analytics import get_technician_risk_profile
     data = get_technician_risk_profile()
@@ -3147,7 +3329,7 @@ def ai_technician_risk():
     "/ai/insights",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def ai_insights():
     from app.ai_analytics import generate_ai_insights
     data = generate_ai_insights()
@@ -3162,7 +3344,7 @@ def ai_insights():
     "/ai/heatmap",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def ai_heatmap():
     from app.ai_analytics import get_site_heatmap_data
     data = get_site_heatmap_data()
@@ -3177,7 +3359,7 @@ def ai_heatmap():
     "/features/summary",
     methods=["GET"],
 )
-@api_login_required
+@api_admin_required
 def features_summary():
     from app.models import BtsSite, Technician, AccessLog, WorkOrder
     site_count = BtsSite.query.count()
@@ -3200,6 +3382,7 @@ def features_summary():
     "/features/sites",
     methods=["GET"],
 )
+@api_admin_required
 def features_sites():
     from app.models import BtsSite
     try:
@@ -3233,6 +3416,7 @@ def features_sites():
     "/kiosk/heartbeat",
     methods=["POST"],
 )
+@csrf_protected
 def kiosk_heartbeat():
     """
     Heartbeat ping dari terminal fisik gerbang BTS.
@@ -3244,6 +3428,14 @@ def kiosk_heartbeat():
 
     if not site_id:
         return api_error("Site ID wajib dikirim.", 400, reason_code="SITE_REQUIRED")
+
+    kiosk_site_id = str(session.get("kiosk_site_id") or "").strip()
+    if (
+        not session.get("is_kiosk")
+        or not kiosk_site_id
+        or not secrets.compare_digest(site_id, kiosk_site_id)
+    ):
+        return api_error("Kiosk tidak berwenang untuk site ini.", 403, reason_code="KIOSK_SITE_MISMATCH")
 
     record_kiosk_heartbeat(site_id=site_id, device_id=device_id)
     kiosk_info = get_kiosk_status(site_id=site_id)
@@ -3267,6 +3459,15 @@ def kiosk_status_endpoint():
     if not site_id:
         return api_error("Parameter site_id wajib diisi.", 400, reason_code="SITE_REQUIRED")
 
+    if not (current_user and current_user.is_authenticated):
+        kiosk_site_id = str(session.get("kiosk_site_id") or "").strip()
+        if (
+            not session.get("is_kiosk")
+            or not kiosk_site_id
+            or not secrets.compare_digest(site_id, kiosk_site_id)
+        ):
+            return api_error("Authentication required.", 401, reason_code="AUTH_REQUIRED")
+
     kiosk_info = get_kiosk_status(site_id=site_id)
     return api_success(kiosk=kiosk_info)
 
@@ -3275,6 +3476,7 @@ def kiosk_status_endpoint():
     "/kiosk/verify-pin",
     methods=["POST"],
 )
+@csrf_protected
 def verify_kiosk_admin_pin():
     """
     Verifikasi otorisasi konfigurasi perangkat Kiosk di sisi server.
@@ -3283,24 +3485,22 @@ def verify_kiosk_admin_pin():
     data = request.get_json(silent=True) or {}
     pin = str(data.get("pin") or "").strip()
 
+    kiosk_site_id = str(session.get("kiosk_site_id") or "").strip()
+    if not session.get("is_kiosk") or not kiosk_site_id:
+        return api_error("Endpoint ini hanya tersedia pada sesi kiosk.", 401, reason_code="AUTH_REQUIRED")
+
     if not pin:
         return api_error("PIN / Password Admin wajib diisi.", 400, reason_code="PIN_REQUIRED")
 
     # 1. Cek terhadap konfigurasi KIOSK_ADMIN_PIN jika diset
-    configured_pin = current_app.config.get("KIOSK_ADMIN_PIN", "").strip()
-    if configured_pin and pin == configured_pin:
+    configured_pin = str(current_app.config.get("KIOSK_ADMIN_PIN", "")).strip()
+    if configured_pin and secrets.compare_digest(pin, configured_pin):
         return api_success(message="Otorisasi PIN Kiosk berhasil.")
 
     # 2. Cek terhadap password Admin di database
     admin = Admin.query.first()
     if admin and admin.check_password(pin):
         return api_success(message="Otorisasi Admin berhasil.")
-
-    # 3. Fallback jika belum diubah dan PIN khusus belum dikonfigurasi
-    if not configured_pin and pin in ("admin", "123456"):
-        # Hanya izinkan jika password admin default belum diganti atau tidak ada admin
-        if admin is None or admin.check_password("admin123") or admin.check_password("admin"):
-            return api_success(message="Otorisasi default berhasil.")
 
     return api_error("PIN atau Password Admin tidak valid.", 401, reason_code="INVALID_PIN")
 
@@ -3318,6 +3518,13 @@ def gate_sensor_event():
     Menerima event dari sensor magnetik pintu gerbang BTS
     (misal: DOOR_CLOSED, DOOR_OPENED, DOOR_FORCED, DOOR_AJAR).
     """
+    configured_token = str(current_app.config.get("GATE_SENSOR_TOKEN", "")).strip()
+    supplied_token = str(request.headers.get("X-Sensor-Token", "")).strip()
+    if len(configured_token) < 32:
+        return api_error("Sensor perangkat belum dikonfigurasi.", 503, reason_code="SENSOR_NOT_CONFIGURED")
+    if not supplied_token or not secrets.compare_digest(supplied_token, configured_token):
+        return api_error("Sensor tidak terautentikasi.", 401, reason_code="SENSOR_AUTH_REQUIRED")
+
     data = request.get_json(silent=True) or {}
     site_id = str(data.get("site_id") or "").strip()
     event = str(data.get("event") or "").strip().upper()
@@ -3326,6 +3533,9 @@ def gate_sensor_event():
 
     if not site_id:
         return api_error("Site ID wajib dikirim.", 400, reason_code="SITE_REQUIRED")
+
+    if not BtsSite.query.filter_by(site_id=site_id).first():
+        return api_error("Site BTS tidak ditemukan.", 404, reason_code="SITE_NOT_FOUND")
 
     valid_events = ("DOOR_CLOSED", "DOOR_OPENED", "DOOR_FORCED", "DOOR_AJAR")
     if event not in valid_events:
@@ -3414,6 +3624,9 @@ def gate_sensor_status():
     """
     Mengambil status sensor kontak pintu saat ini.
     """
+    if not (current_user and current_user.is_authenticated):
+        return api_error("Authentication required.", 401, reason_code="AUTH_REQUIRED")
+
     site_id = request.args.get("site_id", "").strip()
     if not site_id:
         return api_error("Parameter site_id wajib diisi.", 400, reason_code="SITE_REQUIRED")
@@ -3475,6 +3688,36 @@ def verify_qr():
         message, reason_code = error
         return api_error(message, 400, reason_code=reason_code)
 
+    if is_strict_2fa_enabled():
+        return api_error(
+            "Mode Strict 2FA mewajibkan verifikasi wajah. QR tiket tidak dapat membuka akses.",
+            403,
+            reason_code="STRICT_2FA_QR_DISABLED",
+        )
+
+    qr_distance, qr_geofence_reason = validate_geofence(
+        site, data.get("latitude"), data.get("longitude")
+    )
+    if qr_geofence_reason:
+        save_access_log(
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="SKIPPED",
+            otp_result="NOT_CHECKED",
+            access_result="DENIED",
+            reason_code=qr_geofence_reason,
+            incident_level="HIGH",
+            description="QR access denied by geofence policy.",
+            evidence_image=image,
+            device_id=device_id,
+        )
+        return api_error(
+            "Koordinat GPS wajib valid dan berada dalam radius site untuk akses melalui QR.",
+            403,
+            reason_code=qr_geofence_reason,
+            distance_meters=round(qr_distance, 1) if qr_distance is not None else None,
+        )
+
     parsed_tech_id = None
     parsed_ticket = None
 
@@ -3499,25 +3742,41 @@ def verify_qr():
     technician = None
     from app.models import WorkOrder
 
-    if parsed_ticket:
-        wo = WorkOrder.query.filter_by(ticket_number=parsed_ticket).first()
-        if wo:
-            technician = Technician.query.filter_by(technician_id=wo.technician_id, status="Active").first()
-            if wo.site_id != site.site_id:
-                return api_error(
-                    f"Tiket Kerja {parsed_ticket} terdaftar untuk site {wo.site_id}, bukan site ini ({site.site_id}).",
-                    403,
-                    reason_code="WO_SITE_MISMATCH",
-                )
-            if str(wo.status or "").strip().upper() not in ("APPROVED", "IN_PROGRESS", "ASSIGNED"):
-                return api_error(
-                    f"Tiket Kerja {parsed_ticket} berstatus {wo.status} (bukan APPROVED / IN_PROGRESS / ASSIGNED).",
-                    403,
-                    reason_code="WO_NOT_ACTIVE",
-                )
+    if not parsed_ticket:
+        return api_error(
+            "QR harus berisi nomor Work Order aktif; ID teknisi saja tidak cukup.",
+            403,
+            reason_code="WO_TICKET_REQUIRED",
+        )
 
-    if not technician and parsed_tech_id:
-        technician = Technician.query.filter_by(technician_id=parsed_tech_id, status="Active").first()
+    wo = WorkOrder.query.filter_by(ticket_number=parsed_ticket).first()
+    if not wo:
+        return api_error("Nomor Work Order pada QR tidak ditemukan.", 404, reason_code="WO_NOT_FOUND")
+    if wo.site_id != site.site_id:
+        return api_error(
+            f"Tiket Kerja {parsed_ticket} terdaftar untuk site {wo.site_id}, bukan site ini ({site.site_id}).",
+            403,
+            reason_code="WO_SITE_MISMATCH",
+        )
+    if str(wo.status or "").strip().upper() not in ("APPROVED", "IN_PROGRESS"):
+        return api_error(
+            f"Tiket Kerja {parsed_ticket} berstatus {wo.status} (bukan APPROVED / IN_PROGRESS).",
+            403,
+            reason_code="WO_NOT_ACTIVE",
+        )
+    if wo.status != "IN_PROGRESS" and wo.scheduled_date != get_operational_date():
+        return api_error(
+            "Work Order tidak dijadwalkan untuk tanggal operasional hari ini.",
+            403,
+            reason_code="WO_NOT_SCHEDULED_TODAY",
+        )
+    if parsed_tech_id and str(parsed_tech_id) != str(wo.technician_id):
+        return api_error("ID teknisi pada QR tidak sesuai dengan Work Order.", 403, reason_code="WO_TECHNICIAN_MISMATCH")
+
+    technician = Technician.query.filter_by(
+        technician_id=wo.technician_id,
+        status="Active",
+    ).first()
 
     if not technician:
         save_access_log(
@@ -3537,51 +3796,31 @@ def verify_qr():
     if gate_is_in_cooldown(site.site_id):
         return api_error("Gate masih dalam cooldown.", 429, reason_code="GATE_COOLDOWN")
 
-    gate_opened = open_gate(device_id=device_id, site_id=site.site_id)
-    opened_at = get_gate_opened_at(site.site_id) or datetime.utcnow()
-
     access_log = save_access_log(
         technician_id=technician.technician_id,
         site_id=site.site_id,
         access_type=access_type,
         face_result="SKIPPED",
-        otp_result="QR_VERIFIED",
-        access_result="GRANTED",
-        reason_code="QR_ACCESS_GRANTED",
+        otp_result="PENDING",
+        access_result="PENDING",
+        reason_code="AWAITING_OTP",
         incident_level="NORMAL",
-        description=f"Akses dibuka via pemindaian QR Code tiket kerja {parsed_ticket or ''} oleh {technician.name}.",
+        description=f"Tiket Work Order {parsed_ticket} valid. Menunggu verifikasi OTP teknisi {technician.name}.",
         evidence_image=image,
         device_id=device_id,
     )
-    if gate_opened and access_log:
-        access_log.gate_status = "OPEN"
-        access_log.gate_opened_at = opened_at
-        access_log.gate_closed_at = None
     db.session.commit()
 
-    try:
-        from app.notifications import send_gate_access_notification
-        send_gate_access_notification(access_log)
-    except Exception:
-        pass
-
-    create_activity_log(
-        action="QR_ACCESS_GRANTED",
-        description=f"Akses QR Code berhasil untuk {technician.name} pada site {site.site_id}.",
-        incident_level="NORMAL",
-        device_id=device_id,
-    )
-
     return api_success(
-        message="QR Code valid. Gerbang dibuka!",
-        access_granted=True,
-        gate_opened=True,
+        message="Work Order valid. Masukkan OTP teknisi untuk menyelesaikan verifikasi akses.",
+        access_granted=False,
+        require_otp=True,
+        verification_type="WORK_ORDER",
+        pending_log_id=access_log.id,
         tech_id=technician.technician_id,
         technician_name=technician.name,
         site_id=site.site_id,
         access_type=access_type,
-        gate_open_duration=GATE_OPEN_SECONDS,
-        gate_open_seconds=GATE_OPEN_SECONDS,
     )
 
 
@@ -3590,7 +3829,7 @@ def verify_qr():
 # =========================================================
 
 @bp.route("/noc/active-personnel", methods=["GET"])
-@api_login_required
+@api_admin_required
 def noc_active_personnel():
     """
     Mengambil daftar personel/teknisi yang saat ini berada di dalam site BTS (On-Site).
@@ -3654,6 +3893,7 @@ def noc_active_personnel():
 
 
 @bp.route("/noc/site-map-summary", methods=["GET"])
+@api_admin_required
 def noc_site_map_summary():
     """
     Ringkasan sebaran menara BTS, status operasional, sensor pintu, dan personel aktif untuk Live NOC Map.

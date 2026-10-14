@@ -358,7 +358,7 @@
             <div class="col-sm-5 text-center">
                 <div class="evidence-box">
                     {% if log.evidence_image %}
-                        <img src="{{ log.evidence_image }}" class="evidence-img img-fluid" alt="Bukti Foto Snapshot Akses">
+                        <img src="{{ url_for('access_evidence', log_id=log.id) }}" class="evidence-img img-fluid" alt="Bukti Foto Snapshot Akses">
                     {% else %}
                         <div style="height: 140px; width: 140px; display: flex; align-items: center; justify-content: center; color: #64748B; background: #1E293B; border-radius: 6px; margin: 0 auto;">
                             <div class="small"><i class="bi bi-camera-fill fs-2 d-block mb-1"></i>Tidak Ada Foto</div>

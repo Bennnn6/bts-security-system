@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Bootstrap Admin | BTS Security System{% endblock %}
+{% block content %}
+<div class="container py-5" style="max-width: 560px;">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <h1 class="h4 mb-2">Buat akun administrator</h1>
+            <p class="text-muted">Masukkan username dan password bootstrap yang disetel di <code>INITIAL_ADMIN_PASSWORD</code>.</p>
+            <form method="post" autocomplete="off">
+                <div class="mb-3">
+                    <label class="form-label" for="username">Username</label>
+                    <input class="form-control" id="username" name="username" value="admin" required maxlength="80">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">Password bootstrap</label>
+                    <input class="form-control" id="password" name="password" type="password" required autocomplete="new-password">
+                </div>
+                <button class="btn btn-primary" type="submit">Buat akun admin</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

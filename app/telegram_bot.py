@@ -401,10 +401,11 @@ def _poll_telegram_updates(app, token):
         except requests.exceptions.Timeout:
             continue
         except requests.exceptions.RequestException as net_err:
-            logger.warning("Telegram network issue: %s. Retrying in 5s...", net_err)
+            # Request errors include the full Telegram API URL, which contains the bot token.
+            logger.warning("Telegram network issue (%s). Retrying in 5s...", type(net_err).__name__)
             time.sleep(5)
         except Exception as exc:
-            logger.error("Unexpected error in Telegram polling loop: %s", exc)
+            logger.error("Unexpected error in Telegram polling loop (%s)", type(exc).__name__)
             time.sleep(3)
 
 

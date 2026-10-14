@@ -548,7 +548,7 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body text-center p-4">
-                                <img src="{{ log.evidence_image }}" class="img-fluid rounded shadow-sm" alt="Foto bukti akses" style="max-height: 70vh;">
+                                <img src="{{ url_for('access_evidence', log_id=log.id) }}" class="img-fluid rounded shadow-sm" alt="Foto bukti akses" style="max-height: 70vh;">
                                 <div class="mt-3 small text-muted">
                                     {% if log.technician %}
                                         Teknisi: <strong>{{ log.technician.name }}</strong><br>

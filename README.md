@@ -41,7 +41,7 @@ python -m venv venv
 `
 
 ### 3. Instalasi Pustaka Dlib (Khusus Windows)
-Pustaka ace-recognition membutuhkan dlib. Di Windows, gunakan wheel yang sudah dikompilasi:
+Pustaka `face-recognition` membutuhkan dlib. Di Windows, gunakan wheel yang sudah dikompilasi:
 `powershell
 pip install https://github.com/z-mahmud22/Dlib_Windows_Python3.x/raw/main/dlib-19.24.1-cp311-cp311-win_amd64.whl
 `
@@ -58,7 +58,13 @@ Salin atau sesuaikan file konfigurasi .env pada folder root proyek:
 
 `ini
 # Secret key aplikasi Flask
-SECRET_KEY=super_secret_key_bts_telkom_2026
+SECRET_KEY=<buat-kunci-acak-64-karakter>
+APP_ENV=development
+FLASK_DEBUG=False
+
+# Password bootstrap akun admin lokal (minimal 12 karakter).
+# Hapus dari .env setelah akun admin berhasil dibuat lewat /setup_admin.
+INITIAL_ADMIN_PASSWORD=<password-unik>
 
 # Database (Default: SQLite instance/app.db)
 DATABASE_URL=sqlite:///app.db
@@ -73,6 +79,14 @@ GATE_OPEN_SECONDS=10
 # Keamanan OTP
 OTP_MAX_FAILURES=3
 OTP_LOCKOUT_MINUTES=5
+STRICT_2FA_MODE=True
+DURESS_PIN=
+GEOFENCE_ENABLED=True
+GEOFENCE_REQUIRE_COORDINATES=True
+GEOFENCE_RADIUS_METERS=150
+
+# Token acak minimal 32 karakter untuk sensor pintu fisik.
+GATE_SENSOR_TOKEN=
 
 # Sistem Work Order (False = bebas, True = wajib ada tiket aktif hari ini)
 ENABLE_WORK_ORDER_CHECK=False
@@ -95,20 +109,22 @@ GATE_WEBHOOK_URL=http://192.168.1.100/gate/relay
 python run.py
 `
 Buka browser pada alamat: **http://localhost:5000**
+Untuk akses kamera dan GPS dari perangkat LAN, jalankan dengan HTTPS memakai `python run.py --https`.
+Server development Flask ditujukan untuk pengembangan; gunakan WSGI server dan TLS reverse proxy saat deployment.
 
 ### 2. Menjalankan Pengujian Otomatis (*Test Suite*)
 `powershell
 python test_system.py
 `
-*Skrip ini memverifikasi integritas database, model query, konfigurasi keamanan, endpoint API, rute halaman, dan sistem work order.*
+*Skrip ini mengubah database dan membuat data demo. Jalankan hanya dengan database SQLite sementara, bukan database produksi.*
 
 ---
 
-## 🔑 Akun & Kredensial Default
+## 🔑 Akun & Kredensial
 
 | Peran | Username / ID | Password | Keterangan |
 | :--- | :--- | :--- | :--- |
-| **Admin NOC** | dmin | *(Password admin yang Anda set pada setup)* | Mengakses seluruh fitur monitoring & kontrol |
+| **Admin NOC** | `admin` atau username pilihan | *(Password dari `INITIAL_ADMIN_PASSWORD` saat bootstrap lokal)* | Mengakses seluruh fitur monitoring & kontrol |
 | **Teknisi** | TECH-001 | *(Tergantung akun teknisi)* | Teknisi Budi Santoso (Face + TOTP terdaftar) |
 | **Site BTS** | BTS-001 | - | BTS BOJONG |
 

@@ -483,7 +483,7 @@
                         <div class="modal-body text-center">
 
                             <img
-                                src="{{ log.evidence_image }}"
+                                src="{{ url_for('access_evidence', log_id=log.id) }}"
                                 alt="Bukti security alert"
                                 class="img-fluid rounded shadow"
                                 style="max-height: 70vh;"

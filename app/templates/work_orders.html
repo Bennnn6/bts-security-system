@@ -180,7 +180,7 @@
                                 <div class="small text-success mt-1 fw-semibold"><i class="bi bi-check2-circle me-1"></i>{{ wo.completion_note }}</div>
                                 {% endif %}
                                 {% if wo.evidence_image %}
-                                <a class="small d-block mt-1 text-decoration-none" href="{{ wo.evidence_image }}" target="_blank" rel="noopener"><i class="bi bi-image me-1"></i>Lihat bukti</a>
+                                <a class="small d-block mt-1 text-decoration-none" href="{{ url_for('work_order_evidence', wo_id=wo.id) }}" target="_blank" rel="noopener"><i class="bi bi-image me-1"></i>Lihat bukti</a>
                                 {% endif %}
                             </td>
                             <td class="border-light">
@@ -220,11 +220,20 @@
                                             <li><a class="dropdown-item text-muted" href="/work-orders/{{ wo.id }}/berita-acara/pdf"><i class="bi bi-file-earmark-arrow-down me-2"></i>Unduh PDF BAP</a></li>
                                             <li><hr class="dropdown-divider"></li>
                                             {% endif %}
-                                            <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='APPROVED') }}"><i class="bi bi-check-lg me-2"></i>Setujui (Approved)</a></li>
-                                            <li><a class="dropdown-item text-primary fw-semibold" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='COMPLETED') }}"><i class="bi bi-flag me-2"></i>Selesai (Completed)</a></li>
-                                            <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='VERIFIED') }}"><i class="bi bi-shield-check me-2"></i>Verifikasi</a></li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item text-danger fw-semibold" href="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='CANCELLED') }}"><i class="bi bi-x-circle me-2"></i>Batalkan</a></li>
+                                            {% if wo.status == 'PENDING' %}
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='APPROVED') }}"><button class="dropdown-item text-success fw-semibold" type="submit"><i class="bi bi-check-lg me-2"></i>Setujui</button></form></li>
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='CANCELLED') }}"><button class="dropdown-item text-danger fw-semibold" type="submit"><i class="bi bi-x-circle me-2"></i>Batalkan</button></form></li>
+                                            {% elif wo.status == 'APPROVED' %}
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='IN_PROGRESS') }}"><button class="dropdown-item text-primary fw-semibold" type="submit"><i class="bi bi-play-fill me-2"></i>Mulai pekerjaan</button></form></li>
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='COMPLETED') }}"><button class="dropdown-item text-primary fw-semibold" type="submit"><i class="bi bi-flag me-2"></i>Tandai selesai</button></form></li>
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='CANCELLED') }}"><button class="dropdown-item text-danger fw-semibold" type="submit"><i class="bi bi-x-circle me-2"></i>Batalkan</button></form></li>
+                                            {% elif wo.status == 'IN_PROGRESS' %}
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='COMPLETED') }}"><button class="dropdown-item text-primary fw-semibold" type="submit"><i class="bi bi-flag me-2"></i>Tandai selesai</button></form></li>
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='CANCELLED') }}"><button class="dropdown-item text-danger fw-semibold" type="submit"><i class="bi bi-x-circle me-2"></i>Batalkan</button></form></li>
+                                            {% elif wo.status == 'COMPLETED' %}
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='VERIFIED') }}"><button class="dropdown-item text-success fw-semibold" type="submit"><i class="bi bi-shield-check me-2"></i>Verifikasi</button></form></li>
+                                            <li><form method="POST" action="{{ url_for('update_work_order_status', wo_id=wo.id, new_status='CANCELLED') }}"><button class="dropdown-item text-danger fw-semibold" type="submit"><i class="bi bi-x-circle me-2"></i>Batalkan</button></form></li>
+                                            {% endif %}
                                         </ul>
                                     </div>
                                 </div>

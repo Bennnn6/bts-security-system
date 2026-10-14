@@ -38,8 +38,18 @@ def get_face_accuracy_distribution():
     return {'buckets': buckets, 'confidence_rate': confidence_rate, 'total_samples': len(logs)}
 
 
+def get_today_start_wib():
+    """
+    Menghitung batas awal hari (00:00:00 WIB / UTC+7) dalam representasi UTC
+    agar perhitungan data hari ini tepat dan sinkron dengan waktu operasional Indonesia.
+    """
+    now_wib = datetime.utcnow() + timedelta(hours=7)
+    today_wib_midnight = now_wib.replace(hour=0, minute=0, second=0, microsecond=0)
+    return today_wib_midnight - timedelta(hours=7)
+
+
 def detect_access_anomalies():
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = get_today_start_wib()
     seven_days_ago = today_start - timedelta(days=7)
     logs = AccessLog.query.with_entities(AccessLog.timestamp).filter(AccessLog.timestamp >= seven_days_ago).all()
     if not logs:
@@ -82,7 +92,7 @@ def detect_access_anomalies():
 
 def predict_threat_scores(sites):
     scores = {}
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = get_today_start_wib()
     for site in sites:
         today_logs = AccessLog.query.with_entities(
             AccessLog.access_result,
@@ -104,7 +114,7 @@ def predict_threat_scores(sites):
 
 
 def get_hourly_access_pattern():
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = get_today_start_wib()
     seven_days_ago = today_start - timedelta(days=7)
     logs = AccessLog.query.with_entities(AccessLog.timestamp).filter(AccessLog.timestamp >= seven_days_ago).all()
     hourly = Counter()
@@ -118,7 +128,7 @@ def get_hourly_access_pattern():
 
 
 def get_denial_reasons():
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = get_today_start_wib()
     logs = AccessLog.query.with_entities(AccessLog.reason_code).filter_by(access_result='DENIED').filter(
         AccessLog.timestamp >= today_start
     ).all()
@@ -131,7 +141,7 @@ def get_denial_reasons():
 
 
 def get_technician_risk_profile():
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = get_today_start_wib()
     technicians = Technician.query.all()
     profiles = []
     for tech in technicians:
@@ -201,9 +211,7 @@ def generate_ai_insights():
 
 def get_site_heatmap_data():
     sites = BtsSite.query.all()
-    today_start = datetime.utcnow().replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    today_start = get_today_start_wib()
     heatmap = []
     for site in sites:
         today_logs = AccessLog.query.with_entities(

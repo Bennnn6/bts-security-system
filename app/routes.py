@@ -7,6 +7,7 @@ import csv
 import queue
 import os
 import uuid
+import secrets
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -75,6 +76,41 @@ SESSION_TIMEOUT_MINUTES = int(
         30
     )
 )
+
+
+def _can_access_technician_record(technician_id):
+    if current_user.is_authenticated:
+        return True
+    worker_id = session.get('worker_id')
+    return bool(worker_id and technician_id and str(worker_id) == str(technician_id))
+
+
+def _resolve_private_media(value, category):
+    if not value or category not in {'evidence', 'work_orders'}:
+        return None
+
+    value = str(value)
+    private_prefix = f'private:{category}:'
+    legacy_prefix = f'/static/uploads/{category}/'
+    if value.startswith(private_prefix):
+        filename = value[len(private_prefix):]
+        directory = os.path.join(app.instance_path, 'uploads', category)
+    elif value.startswith(legacy_prefix):
+        filename = value[len(legacy_prefix):]
+        directory = os.path.join(app.root_path, 'static', 'uploads', category)
+    else:
+        return None
+
+    if (
+        not filename
+        or filename in {'.', '..'}
+        or os.path.basename(filename) != filename
+        or any(character not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-' for character in filename)
+    ):
+        return None
+
+    path = os.path.join(directory, filename)
+    return path if os.path.isfile(path) else None
 
 
 # =========================================================
@@ -920,11 +956,11 @@ def login():
 # SETUP ADMIN
 # =========================================================
 
-@app.route('/setup_admin')
+@app.route('/setup_admin', methods=['GET', 'POST'])
 def setup_admin():
     """
-    B12 FIX: Proteksi route setup_admin agar hanya bisa diakses
-    dari localhost. Mencegah reset admin dari internet.
+    Bootstrap akun administrator hanya dari mesin lokal dan dengan
+    password bootstrap yang disetel melalui environment.
     """
     client_ip = request.remote_addr or '127.0.0.1'
     allowed_ips = ('127.0.0.1', '::1', 'localhost')
@@ -932,28 +968,37 @@ def setup_admin():
     if client_ip not in allowed_ips:
         return 'Akses ditolak.', 403
 
-    # Tambahan: cek apakah admin sudah ada
-    existing_count = Admin.query.count()
-    if existing_count > 0:
+    if Admin.query.first():
         return 'Admin sudah ada. Setup tidak diperlukan.', 200
 
+    expected_password = str(app.config.get('INITIAL_ADMIN_PASSWORD', '')).strip()
+    if not expected_password:
+        return 'Atur INITIAL_ADMIN_PASSWORD sebelum membuat akun admin.', 503
+    if len(expected_password) < 12:
+        return 'INITIAL_ADMIN_PASSWORD harus memiliki minimal 12 karakter.', 503
+
+    if request.method == 'GET':
+        return render_template('setup_admin.html')
+
+    password = request.form.get('password', '')
+    username = request.form.get('username', 'admin').strip() or 'admin'
+    if not secrets.compare_digest(password, expected_password):
+        return 'Password bootstrap tidak valid.', 403
+
     try:
-        admin = Admin(username='admin')
-        admin.set_password('admin123')
+        admin = Admin(username=username)
+        admin.set_password(password)
         db.session.add(admin)
         db.session.add(
             ActivityLog(
                 username='SYSTEM',
                 action='ADMIN_CREATED',
-                description='Admin default dibuat via setup_admin.',
+                description='Akun administrator dibuat melalui bootstrap lokal.',
                 incident_level='NORMAL'
             )
         )
         db.session.commit()
-        return (
-            'Admin default berhasil dibuat. '
-            'Silakan login dan SEGERA ganti password default!'
-        ), 201
+        return 'Akun administrator berhasil dibuat. Hapus INITIAL_ADMIN_PASSWORD dari environment setelah setup.', 201
 
     except Exception as exc:
         db.session.rollback()
@@ -3290,10 +3335,35 @@ def export_access_logs():
 # BERITA ACARA AKSES (BAA) - FITUR ENTERPRISE 5
 # =========================================================
 
+@app.route('/media/access/<int:log_id>', methods=['GET'])
+@login_required_any
+def access_evidence(log_id):
+    log = AccessLog.query.get_or_404(log_id)
+    if not _can_access_technician_record(log.technician_id):
+        return 'Akses ditolak.', 403
+    path = _resolve_private_media(log.evidence_image, 'evidence')
+    if not path:
+        return 'Bukti tidak ditemukan.', 404
+    return send_file(path, conditional=True, max_age=0)
+
+
+@app.route('/media/work-order/<int:wo_id>', methods=['GET'])
+@login_required_any
+def work_order_evidence(wo_id):
+    work_order = WorkOrder.query.get_or_404(wo_id)
+    if not _can_access_technician_record(work_order.technician_id):
+        return 'Akses ditolak.', 403
+    path = _resolve_private_media(work_order.evidence_image, 'work_orders')
+    if not path:
+        return 'Bukti tidak ditemukan.', 404
+    return send_file(path, conditional=True, max_age=0)
+
 @app.route('/access-logs/<int:log_id>/berita-acara', methods=['GET'])
 @login_required_any
 def view_berita_acara(log_id):
     log = AccessLog.query.get_or_404(log_id)
+    if not _can_access_technician_record(log.technician_id):
+        return 'Akses ditolak.', 403
     site = log.site or BtsSite.query.filter_by(site_id=log.site_id).first()
     tech = None
     if log.technician_id:
@@ -3314,6 +3384,8 @@ def view_berita_acara(log_id):
 @login_required_any
 def download_berita_acara_pdf(log_id):
     log = AccessLog.query.get_or_404(log_id)
+    if not _can_access_technician_record(log.technician_id):
+        return 'Akses ditolak.', 403
     site = log.site or BtsSite.query.filter_by(site_id=log.site_id).first()
     tech = None
     if log.technician_id:
@@ -3554,6 +3626,8 @@ def berita_acara_list():
 @login_required_any
 def view_berita_acara_pekerjaan(wo_id):
     wo = WorkOrder.query.get_or_404(wo_id)
+    if not _can_access_technician_record(wo.technician_id):
+        return 'Akses ditolak.', 403
     site = BtsSite.query.filter_by(site_id=wo.site_id).first()
     tech = Technician.query.filter_by(technician_id=wo.technician_id).first()
     is_embedded = request.args.get('embedded', '0') == '1'
@@ -3571,6 +3645,8 @@ def view_berita_acara_pekerjaan(wo_id):
 @login_required_any
 def download_berita_acara_pekerjaan_pdf(wo_id):
     wo = WorkOrder.query.get_or_404(wo_id)
+    if not _can_access_technician_record(wo.technician_id):
+        return 'Akses ditolak.', 403
     site = BtsSite.query.filter_by(site_id=wo.site_id).first()
     tech = Technician.query.filter_by(technician_id=wo.technician_id).first()
 
@@ -4054,7 +4130,7 @@ def security_alerts():
 # LOGOUT
 # =========================================================
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
 
     username = (
@@ -4693,12 +4769,18 @@ def export_work_orders_format(format):
     return redirect(url_for('export_work_orders'))
 
 
-@app.route('/work-orders/status/<int:wo_id>/<string:new_status>', methods=['GET', 'POST'])
+@app.route('/work-orders/status/<int:wo_id>/<string:new_status>', methods=['POST'])
 @admin_required
 def update_work_order_status(wo_id, new_status):
     wo = WorkOrder.query.get_or_404(wo_id)
     new_status = new_status.upper()
-    if new_status in ('APPROVED', 'PENDING', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED', 'CANCELLED'):
+    allowed_transitions = {
+        'PENDING': {'APPROVED', 'CANCELLED'},
+        'APPROVED': {'IN_PROGRESS', 'COMPLETED', 'CANCELLED'},
+        'IN_PROGRESS': {'COMPLETED', 'CANCELLED'},
+        'COMPLETED': {'VERIFIED', 'CANCELLED'},
+    }
+    if new_status in allowed_transitions.get(wo.status, set()):
         wo.status = new_status
         if new_status == 'IN_PROGRESS' and not wo.started_at:
             wo.started_at = datetime.utcnow()
@@ -4712,6 +4794,8 @@ def update_work_order_status(wo_id, new_status):
         except Exception:
             pass
         flash(f'Status Work Order {wo.ticket_number} diubah menjadi {new_status}.', 'success')
+    else:
+        flash(f'Perubahan status dari {wo.status} ke {new_status} tidak diizinkan.', 'warning')
     return redirect(url_for('work_orders'))
 
 
@@ -4728,10 +4812,10 @@ def complete_worker_work_order(wo_id):
         .first_or_404()
     )
 
-    if work_order.status in ('COMPLETED', 'VERIFIED', 'CANCELLED'):
+    if work_order.status != 'IN_PROGRESS':
         flash(
-            f'Work Order {work_order.ticket_number} sudah berstatus '
-            f'{work_order.status}.',
+            f'Work Order {work_order.ticket_number} harus berstatus IN_PROGRESS '
+            f'sebelum dapat diselesaikan (status saat ini: {work_order.status}).',
             'warning'
         )
     else:
@@ -4750,14 +4834,22 @@ def complete_worker_work_order(wo_id):
             if len(evidence_bytes) > 2_000_000:
                 flash('Ukuran bukti pekerjaan maksimal 2 MB.', 'danger')
                 return redirect(url_for('worker_dashboard'))
-            upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'work_orders')
+            upload_dir = os.path.join(app.instance_path, 'uploads', 'work_orders')
             os.makedirs(upload_dir, exist_ok=True)
             ext = 'jpg' if 'jpeg' in evidence.mimetype or 'jpg' in evidence.mimetype else ('png' if 'png' in evidence.mimetype else 'webp')
-            filename = f"wo_{work_order.ticket_number}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.{ext}"
+            valid_image = (
+                (ext == 'jpg' and evidence_bytes.startswith(b'\xff\xd8\xff'))
+                or (ext == 'png' and evidence_bytes.startswith(b'\x89PNG\r\n\x1a\n'))
+                or (ext == 'webp' and len(evidence_bytes) >= 12 and evidence_bytes[:4] == b'RIFF' and evidence_bytes[8:12] == b'WEBP')
+            )
+            if not valid_image:
+                flash('Isi file tidak sesuai dengan format gambar yang dipilih.', 'danger')
+                return redirect(url_for('worker_dashboard'))
+            filename = f"work_order_{uuid.uuid4().hex}.{ext}"
             filepath = os.path.join(upload_dir, filename)
             with open(filepath, 'wb') as f:
                 f.write(evidence_bytes)
-            work_order.evidence_image = f'/static/uploads/work_orders/{filename}'
+            work_order.evidence_image = f'private:work_orders:{filename}'
 
         work_order.status = 'COMPLETED'
         work_order.completion_note = completion_note
@@ -4787,7 +4879,7 @@ def start_worker_work_order(wo_id):
         technician_id=worker_id
     ).first_or_404()
 
-    if work_order.status not in ('APPROVED', 'PENDING'):
+    if work_order.status != 'APPROVED':
         flash(f'Work Order {work_order.ticket_number} tidak dapat dimulai dari status {work_order.status}.', 'warning')
         return redirect(url_for('worker_dashboard'))
 
@@ -4866,6 +4958,16 @@ def admin_cleanup_logs():
     cutoff = datetime.utcnow() - timedelta(days=days)
 
     try:
+        # Hapus file gambar bukti fisik di disk sebelum menghapus log dari database
+        logs_to_clean = AccessLog.query.filter(AccessLog.timestamp < cutoff).all()
+        for old_log in logs_to_clean:
+            full_path = _resolve_private_media(old_log.evidence_image, 'evidence')
+            if full_path:
+                try:
+                    os.remove(full_path)
+                except Exception:
+                    pass
+
         deleted_count = AccessLog.query.filter(AccessLog.timestamp < cutoff).delete()
         db.session.commit()
 

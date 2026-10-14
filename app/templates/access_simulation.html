@@ -350,12 +350,14 @@
                         <button type="button" class="btn btn-sm btn-outline-primary" id="btnGpsAuto" onclick="useRealGps()">
                             <i class="bi bi-crosshair me-1"></i> GPS Asli Perangkat
                         </button>
+                        {% if config.APP_ENV != 'production' %}
                         <button type="button" class="btn btn-sm btn-outline-success" id="btnGpsOnSite" onclick="simulateOnSiteGps()">
-                            <i class="bi bi-check-circle me-1"></i> Mode di Area Tower (&lt;150m)
+                            <i class="bi bi-check-circle me-1"></i> Simulasi di Area Tower
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-danger" id="btnGpsOffSite" onclick="simulateFarGps()">
-                            <i class="bi bi-shield-x me-1"></i> Mode Luar Area (&gt;150m)
+                            <i class="bi bi-shield-x me-1"></i> Simulasi Luar Area
                         </button>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -470,6 +472,7 @@
                             <li>Tap ikon <strong><i class="bi bi-lock-fill"></i> / <i class="bi bi-camera-video"></i></strong> di address bar browser</li>
                             <li>Ubah permission <strong>Camera</strong> menjadi <strong>Allow</strong></li>
                             <li>Klik tombol <strong><i class="bi bi-arrow-repeat me-1"></i>Coba Lagi</strong> di bawah</li>
+                            <li class="mt-1"><strong>Khusus Akses dari Smartphone (WiFi/LAN):</strong> Browser seluler (Chrome/Safari) memblokir kamera di jaringan non-HTTPS (misal <code>http://192.168.x.x:5000</code>). Jalankan server dengan <code>python run.py --https</code> atau gunakan alternatif <strong>Masuk via Kode OTP</strong> di bawah.</li>
                         </ol>
                         <p class="mb-0 mt-2 small">
                             <strong>Catatan:</strong> Jika tidak ada icon di address bar, 
@@ -1266,7 +1269,7 @@ let currentGpsLng = null;
 let currentGpsMode = 'AUTO'; // 'AUTO', 'ONSITE', 'FAR'
 
 function calculateHaversine(lat1, lon1, lat2, lon2) {
-    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    if ([lat1, lon1, lat2, lon2].some(value => value === null || value === undefined || !Number.isFinite(Number(value)))) return null;
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -1286,8 +1289,8 @@ function updateGeofenceUI() {
     const distElem = document.getElementById('geoDistanceDisplay');
     const badgeElem = document.getElementById('geoStatusBadge');
 
-    if (!currentGpsLat || !currentGpsLng) {
-        coordsElem.textContent = 'Mencari sinyal GPS...';
+    if (currentGpsLat === null || currentGpsLng === null || currentGpsLat === undefined || currentGpsLng === undefined) {
+        coordsElem.textContent = 'GPS tidak tersedia';
         distElem.textContent = '-';
         badgeElem.className = 'badge bg-secondary';
         badgeElem.textContent = 'Mendeteksi...';
@@ -1336,13 +1339,19 @@ function useRealGps() {
             },
             (err) => {
                 console.warn('Geolocation error:', err);
-                // Fallback to on-site for smooth demo if permission denied
-                simulateOnSiteGps();
+                currentGpsLat = null;
+                currentGpsLng = null;
+                const badgeElem = document.getElementById('geoStatusBadge');
+                badgeElem.className = 'badge bg-danger';
+                badgeElem.textContent = 'GPS Tidak Diizinkan';
+                updateGeofenceUI();
             },
             { enableHighAccuracy: true, timeout: 6000 }
         );
     } else {
-        simulateOnSiteGps();
+        currentGpsLat = null;
+        currentGpsLng = null;
+        updateGeofenceUI();
     }
 }
 
@@ -1965,6 +1974,27 @@ async function verifyFace() {
         faceResult.style.display =
             'block';
 
+        // Jika Strict 2FA aktif: Wajah berhasil, sekarang wajib konfirmasi Kode OTP
+        if (result.require_otp) {
+            setStatus(
+                result.message || 'Wajah terverifikasi. Masukkan kode OTP untuk melengkapi otentikasi dua faktor (Strict 2FA).',
+                'warning'
+            );
+            if (otpSection) {
+                otpSection.style.display = 'block';
+                otpSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            const techSelect = document.getElementById('otpTechSelect');
+            if (techSelect && activeTechId) {
+                techSelect.value = activeTechId;
+            }
+            const otpInp = document.getElementById('otpInput');
+            if (otpInp) {
+                otpInp.focus();
+            }
+            return;
+        }
+
         // Sembunyikan panel OTP jika terbuka
         if (otpSection) {
             otpSection.style.display = 'none';
@@ -2169,7 +2199,13 @@ async function verifyOtp() {
                             selectedAccessType,
 
                         pending_log_id:
-                            pendingLogId
+                            pendingLogId,
+
+                        latitude:
+                            currentGpsLat,
+
+                        longitude:
+                            currentGpsLng
 
                     })
 

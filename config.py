@@ -6,6 +6,7 @@ load_dotenv()
 
 
 class Config:
+    APP_ENV = os.environ.get('APP_ENV', 'development').strip().lower()
     # =====================================================
     # SECRET KEY
     # =====================================================
@@ -110,7 +111,21 @@ class Config:
     )
 
     # Silent Duress Code (Emergency Duress PIN)
-    DURESS_PIN = os.environ.get('DURESS_PIN', '999999').strip()
+    # Kosong berarti fitur duress dinonaktifkan sampai pemilik memasang PIN unik.
+    DURESS_PIN = os.environ.get('DURESS_PIN', '').strip()
+
+    # Token perangkat sensor fisik. Jangan gunakan endpoint sensor dari browser kiosk.
+    GATE_SENSOR_TOKEN = os.environ.get('GATE_SENSOR_TOKEN', '').strip()
+
+    INITIAL_ADMIN_PASSWORD = os.environ.get('INITIAL_ADMIN_PASSWORD', '').strip()
+
+    # Mode Keamanan 2FA:
+    # False = Biometric Primary dengan Keypad OTP Fallback
+    # True  = Strict 2FA (Wajib lolos Face Recognition LALU wajib input OTP sebelum gerbang terbuka)
+    STRICT_2FA_MODE = (
+        os.environ.get('STRICT_2FA_MODE', 'True').strip().lower()
+        in ('true', '1', 'yes')
+    )
 
     # =====================================================
     # WORK ORDER / TIKET KERJA
@@ -173,7 +188,10 @@ class Config:
     )
 
     SESSION_COOKIE_SECURE = (
-        os.environ.get('SESSION_COOKIE_SECURE', 'False').strip().lower()
+        os.environ.get(
+            'SESSION_COOKIE_SECURE',
+            'True' if APP_ENV == 'production' else 'False'
+        ).strip().lower()
         in ('true', '1', 'yes')
     )
 

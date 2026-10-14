@@ -291,7 +291,7 @@
             <div class="col-sm-5 text-center">
                 <div class="evidence-box">
                     {% if wo.evidence_image %}
-                        <img src="{{ wo.evidence_image }}" class="evidence-img img-fluid" alt="Bukti Foto Hasil Pekerjaan">
+                        <img src="{{ url_for('work_order_evidence', wo_id=wo.id) }}" class="evidence-img img-fluid" alt="Bukti Foto Hasil Pekerjaan">
                     {% else %}
                         <div style="height: 140px; width: 140px; display: flex; align-items: center; justify-content: center; color: #64748B; background: #1E293B; border-radius: 6px; margin: 0 auto;">
                             <div class="small"><i class="bi bi-image fs-2 d-block mb-1"></i>Tidak Ada Foto</div>

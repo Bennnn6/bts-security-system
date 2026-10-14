@@ -833,6 +833,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+function escapeHtml(value) {
+    const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(value ?? '').replace(/[&<>"']/g, character => entities[character]);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // --- MAIN ACCESS CHART ---
     const dataElement = document.getElementById('dashboardChartData');
@@ -968,11 +973,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 let badge = item.type === 'DANGER' ? 'bg-danger' : item.type === 'WARNING' ? 'bg-warning text-dark' : 'bg-primary';
                 html += `
                 <div class="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom border-light">
-                    <span class="badge ${badge} rounded-pill mt-1 px-2 py-1">${item.type}</span>
+                    <span class="badge ${badge} rounded-pill mt-1 px-2 py-1">${escapeHtml(item.type)}</span>
                     <div>
-                        <strong class="d-block mb-1" style="color: var(--jk-text-dark);">${item.title}</strong>
-                        <div class="small text-muted mb-1">${item.description}</div>
-                        ${item.recommendation ? `<div class="small fw-bold text-primary"><i class="bi bi-arrow-right-short"></i> ${item.recommendation}</div>` : ''}
+                        <strong class="d-block mb-1" style="color: var(--jk-text-dark);">${escapeHtml(item.title)}</strong>
+                        <div class="small text-muted mb-1">${escapeHtml(item.description)}</div>
+                        ${item.recommendation ? `<div class="small fw-bold text-primary"><i class="bi bi-arrow-right-short"></i> ${escapeHtml(item.recommendation)}</div>` : ''}
                     </div>
                 </div>`;
             });
@@ -993,11 +998,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 html += `
                 <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
                     <div>
-                        <strong class="small" style="color: var(--jk-primary);">${site.site_name}</strong>
-                        <div class="small text-muted">${site.site_id}</div>
+                    <strong class="small" style="color: var(--jk-primary);">${escapeHtml(site.site_name)}</strong>
+                        <div class="small text-muted">${escapeHtml(site.site_id)}</div>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge ${riskBadge} rounded-pill px-2">${site.risk_level}</span>
+                        <span class="badge ${riskBadge} rounded-pill px-2">${escapeHtml(site.risk_level)}</span>
                     </div>
                 </div>`;
             });
@@ -1083,7 +1088,7 @@ async function loadDashboardSites() {
         const selector = document.getElementById('dashboardGateSiteSelector');
         if (!selector) return;
         selector.innerHTML = '<option value="">-- Pilih Site --</option>';
-        dashboardSites.forEach(s => { selector.innerHTML += `<option value="${s.site_id}">${s.site_name}</option>`; });
+        dashboardSites.forEach(s => { selector.innerHTML += `<option value="${escapeHtml(s.site_id)}">${escapeHtml(s.site_name)}</option>`; });
         if (!dashboardSelectedSiteId && dashboardSites.length > 0) {
             dashboardSelectedSiteId = String(dashboardSites[0].site_id);
             localStorage.setItem('dashboardSelectedSiteId', dashboardSelectedSiteId);
@@ -1240,7 +1245,7 @@ function initDashboardNocMap() {
                 if (selector && selector.options.length <= 1) {
                     selector.innerHTML = '<option value="">-- Pilih Site --</option>';
                     dashboardSites.forEach(s => {
-                        selector.innerHTML += `<option value="${s.site_id}">${s.site_name}</option>`;
+                        selector.innerHTML += `<option value="${escapeHtml(s.site_id)}">${escapeHtml(s.site_name)}</option>`;
                     });
                     if (!dashboardSelectedSiteId && dashboardSites.length > 0) {
                         dashboardSelectedSiteId = String(dashboardSites[0].site_id);
@@ -1300,7 +1305,7 @@ function updateDashboardNocMapMarkers() {
             className: 'noc-marker-wrap',
             html: `
                 <div class="noc-gis-radar ${radarClass}"></div>
-                <div class="noc-gis-tower-pin ${pinClass}" title="${site.site_name} (${site.site_id})">
+                <div class="noc-gis-tower-pin ${pinClass}" title="${escapeHtml(site.site_name)} (${escapeHtml(site.site_id)})">
                     <i class="bi bi-broadcast"></i>
                 </div>
             `,
@@ -1324,8 +1329,8 @@ function updateDashboardNocMapMarkers() {
                         <i class="bi bi-broadcast fs-5"></i>
                     </div>
                     <div>
-                        <div class="fw-bold text-dark fs-6 mb-0">${site.site_name}</div>
-                        <div class="small text-muted font-monospace">${site.site_id}</div>
+                        <div class="fw-bold text-dark fs-6 mb-0">${escapeHtml(site.site_name)}</div>
+                        <div class="small text-muted font-monospace">${escapeHtml(site.site_id)}</div>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-1 small">
@@ -1343,7 +1348,7 @@ function updateDashboardNocMapMarkers() {
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2 small">
                     <span class="text-muted">Alamat:</span>
-                    <span class="text-truncate" style="max-width: 150px;" title="${site.location || '-'}">${site.location || '-'}</span>
+                    <span class="text-truncate" style="max-width: 150px;" title="${escapeHtml(site.location || '-')}" >${escapeHtml(site.location || '-')}</span>
                 </div>
                 <div class="d-grid gap-1 pt-2 border-top">
                     <a href="/access-logs?site_id=${encodeURIComponent(site.site_id)}" class="btn btn-sm btn-outline-primary py-1 d-flex align-items-center justify-content-center gap-1">
@@ -1359,7 +1364,7 @@ function updateDashboardNocMapMarkers() {
         const marker = L.marker([lat, lng], { icon: customIcon }).bindPopup(popupContent, { maxWidth: 320 });
 
         // Permanent clean label directly visible above the tower pin
-        marker.bindTooltip(`<b><i class="bi bi-broadcast-pin me-1 text-primary"></i> ${site.site_name}</b>`, {
+        marker.bindTooltip(`<b><i class="bi bi-broadcast-pin me-1 text-primary"></i> ${escapeHtml(site.site_name)}</b>`, {
             permanent: true,
             direction: 'top',
             offset: [0, -22],
@@ -1401,7 +1406,7 @@ async function checkDashboardK3Alert() {
 
         if (data.overstay_count > 0) {
             banner.classList.remove('d-none');
-            const names = data.overstays.map(o => `${o.name} (${o.site_name}, ${o.duration_formatted})`).join(', ');
+            const names = data.overstays.map(o => `${escapeHtml(o.name)} (${escapeHtml(o.site_name)}, ${escapeHtml(o.duration_formatted)})`).join(', ');
             bannerText.textContent = `Peringatan K3: ${data.overstay_count} teknisi overstay di shelter BTS (> 120m): ${names}. Segera lakukan konfirmasi keselamatan.`;
         } else {
             banner.classList.add('d-none');
@@ -1468,8 +1473,8 @@ async function refreshActivePersonnel() {
         if (tbody) {
             tbody.innerHTML = list.map(p => {
                 const overstayPill = p.is_overstay
-                    ? `<span class="badge bg-danger text-white"><i class="bi bi-alarm-fill me-1"></i>${p.duration_formatted} (Overstay)</span>`
-                    : `<span class="badge bg-light text-dark border"><i class="bi bi-clock me-1"></i>${p.duration_formatted}</span>`;
+                    ? `<span class="badge bg-danger text-white"><i class="bi bi-alarm-fill me-1"></i>${escapeHtml(p.duration_formatted)} (Overstay)</span>`
+                    : `<span class="badge bg-light text-dark border"><i class="bi bi-clock me-1"></i>${escapeHtml(p.duration_formatted)}</span>`;
                 
                 const methodBadge = p.verification_type === 'QR_WORK_ORDER'
                     ? '<span class="badge bg-info-subtle text-info-emphasis border"><i class="bi bi-qr-code me-1"></i>QR Tiket</span>'
@@ -1485,14 +1490,14 @@ async function refreshActivePersonnel() {
                                     ${(p.name || 'T').substring(0, 2).toUpperCase()}
                                 </div>
                                 <div>
-                                    <div class="fw-bold text-dark">${p.name}</div>
-                                    <div class="text-muted small">${p.role || 'Teknisi'}</div>
+                                    <div class="fw-bold text-dark">${escapeHtml(p.name)}</div>
+                                    <div class="text-muted small">${escapeHtml(p.role || 'Teknisi')}</div>
                                 </div>
                             </div>
                         </td>
                         <td>
-                            <div class="fw-semibold text-dark">${p.site_name}</div>
-                            <div class="font-monospace small text-muted">${p.site_id}</div>
+                            <div class="fw-semibold text-dark">${escapeHtml(p.site_name)}</div>
+                            <div class="font-monospace small text-muted">${escapeHtml(p.site_id)}</div>
                         </td>
                         <td class="small">
                             ${p.check_in_time ? new Date(p.check_in_time).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : '-'} WIB

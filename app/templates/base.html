@@ -8,6 +8,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/bacs_app.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#0b1f35">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -150,8 +151,25 @@
             };
 
             // Global Form Submit Button Loading & Double-Click Prevention
+            var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            document.querySelectorAll('form').forEach(function(form) {
+                if ((form.method || '').toLowerCase() === 'post' && csrfToken && !form.querySelector('input[name="csrf_token"]')) {
+                    var tokenInput = document.createElement('input');
+                    tokenInput.type = 'hidden';
+                    tokenInput.name = 'csrf_token';
+                    tokenInput.value = csrfToken;
+                    form.appendChild(tokenInput);
+                }
+            });
             document.addEventListener('submit', function(e) {
                 const form = e.target;
+                if ((form.method || '').toLowerCase() === 'post' && csrfToken && !form.querySelector('input[name="csrf_token"]')) {
+                    var tokenInput = document.createElement('input');
+                    tokenInput.type = 'hidden';
+                    tokenInput.name = 'csrf_token';
+                    tokenInput.value = csrfToken;
+                    form.appendChild(tokenInput);
+                }
                 const submitBtn = form.querySelector('button[type="submit"]');
                 if (submitBtn && !submitBtn.classList.contains('no-auto-loading')) {
                     submitBtn.dataset.originalHtml = submitBtn.innerHTML;
