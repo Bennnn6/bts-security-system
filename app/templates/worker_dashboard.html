@@ -193,26 +193,5 @@
         </div>
     </div>
 
-    <!-- MOBILE STICKY BOTTOM ACTION BAR (OPTIMIZED FOR FIELD WORKERS) -->
-    <div class="d-md-none fixed-bottom border-top shadow-lg px-2 py-2" style="z-index: 1040; backdrop-filter: blur(14px); background: rgba(15, 23, 42, 0.92); border-color: rgba(56, 189, 248, 0.2) !important;">
-        <div class="d-flex justify-content-around align-items-center text-center">
-            <a href="{{ url_for('worker_dashboard') }}" class="text-info text-decoration-none">
-                <i class="bi bi-house-door-fill fs-5 d-block"></i>
-                <span style="font-size: 0.7rem; font-weight: 600;">Beranda</span>
-            </a>
-            <a href="{{ url_for('worker_work_orders') }}" class="text-white-50 text-decoration-none">
-                <i class="bi bi-clipboard-check fs-5 d-block"></i>
-                <span style="font-size: 0.7rem; font-weight: 600;">Tiket WO</span>
-            </a>
-            <a href="{{ url_for('worker_access_logs') }}" class="text-white-50 text-decoration-none">
-                <i class="bi bi-clock-history fs-5 d-block"></i>
-                <span style="font-size: 0.7rem; font-weight: 600;">Riwayat</span>
-            </a>
-            <a href="{{ url_for('access_simulation') }}" class="text-white-50 text-decoration-none">
-                <i class="bi bi-door-open-fill fs-5 d-block text-warning"></i>
-                <span style="font-size: 0.7rem; font-weight: 600;">Buka Gate</span>
-            </a>
-        </div>
-    </div>
 </div>
 {% endblock %}
