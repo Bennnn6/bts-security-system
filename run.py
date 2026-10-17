@@ -91,6 +91,17 @@ def check_face_recognition_env():
 
 if __name__ == '__main__':
     check_face_recognition_env()
+
+    # Jalankan layanan auto-discovery UDP agar aplikasi di HP langsung terhubung otomatis
+    try:
+        from app.discovery import start_discovery_responder, get_local_ip
+        start_discovery_responder(http_port=5000)
+        local_wifi_ip = get_local_ip()
+        print(f"[*] Layanan Auto-Discovery Mobile Aktif (Port UDP 5005)")
+        print(f"[*] Alamat Akses Smartphone/HP: http://{local_wifi_ip}:5000")
+    except Exception as disc_err:
+        print(f"[!] Info auto-discovery: {disc_err}")
+
     use_https = '--https' in sys.argv
     debug_enabled = (
         app.config.get('APP_ENV') != 'production'

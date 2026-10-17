@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.http.SslError
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -19,6 +20,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,13 +31,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var btnSettings: FloatingActionButton
     private lateinit var prefs: SharedPreferences
+    private var isDiscovering = false
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
         private const val PREFS_NAME = "bacs_technician_prefs"
         private const val KEY_SERVER_URL = "server_url"
-        private const val DEFAULT_SERVER_URL = "http://10.66.136.195:5000"
-        private const val LOCAL_SERVER_URL = "http://10.66.136.195:5000"
+        private const val DEFAULT_SERVER_URL = "http://192.168.1.12:5000"
+        private const val LOCAL_SERVER_URL = "http://192.168.1.12:5000"
+        private const val DISCOVERY_PORT = 5005
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,7 +99,11 @@ class MainActivity : AppCompatActivity() {
                 super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
                     swipeRefresh.isRefreshing = false
-                    showConnectionErrorDialog()
+                    if (!isDiscovering) {
+                        tryAutoDiscoverServer(showToast = true)
+                    } else {
+                        showConnectionErrorDialog()
+                    }
                 }
             }
         }
@@ -123,6 +133,70 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl(serverUrl)
     }
 
+    private fun tryAutoDiscoverServer(showToast: Boolean = false) {
+        if (isDiscovering) return
+        isDiscovering = true
+        if (showToast) {
+            Toast.makeText(this, "Mencari server BACS di jaringan Wi-Fi...", Toast.LENGTH_SHORT).show()
+        }
+
+        Thread {
+            var foundUrl: String? = null
+            var lock: WifiManager.MulticastLock? = null
+            var socket: DatagramSocket? = null
+            try {
+                val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                lock = wifi?.createMulticastLock("bacs_multicast_lock")
+                lock?.setReferenceCounted(true)
+                lock?.acquire()
+
+                socket = DatagramSocket()
+                socket.broadcast = true
+                socket.soTimeout = 1800
+
+                val sendData = "BACS_DISCOVER".toByteArray()
+                val sendPacket = DatagramPacket(
+                    sendData,
+                    sendData.size,
+                    InetAddress.getByName("255.255.255.255"),
+                    DISCOVERY_PORT
+                )
+                socket.send(sendPacket)
+
+                val recvBuf = ByteArray(1024)
+                val recvPacket = DatagramPacket(recvBuf, recvBuf.size)
+                socket.receive(recvPacket)
+
+                val message = String(recvPacket.data, 0, recvPacket.length).trim()
+                if (message.startsWith("BACS_SERVER:")) {
+                    foundUrl = message.removePrefix("BACS_SERVER:")
+                }
+            } catch (e: Exception) {
+                // Timeout or network error
+            } finally {
+                try {
+                    socket?.close()
+                } catch (_: Exception) {}
+                try {
+                    if (lock?.isHeld == true) {
+                        lock.release()
+                    }
+                } catch (_: Exception) {}
+            }
+
+            runOnUiThread {
+                isDiscovering = false
+                if (!foundUrl.isNullOrEmpty()) {
+                    prefs.edit().putString(KEY_SERVER_URL, foundUrl).apply()
+                    Toast.makeText(this, "Server ditemukan: $foundUrl", Toast.LENGTH_SHORT).show()
+                    webView.loadUrl(foundUrl)
+                } else {
+                    showConnectionErrorDialog()
+                }
+            }
+        }.start()
+    }
+
     private fun checkAndRequestPermissions() {
         val permissions = mutableListOf(
             Manifest.permission.CAMERA,
@@ -143,14 +217,14 @@ class MainActivity : AppCompatActivity() {
         val currentUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         val input = EditText(this).apply {
             setText(currentUrl)
-            hint = "https://domain-anda.trycloudflare.com"
+            hint = "http://192.168.1.12:5000"
             setSingleLine(true)
             setSelection(text.length)
         }
 
         AlertDialog.Builder(this)
             .setTitle("Gagal Terhubung ke Server BTS")
-            .setMessage("Periksa koneksi internet atau Wi-Fi. Masukkan URL Server BACS:")
+            .setMessage("Pastikan laptop & HP berada di Wi-Fi yang sama, atau cari server secara otomatis:")
             .setView(input)
             .setPositiveButton("Hubungkan Ulang") { _, _ ->
                 val newUrl = input.text.toString().trim()
@@ -159,11 +233,13 @@ class MainActivity : AppCompatActivity() {
                     webView.loadUrl(newUrl)
                 }
             }
-            .setNeutralButton("Reset Default") { _, _ ->
+            .setNeutralButton("🔍 Cari Otomatis") { _, _ ->
+                tryAutoDiscoverServer(showToast = true)
+            }
+            .setNegativeButton("Reset Default") { _, _ ->
                 prefs.edit().putString(KEY_SERVER_URL, DEFAULT_SERVER_URL).apply()
                 webView.loadUrl(DEFAULT_SERVER_URL)
             }
-            .setNegativeButton("Tutup", null)
             .show()
     }
 
@@ -171,14 +247,14 @@ class MainActivity : AppCompatActivity() {
         val currentUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         val input = EditText(this).apply {
             setText(currentUrl)
-            hint = "https://..."
+            hint = "http://192.168.1.12:5000"
             setSingleLine(true)
             setSelection(text.length)
         }
 
         AlertDialog.Builder(this)
             .setTitle("⚙️ Pengaturan Server BACS")
-            .setMessage("Masukkan alamat Server BTS (Gunakan HTTPS agar kamera Face ID aktif):")
+            .setMessage("Masukkan alamat Server BTS atau cari server otomatis di jaringan Wi-Fi:")
             .setView(input)
             .setPositiveButton("Simpan & Buka") { _, _ ->
                 val newUrl = input.text.toString().trim()
@@ -188,10 +264,8 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "Menghubungkan ke: $newUrl", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNeutralButton("Gunakan Default") { _, _ ->
-                prefs.edit().putString(KEY_SERVER_URL, DEFAULT_SERVER_URL).apply()
-                webView.loadUrl(DEFAULT_SERVER_URL)
-                Toast.makeText(this, "Kembali ke default HTTPS", Toast.LENGTH_SHORT).show()
+            .setNeutralButton("🔍 Cari Otomatis") { _, _ ->
+                tryAutoDiscoverServer(showToast = true)
             }
             .setNegativeButton("Batal", null)
             .show()

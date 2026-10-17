@@ -48,8 +48,8 @@ def run_flask_server(port):
     """Menjalankan server Flask di background thread."""
     try:
         from app import app
-        # Nonaktifkan reloader agar bersih di thread desktop
-        app.run(host='127.0.0.1', port=port, debug=False, use_reloader=False)
+        # Dengarkan 0.0.0.0 agar smartphone di jaringan Wi-Fi lokal juga bisa mengakses server
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     except Exception as e:
         print(f"[!] Server thread error: {e}", file=sys.stderr)
 
@@ -90,15 +90,32 @@ def main():
     # Cek apakah server sudah berjalan di port 5000 (misalnya dari run.py)
     target_port = args.port or 5000
     if is_port_in_use(target_port):
-        print(f"[*] Terdeteksi server backend sudah aktif di http://127.0.0.1:{target_port}.")
+        print(f"[*] Terdeteksi server backend sudah aktif di port {target_port}.")
         port = target_port
     else:
         # Jika belum ada server yang jalan, jalankan Flask di background thread
         port = target_port if not is_port_in_use(target_port) else find_free_port(5001)
-        print(f"[*] Menjalankan backend BACS di background pada http://127.0.0.1:{port}...")
+        print(f"[*] Menjalankan backend BACS di background pada port {port} (0.0.0.0)...")
         server_thread = threading.Thread(target=run_flask_server, args=(port,), daemon=True)
         server_thread.start()
         wait_for_server(port)
+
+    # Jalankan layanan auto-discovery UDP agar aplikasi di HP langsung terhubung otomatis
+    try:
+        from app.discovery import start_discovery_responder, get_local_ip
+        start_discovery_responder(http_port=port)
+        local_wifi_ip = get_local_ip()
+    except Exception:
+        local_wifi_ip = "127.0.0.1"
+
+    print("=" * 68)
+    print("   BACS ENTERPRISE - SMART BTS SECURITY SYSTEM")
+    print("=" * 68)
+    print(f"[*] Server Desktop Aktif: http://127.0.0.1:{port}")
+    print(f"[*] Server Mobile/HP    : http://{local_wifi_ip}:{port}")
+    print("    (Buka aplikasi di HP Anda pada Wi-Fi yang sama,")
+    print("     aplikasi akan langsung terhubung secara otomatis!)")
+    print("=" * 68)
 
     try:
         import webview
