@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Aktivasi Terminal Kiosk | BTS Security System{% endblock %}
+
+{% block page_class %}login-layout{% endblock %}
+
+{% block content %}
+<div class="glass-login-wrapper">
+    <div class="glass-login-container">
+
+        <div class="glass-login-left">
+            <div class="login-brand">
+                <i class="bi bi-tablet-landscape-fill text-info me-1"></i> BACS • TERMINAL KIOSK
+            </div>
+            <h2>AKTIVASI<br><span style="color: #38BDF8;">TERMINAL GERBANG</span></h2>
+            <p>Perangkat ini belum terdaftar sebagai terminal kiosk. Aktivasi hanya dilakukan sekali oleh admin NOC saat memasang tablet di gerbang site BTS.</p>
+        </div>
+
+        <div class="glass-login-right">
+            <div class="mb-3">
+                <h3 class="fw-bold text-white mb-1">Daftarkan Perangkat</h3>
+                <p class="small text-muted mb-0">Masukkan PIN kiosk, atau username dan password admin.</p>
+            </div>
+
+            <form method="POST" action="{{ url_for('kiosk_provision') }}" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="mb-3">
+                    <label for="site_id" class="form-label glass-label">
+                        <i class="bi bi-broadcast-pin me-1"></i> Site ID
+                    </label>
+                    <input id="site_id" type="text" name="site_id" class="form-control glass-input font-monospace" value="{{ site_id or '' }}" placeholder="Contoh: BTS-BOJONG" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="pin" class="form-label glass-label">
+                        <i class="bi bi-123 me-1"></i> PIN Kiosk
+                    </label>
+                    <input id="pin" type="password" name="pin" class="form-control glass-input" inputmode="numeric" placeholder="Kosongkan jika memakai akun admin">
+                </div>
+
+                <div class="text-center small text-muted my-2">atau</div>
+
+                <div class="mb-3">
+                    <label for="username" class="form-label glass-label">
+                        <i class="bi bi-person-badge me-1"></i> Username Admin
+                    </label>
+                    <input id="username" type="text" name="username" class="form-control glass-input" autocomplete="off">
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label glass-label">
+                        <i class="bi bi-key-fill me-1"></i> Password Admin
+                    </label>
+                    <input id="password" type="password" name="password" class="form-control glass-input" autocomplete="off">
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary glass-btn">
+                        <span>AKTIFKAN KIOSK</span>
+                        <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

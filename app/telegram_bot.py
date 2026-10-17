@@ -40,7 +40,18 @@ def handle_telegram_command(app, token, message):
         return
 
     config_chat_id = str(app.config.get("TELEGRAM_CHAT_ID", "")).strip()
-    if config_chat_id and str(chat_id) != config_chat_id:
+    if not config_chat_id:
+        # Fail-closed: tanpa TELEGRAM_CHAT_ID, bot tidak menjalankan perintah apa pun.
+        _send_telegram_reply(
+            token,
+            chat_id,
+            "⛔ <b>Bot belum dikonfigurasi</b>\n\n"
+            "Isi <code>TELEGRAM_CHAT_ID</code> di file .env dengan ID chat NOC resmi, "
+            f"lalu restart server. ID chat ini: <code>{chat_id}</code>",
+        )
+        return
+
+    if str(chat_id) != config_chat_id:
         deny_msg = (
             f"⛔ <b>Akses Ditolak</b>\n\n"
             f"Akun Telegram Anda (ID: <code>{chat_id}</code>) tidak terdaftar "
@@ -54,6 +65,26 @@ def handle_telegram_command(app, token, message):
     # Normalize commands with bot username e.g. /status@BtsSecuritySistem_Bot
     if "@" in cmd:
         cmd = cmd.split("@")[0]
+
+    # Perintah yang mengubah kondisi gerbang dapat dibatasi ke user ID tertentu
+    # (berguna jika TELEGRAM_CHAT_ID adalah grup berisi banyak anggota).
+    privileged_commands = ("/open", "/lockdown", "/lock", "/unlock", "/normal")
+    admin_user_ids = {
+        part.strip()
+        for part in str(app.config.get("TELEGRAM_ADMIN_USER_IDS", "")).split(",")
+        if part.strip()
+    }
+    if (
+        cmd in privileged_commands
+        and admin_user_ids
+        and str(from_user.get("id", "")) not in admin_user_ids
+    ):
+        _send_telegram_reply(
+            token,
+            chat_id,
+            "⛔ <b>Akses Ditolak</b>\n\nPerintah ini hanya untuk operator NOC yang terdaftar.",
+        )
+        return
 
     with app.app_context():
         try:
@@ -83,7 +114,7 @@ def handle_telegram_command(app, token, message):
 
                 sites = BtsSite.query.all()
                 total_sites = len(sites)
-                active_sites = sum(1 for s in sites if s.status == "Active")
+                active_sites = sum(1 for s in sites if s.status == "Normal (Up)")
 
                 is_emergency = _emergency.get("enabled", False)
                 em_badge = "🚨 <b>AKTIF (LOCKDOWN)</b>" if is_emergency else "🟢 <b>NONAKTIF (NORMAL)</b>"
@@ -235,7 +266,7 @@ def handle_telegram_command(app, token, message):
                 _send_telegram_reply(token, chat_id, "\n".join(lines))
 
             elif cmd in ("/lockdown", "/lock"):
-                from app.feature_routes import _emergency, force_close_gate, audit
+                from app.feature_routes import _emergency, lockdown_all_sites, audit
 
                 args = text.split(maxsplit=1)
                 reason = args[1].strip() if len(args) > 1 else f"Diaktifkan via Telegram oleh {user_name}"
@@ -244,7 +275,7 @@ def handle_telegram_command(app, token, message):
                 _emergency["reason"] = reason
                 _emergency["changed_at"] = datetime.utcnow()
 
-                force_close_gate("TELEGRAM_LOCKDOWN")
+                lockdown_all_sites("TELEGRAM_LOCKDOWN")
                 audit("EMERGENCY_MODE_ON", f"Telegram Lockdown: {reason}", "CRITICAL")
 
                 reply = (
@@ -288,18 +319,20 @@ def handle_telegram_command(app, token, message):
                     )
                     return
 
+                # Wajib Site ID persis (tanpa pencocokan sebagian) agar
+                # gerbang yang dibuka tidak salah site.
                 target_site = args[1].strip()
+                from sqlalchemy import func
                 site = BtsSite.query.filter(
-                    (BtsSite.site_id.ilike(f"%{target_site}%")) |
-                    (BtsSite.site_name.ilike(f"%{target_site}%"))
+                    func.upper(BtsSite.site_id) == target_site.upper()
                 ).first()
 
                 if not site:
                     _send_telegram_reply(
                         token,
                         chat_id,
-                        f"❌ Site '<b>{html.escape(target_site)}</b>' tidak ditemukan.\n"
-                        f"Ketik /sites untuk melihat daftar site yang valid."
+                        f"❌ Site ID '<b>{html.escape(target_site)}</b>' tidak ditemukan.\n"
+                        f"Gunakan Site ID lengkap. Ketik /sites untuk melihat daftar site yang valid."
                     )
                     return
 
@@ -313,7 +346,13 @@ def handle_telegram_command(app, token, message):
                     )
                     return
 
-                opened = force_open_gate(device_id="TELEGRAM_REMOTE", site_id=site.site_id)
+                open_seconds = int(app.config.get("GATE_OPEN_SECONDS", 10))
+
+                opened = force_open_gate(
+                    device_id="TELEGRAM_REMOTE",
+                    site_id=site.site_id,
+                    auto_close_seconds=open_seconds,
+                )
                 if not opened:
                     _send_telegram_reply(
                         token,
@@ -321,8 +360,6 @@ def handle_telegram_command(app, token, message):
                         f"❌ <b>Gagal Membuka Gerbang</b>: Kendala teknis pada site {html.escape(site.site_name)}."
                     )
                     return
-
-                open_seconds = app.config.get("GATE_OPEN_SECONDS", 10)
 
                 audit(
                     "REMOTE_GATE_OPEN",

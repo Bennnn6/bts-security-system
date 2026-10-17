@@ -8,6 +8,7 @@ import queue
 import os
 import uuid
 import secrets
+import time
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -35,6 +36,7 @@ from app.auth_helpers import (
     login_required_any,
     admin_required,
     technician_required,
+    is_authenticated_user,
 )
 
 from app import app, db
@@ -2686,7 +2688,8 @@ def edit_bts_site(
 # =========================================================
 
 @app.route(
-    '/sites/delete/<int:site_id>'
+    '/sites/delete/<int:site_id>',
+    methods=['POST']
 )
 @admin_required
 def delete_bts_site(
@@ -2805,28 +2808,73 @@ def access_simulation():
 # GATE KIOSK TERMINAL (ON-SITE PHYSICAL ACCESS DEVICE)
 # =========================================================
 
+KIOSK_SITE_SWITCH_WINDOW_SECONDS = 120
+
+
+def _find_kiosk_site(site_id):
+    site_id = str(site_id or '').strip()
+    if not site_id or len(site_id) > 50:
+        return None
+    from sqlalchemy import func
+    return BtsSite.query.filter(
+        func.upper(BtsSite.site_id) == site_id.upper()
+    ).first()
+
+
 @app.route('/kiosk', methods=['GET'])
 @app.route('/kiosk/<site_id>', methods=['GET'])
 def gate_kiosk(site_id=None):
     """
     Antarmuka Terminal Fisik Gerbang BTS (Kiosk Mode).
     Digunakan pada perangkat layar sentuh / tablet yang terpasang langsung di gerbang.
-    """
-    # Tandai sesi sebagai kiosk terminal
-    session['is_kiosk'] = True
 
-    selected_site = None
-    if site_id:
-        selected_site = BtsSite.query.filter(
-            (BtsSite.site_id == site_id) | (BtsSite.site_id.ilike(site_id))
-        ).first()
+    Sesi kiosk hanya diberikan kepada:
+    - pengguna yang sudah login (admin/teknisi), atau
+    - perangkat yang sudah diaktivasi lewat /kiosk/provision
+      (PIN kiosk atau akun admin).
+    Pindah site dari perangkat kiosk butuh verifikasi PIN baru
+    (lihat /api/kiosk/verify-pin).
+    """
+    provisioned_site = (
+        session.get('kiosk_site_id')
+        if session.get('is_kiosk') and session.get('kiosk_provisioned')
+        else None
+    )
 
     sites = BtsSite.query.order_by(BtsSite.site_name.asc()).all()
+
+    selected_site = _find_kiosk_site(site_id) if site_id else None
+    if not selected_site and provisioned_site:
+        selected_site = _find_kiosk_site(provisioned_site)
     if not selected_site and sites:
         selected_site = sites[0]
 
-    if selected_site:
-        session['kiosk_site_id'] = selected_site.site_id
+    target_site_id = selected_site.site_id if selected_site else None
+
+    try:
+        pin_verified_at = float(session.get('kiosk_pin_verified_at') or 0)
+    except (TypeError, ValueError):
+        pin_verified_at = 0.0
+
+    logged_in = is_authenticated_user()
+    same_site = bool(provisioned_site and provisioned_site == target_site_id)
+    switch_allowed = bool(
+        provisioned_site
+        and time.time() - pin_verified_at <= KIOSK_SITE_SWITCH_WINDOW_SECONDS
+    )
+
+    if not (logged_in or same_site or switch_allowed):
+        return render_template(
+            'kiosk_provision.html',
+            site_id=(site_id or provisioned_site or ''),
+        )
+
+    # Tandai sesi sebagai kiosk terminal yang sah
+    session['is_kiosk'] = True
+    session['kiosk_provisioned'] = True
+    if target_site_id:
+        session['kiosk_site_id'] = target_site_id
+    session.pop('kiosk_pin_verified_at', None)
 
     technicians = (
         Technician.query
@@ -2845,6 +2893,83 @@ def gate_kiosk(site_id=None):
         technicians=technicians,
         csrf_token=csrf_token,
     )
+
+
+@app.route('/kiosk/provision', methods=['POST'])
+def kiosk_provision():
+    """
+    Aktivasi satu perangkat (tablet) sebagai terminal kiosk untuk satu site.
+    """
+    client_ip = request.remote_addr or '127.0.0.1'
+    site_id_raw = request.form.get('site_id', '').strip()
+
+    is_locked, seconds_left = _check_login_brute_force(client_ip)
+    if is_locked:
+        flash(
+            'Terlalu banyak percobaan gagal. '
+            f'Silakan coba lagi dalam {max(1, seconds_left // 60)} menit.',
+            'danger'
+        )
+        return render_template('kiosk_provision.html', site_id=site_id_raw), 429
+
+    pin = request.form.get('pin', '').strip()
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '')
+
+    authorized_by = None
+    configured_pin = str(app.config.get('KIOSK_ADMIN_PIN', '')).strip()
+    if configured_pin and pin and secrets.compare_digest(pin, configured_pin):
+        authorized_by = 'PIN kiosk'
+    elif username and password:
+        admin = Admin.query.filter_by(username=username).first()
+        if admin and admin.check_password(password):
+            authorized_by = f'admin {admin.username}'
+
+    if not authorized_by:
+        _record_login_failure(client_ip)
+        db.session.add(
+            ActivityLog(
+                username=(username or 'KIOSK'),
+                action='KIOSK_PROVISION_FAILED',
+                description=f'Aktivasi kiosk gagal dari IP {client_ip}.',
+                incident_level='WARNING'
+            )
+        )
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        flash('PIN kiosk atau akun admin tidak valid.', 'danger')
+        return render_template('kiosk_provision.html', site_id=site_id_raw), 403
+
+    site = _find_kiosk_site(site_id_raw)
+    if not site:
+        flash('Site ID tidak ditemukan.', 'warning')
+        return render_template('kiosk_provision.html', site_id=site_id_raw), 404
+
+    _reset_login_failures(client_ip)
+
+    session['is_kiosk'] = True
+    session['kiosk_provisioned'] = True
+    session['kiosk_site_id'] = site.site_id
+
+    db.session.add(
+        ActivityLog(
+            username='KIOSK',
+            action='KIOSK_PROVISIONED',
+            description=(
+                f'Perangkat dari IP {client_ip} diaktivasi sebagai kiosk '
+                f'site {site.site_id} oleh {authorized_by}.'
+            ),
+            incident_level='NORMAL'
+        )
+    )
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return redirect(url_for('gate_kiosk', site_id=site.site_id))
 
 
 # =========================================================
@@ -4191,7 +4316,7 @@ def logout():
 
 @app.route(
     '/technicians/delete/<string:tech_id>',
-    methods=['GET']
+    methods=['POST']
 )
 @admin_required
 def delete_technician(

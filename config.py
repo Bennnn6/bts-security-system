@@ -148,6 +148,11 @@ class Config:
     TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
     TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '').strip()
 
+    # Opsional: daftar user ID Telegram (pisahkan dengan koma) yang boleh
+    # menjalankan /open, /lockdown, dan /unlock. Kosong = semua anggota
+    # chat TELEGRAM_CHAT_ID boleh.
+    TELEGRAM_ADMIN_USER_IDS = os.environ.get('TELEGRAM_ADMIN_USER_IDS', '').strip()
+
     # Real-time event notifications (Selalu Update)
     TELEGRAM_NOTIFY_ALL_ACCESS = (
         os.environ.get('TELEGRAM_NOTIFY_ALL_ACCESS', 'True').strip().lower()

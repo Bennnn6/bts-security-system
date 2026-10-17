@@ -206,13 +206,17 @@
                                         >
                                             <i class="bi bi-qr-code me-1"></i>QR Tag
                                         </button>
-                                        <a
-                                            href="{{ url_for('delete_bts_site', site_id=site.id) }}"
-                                            class="btn btn-sm btn-outline-danger"
-                                            onclick="return confirm('Hapus site {{ site.site_name }}?')"
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for('delete_bts_site', site_id=site.id) }}"
+                                            class="d-inline"
+                                            onsubmit='return confirm({{ ("Hapus site " ~ site.site_name ~ "?")|tojson }})'
                                         >
-                                            Hapus
-                                        </a>
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                Hapus
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>

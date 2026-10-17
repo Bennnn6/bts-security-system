@@ -18,7 +18,7 @@ Start the local Flask server with `python run.py`, then open `http://localhost:5
 The Python code uses four-space indentation, `snake_case` functions and variables, `PascalCase` model classes, and single-quoted strings in most application modules. Keep route handlers and security logic in their existing modules, and use the established Flask/SQLAlchemy integrations rather than introducing a separate application entry point. Runtime configuration belongs in environment variables loaded by `config.py`; do not put local secrets in source files.
 
 ## Testing Guidelines
-`test_system.py` is a standalone diagnostic script, not a pytest suite. It imports the live `app` and `db`, runs inside an application context, and prints `[ PASS ]` or `[ FAIL ]` checks. It expects the configured database schema and reports failures through its output, so run it after dependency installation and database changes.
+`test_system.py` is a standalone diagnostic script, not a pytest suite. It imports `app` and `db`, runs inside an application context, and prints `[ PASS ]` or `[ FAIL ]` checks. It points `DATABASE_URL` at a temporary SQLite file before importing the app (override with `TEST_DATABASE_URL`), so the test fixtures it seeds — including `admin/admin123` — never reach the real database. Run it after dependency installation and database changes.
 
 ## Database Changes
 Track schema changes as revisions in `migrations/versions/`. The application currently calls `db.create_all()` during initialization, while Flask-Migrate is also configured; keep model changes and migration revisions consistent.

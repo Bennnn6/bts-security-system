@@ -785,12 +785,15 @@
                                             TOTP
                                         </a>
                                         <!-- TOMBOL HAPUS BARU -->
-                                        <a href="{{ url_for('delete_technician', tech_id=tech.technician_id) }}" 
-                                           class="btn btn-outline-danger" 
-                                           title="Hapus"
-                                           onclick="return confirm('Hapus teknisi {{ tech.name }}? Tindakan ini tidak dapat dibatalkan.')">
-                                            Hapus
-                                        </a>
+                                        <form method="POST"
+                                              action="{{ url_for('delete_technician', tech_id=tech.technician_id) }}"
+                                              class="d-inline"
+                                              onsubmit='return confirm({{ ("Hapus teknisi " ~ tech.name ~ "? Tindakan ini tidak dapat dibatalkan.")|tojson }})'>
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="btn btn-outline-danger" title="Hapus">
+                                                Hapus
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                                 

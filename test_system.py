@@ -16,10 +16,34 @@ Script ini melakukan:
 8. Cek halaman Site
 9. Cek halaman Access
 10. Cek struktur security feature
+
+Catatan keamanan:
+Tes berjalan di database SQLite sementara (dihapus otomatis), sehingga
+akun uji (admin/admin123, teknisi1/teknisi123) tidak pernah masuk ke
+database asli. Set TEST_DATABASE_URL jika ingin memakai database uji lain.
 """
 
-from app import app, db
-from app.models import (
+import atexit
+import os
+import shutil
+import tempfile
+
+if os.environ.get('TEST_DATABASE_URL'):
+    os.environ['DATABASE_URL'] = os.environ['TEST_DATABASE_URL']
+else:
+    _TEST_DB_DIR = tempfile.mkdtemp(prefix='bts_test_')
+    os.environ['DATABASE_URL'] = 'sqlite:///' + os.path.join(
+        _TEST_DB_DIR, 'test_system.db'
+    ).replace('\\', '/')
+    atexit.register(shutil.rmtree, _TEST_DB_DIR, ignore_errors=True)
+
+# Jangan kirim notifikasi / perintah relay sungguhan selama tes.
+os.environ['TELEGRAM_NOTIFICATIONS_ENABLED'] = 'False'
+os.environ['WHATSAPP_NOTIFICATIONS_ENABLED'] = 'False'
+os.environ['GATE_WEBHOOK_URL'] = ''
+
+from app import app, db  # noqa: E402
+from app.models import (  # noqa: E402
     Admin,
     Technician,
     BtsSite,

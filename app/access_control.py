@@ -3,53 +3,125 @@ import threading
 
 
 # =========================================================
+# EMERGENCY LOCKDOWN STATE
+# =========================================================
+#
+# Disimpan di modul ini (bukan di feature_routes) agar open_gate()
+# bisa menolak semua pembukaan gerbang saat lockdown aktif, dari
+# jalur mana pun (Face ID, OTP, duress, QR, manual, Telegram).
+# feature_routes dan telegram_bot memakai dict yang sama.
+#
+
+_emergency = {
+    "enabled": False,
+    "reason": None,
+    "changed_at": None,
+}
+
+
+def is_emergency_lockdown():
+    return bool(_emergency.get("enabled"))
+
+
+_state_lock = threading.RLock()
+
+
+# =========================================================
 # HARDWARE / IOT RELAY WEBHOOK
 # =========================================================
 
+def _app_config(key, default=None):
+    try:
+        from app import app
+        return app.config.get(key, default)
+    except Exception:
+        return default
+
+
+def _post_gate_webhook(event, site_id, device_id):
+    """
+    Kirim sinyal ke hardware fisik (ESP32 / relay solenoid) via webhook
+    dengan tanda tangan HMAC-SHA256, lalu tunggu jawabannya.
+
+    Return (ok, error). Jika GATE_WEBHOOK_URL kosong (mode simulasi),
+    selalu (True, None).
+    """
+    webhook_url = str(_app_config("GATE_WEBHOOK_URL", "") or "").strip()
+    if not webhook_url:
+        return True, None
+
+    try:
+        import json
+        import hmac
+        import hashlib
+        import requests
+
+        webhook_secret = str(_app_config("GATE_WEBHOOK_SECRET", "") or "").strip()
+        payload = {
+            "event": event,
+            "site_id": site_id,
+            "device_id": device_id,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        body_bytes = json.dumps(payload, separators=(',', ':')).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+        }
+        if webhook_secret:
+            # Hanya kirim HMAC signature, BUKAN raw secret plaintext
+            signature = hmac.new(
+                webhook_secret.encode("utf-8"),
+                body_bytes,
+                hashlib.sha256
+            ).hexdigest()
+            headers["X-Gate-Signature"] = f"sha256={signature}"
+
+        response = requests.post(webhook_url, data=body_bytes, headers=headers, timeout=3)
+        if 200 <= response.status_code < 300:
+            return True, None
+        return False, f"Relay menjawab HTTP {response.status_code}"
+    except Exception as err:
+        print("[HARDWARE WEBHOOK ERROR]", err)
+        return False, f"Relay tidak dapat dihubungi: {type(err).__name__}"
+
+
 def _send_gate_hardware_webhook(event, site_id, device_id):
     """
-    Kirim sinyal trigger ke hardware fisik (ESP32 / Relay Solenoid) via Webhook
-    secara asinkron dengan enkripsi HMAC-SHA256 agar tidak memblokir sistem.
+    Versi asinkron (tanpa menunggu hasil), hanya untuk notifikasi
+    yang tidak menentukan status gerbang, misalnya event sensor pintu.
     """
-    def _worker():
-        try:
-            from app import app
-            webhook_url = app.config.get("GATE_WEBHOOK_URL", "").strip()
-            if not webhook_url:
-                return
+    threading.Thread(
+        target=_post_gate_webhook,
+        args=(event, site_id, device_id),
+        daemon=True,
+    ).start()
 
-            import json
-            import hmac
-            import hashlib
-            import requests
 
-            webhook_secret = app.config.get("GATE_WEBHOOK_SECRET", "").strip()
-            payload = {
-                "event": event,
-                "site_id": site_id,
-                "device_id": device_id,
-                "timestamp": datetime.utcnow().isoformat(),
-            }
-            body_bytes = json.dumps(payload, separators=(',', ':')).encode("utf-8")
-            headers = {
-                "Content-Type": "application/json",
-            }
-            if webhook_secret:
-                # B1 FIX: Gunakan hmac.new() bukan hmac.new (AttributeError)
-                # B2 FIX: Hanya kirim HMAC signature, BUKAN raw secret plaintext
-                signature = hmac.new(
-                    webhook_secret.encode("utf-8"),
-                    body_bytes,
-                    hashlib.sha256
-                ).hexdigest()
-                headers["X-Gate-Signature"] = f"sha256={signature}"
-                # JANGAN kirim X-Gate-Secret: headers ini bocorkan secret dalam plaintext!
+def _configured_open_seconds():
+    try:
+        return max(1, int(_app_config("GATE_OPEN_SECONDS", 10)))
+    except (TypeError, ValueError):
+        return 10
 
-            requests.post(webhook_url, data=body_bytes, headers=headers, timeout=3)
-        except Exception as err:
-            print("[HARDWARE WEBHOOK ERROR]", err)
 
-    threading.Thread(target=_worker, daemon=True).start()
+def _schedule_auto_close(site_id, opened_at, seconds):
+    """
+    Tutup gerbang otomatis di sisi server setelah durasi buka habis,
+    hanya jika gerbang masih terbuka dari pembukaan yang sama.
+    """
+    def _auto_close():
+        state = _get_state(site_id)
+        if state["status"] == "OPEN" and state["opened_at"] == opened_at:
+            close_gate(
+                device_id="AUTO_CLOSE_TIMER",
+                action_name="AUTO_CLOSE",
+                site_id=site_id,
+            )
+
+    timer = threading.Timer(seconds, _auto_close)
+    timer.daemon = True
+    timer.start()
+    return timer
 
 
 
@@ -166,7 +238,8 @@ def _set_gate_error(
 def open_gate(
     device_id="LOCAL_SIMULATION",
     action_name="OPEN",
-    site_id=None
+    site_id=None,
+    auto_close_seconds=None
 ):
     """
     Membuka gate untuk Site BTS tertentu.
@@ -174,6 +247,15 @@ def open_gate(
     action_name:
     - OPEN
     - MANUAL_OPEN
+
+    auto_close_seconds:
+    - None : pakai GATE_OPEN_SECONDS untuk action OPEN,
+             tanpa auto-close untuk MANUAL_OPEN
+    - 0    : tidak ditutup otomatis
+    - > 0  : ditutup otomatis oleh server setelah N detik
+
+    Return False jika Emergency Lockdown aktif atau relay
+    hardware tidak mengonfirmasi perintah buka.
     """
 
     device_id = _normalize_device_id(
@@ -186,25 +268,38 @@ def open_gate(
 
     state = _get_state(site_id)
 
+    if is_emergency_lockdown():
+        with _state_lock:
+            state["last_action"] = "OPEN_BLOCKED_EMERGENCY"
+            state["last_error"] = "Emergency Lockdown aktif."
+        print(f"[HARDWARE] OPEN BLOCKED (EMERGENCY LOCKDOWN) | SITE={site_id}")
+        return False
+
     try:
 
-        state["device_id"] = device_id
+        relay_ok, relay_error = _post_gate_webhook("GATE_OPEN", site_id, device_id)
+        if not relay_ok:
+            raise RuntimeError(relay_error or "Relay gagal membuka gerbang.")
 
-        state["status"] = "OPEN"
+        opened_at = datetime.utcnow()
 
-        state["health"] = "NORMAL"
+        with _state_lock:
 
-        state["opened_at"] = (
-            datetime.utcnow()
-        )
+            state["device_id"] = device_id
 
-        state["closed_at"] = None
+            state["status"] = "OPEN"
 
-        state["last_error"] = None
+            state["health"] = "NORMAL"
 
-        state["last_action"] = (
-            action_name
-        )
+            state["opened_at"] = opened_at
+
+            state["closed_at"] = None
+
+            state["last_error"] = None
+
+            state["last_action"] = (
+                action_name
+            )
 
         print(
             f"[HARDWARE] OPEN GATE | "
@@ -217,7 +312,15 @@ def open_gate(
             f"GATE STATUS [{site_id}] = OPEN"
         )
 
-        _send_gate_hardware_webhook("GATE_OPEN", site_id, device_id)
+        if auto_close_seconds is None:
+            auto_close_seconds = (
+                _configured_open_seconds()
+                if action_name == "OPEN"
+                else 0
+            )
+
+        if auto_close_seconds and auto_close_seconds > 0:
+            _schedule_auto_close(site_id, opened_at, auto_close_seconds)
 
         return True
 
@@ -268,23 +371,29 @@ def close_gate(
 
     try:
 
-        state["device_id"] = device_id
+        relay_ok, relay_error = _post_gate_webhook("GATE_CLOSE", site_id, device_id)
+        if not relay_ok:
+            raise RuntimeError(relay_error or "Relay gagal menutup gerbang.")
 
-        state["status"] = "CLOSED"
+        with _state_lock:
 
-        state["health"] = "NORMAL"
+            state["device_id"] = device_id
 
-        state["closed_at"] = (
-            datetime.utcnow()
-        )
+            state["status"] = "CLOSED"
 
-        state["opened_at"] = None
+            state["health"] = "NORMAL"
 
-        state["last_error"] = None
+            state["closed_at"] = (
+                datetime.utcnow()
+            )
 
-        state["last_action"] = (
-            action_name
-        )
+            state["opened_at"] = None
+
+            state["last_error"] = None
+
+            state["last_action"] = (
+                action_name
+            )
 
         print(
             f"[HARDWARE] CLOSE GATE | "
@@ -296,8 +405,6 @@ def close_gate(
             f"[HARDWARE] "
             f"GATE STATUS [{site_id}] = CLOSED"
         )
-
-        _send_gate_hardware_webhook("GATE_CLOSE", site_id, device_id)
 
         return True
 
@@ -325,17 +432,22 @@ def close_gate(
 
 def force_open_gate(
     device_id="LOCAL_SIMULATION",
-    site_id=None
+    site_id=None,
+    auto_close_seconds=0
 ):
     """
     Manual override untuk membuka gate
     pada Site BTS tertentu.
+
+    Default tidak ditutup otomatis (ditutup lewat manual close),
+    kecuali auto_close_seconds diisi.
     """
 
     return open_gate(
         device_id=device_id,
         action_name="MANUAL_OPEN",
-        site_id=site_id
+        site_id=site_id,
+        auto_close_seconds=auto_close_seconds
     )
 
 
@@ -357,6 +469,45 @@ def force_close_gate(
         action_name="MANUAL_CLOSE",
         site_id=site_id
     )
+
+
+# =========================================================
+# CLOSE ALL GATES (EMERGENCY LOCKDOWN)
+# =========================================================
+
+def close_all_gates(
+    device_id="EMERGENCY_LOCKDOWN",
+    site_ids=None
+):
+    """
+    Menutup paksa gerbang di semua site: site yang diberikan
+    (biasanya seluruh BtsSite di database) ditambah site mana pun
+    yang saat ini tercatat OPEN di memori.
+
+    Return dict {site_id: True/False}.
+    """
+
+    targets = set()
+
+    for site_id in site_ids or []:
+        if site_id:
+            targets.add(_normalize_site_id(site_id))
+
+    with _state_lock:
+        for site_id, state in _gate_states.items():
+            if state.get("status") == "OPEN":
+                targets.add(site_id)
+
+    results = {}
+
+    for site_id in sorted(targets):
+        results[site_id] = close_gate(
+            device_id=device_id,
+            action_name="EMERGENCY_CLOSE",
+            site_id=site_id,
+        )
+
+    return results
 
 
 # =========================================================

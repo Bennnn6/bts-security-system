@@ -24,6 +24,8 @@ from app.auth_helpers import admin_required
 from app.api import csrf_protected
 
 from app.access_control import (
+    _emergency,
+    close_all_gates,
     force_open_gate,
     force_close_gate,
     get_gate_status,
@@ -57,12 +59,17 @@ GATE_OPEN_SECONDS = 10
 # =========================================================
 # EMERGENCY MODE
 # =========================================================
+#
+# State `_emergency` sekarang tinggal di app.access_control
+# (diimpor di atas) agar open_gate() ikut menolak pembukaan
+# gerbang selama lockdown.
+#
 
-_emergency = {
-    "enabled": False,
-    "reason": None,
-    "changed_at": None,
-}
+
+def lockdown_all_sites(device_id):
+    """Tutup paksa gerbang di seluruh site BTS yang terdaftar."""
+    site_ids = [site.site_id for site in BtsSite.query.all()]
+    return close_all_gates(device_id=device_id, site_ids=site_ids)
 
 
 # =========================================================
@@ -1226,7 +1233,7 @@ def emergency():
 
         if enabled:
 
-            force_close_gate(
+            lockdown_all_sites(
                 "EMERGENCY_MODE"
             )
 

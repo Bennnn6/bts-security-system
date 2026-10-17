@@ -52,6 +52,7 @@ from app.access_control import (
     get_kiosk_status,
     update_door_sensor,
     get_door_sensor_status,
+    is_emergency_lockdown,
 )
 
 
@@ -478,6 +479,27 @@ def get_logged_worker_id():
     )
 
 
+def is_kiosk_session():
+    """
+    Sesi kiosk hanya sah jika perangkat sudah diprovisioning
+    (lewat PIN kiosk / akun admin, atau dibuka oleh pengguna yang login).
+    Cookie lama yang hanya berisi is_kiosk tidak lagi diterima.
+    """
+    return bool(
+        session.get("is_kiosk")
+        and session.get("kiosk_provisioned")
+        and session.get("kiosk_site_id")
+    )
+
+
+def emergency_lockdown_response():
+    return api_error(
+        "Emergency Lockdown aktif. Semua gerbang sedang dikunci oleh NOC.",
+        423,
+        reason_code="EMERGENCY_LOCKDOWN",
+    )
+
+
 def is_authenticated_api_user():
     """
     API dapat digunakan oleh:
@@ -499,7 +521,7 @@ def is_authenticated_api_user():
     except Exception:
         pass
 
-    if session.get("is_kiosk") or session.get("kiosk_site_id"):
+    if is_kiosk_session():
         return True
 
     if session.get("auth_role") in ("ADMIN", "TECHNICIAN"):
@@ -527,7 +549,7 @@ def api_login_required(function):
             or session.get("auth_role") in ("ADMIN", "TECHNICIAN")
             or get_logged_worker_id()
         )
-        if (session.get("is_kiosk") or session.get("kiosk_site_id")) and not has_regular_session:
+        if is_kiosk_session() and not has_regular_session:
             allowed_kiosk_endpoints = {
                 "api.verify_face",
                 "api.verify_otp",
@@ -1096,6 +1118,43 @@ def otp_locked(
     return failures >= get_otp_max_failures()
 
 
+def find_face_pending_log(
+    technician_id,
+    site_id,
+    access_type,
+    pending_log_id,
+    max_age_minutes=5,
+):
+    """
+    Mengambil AccessLog PENDING hasil Face ID yang cocok untuk teknisi,
+    site, dan jenis akses ini. Return None jika tidak ada, sudah
+    kedaluwarsa, atau wajahnya tidak MATCHED.
+    """
+    try:
+        pending_id = int(pending_log_id)
+    except (TypeError, ValueError):
+        return None
+
+    pending_log = AccessLog.query.filter(
+        AccessLog.id == pending_id,
+        AccessLog.technician_id == technician_id,
+        AccessLog.site_id == site_id,
+        AccessLog.access_type == access_type,
+        AccessLog.access_result == "PENDING",
+    ).first()
+
+    if not pending_log or pending_log.face_result != "MATCHED":
+        return None
+
+    if (
+        pending_log.timestamp
+        and datetime.utcnow() - pending_log.timestamp > timedelta(minutes=max_age_minutes)
+    ):
+        return None
+
+    return pending_log
+
+
 # =========================================================
 # GATE COOLDOWN
 # =========================================================
@@ -1372,6 +1431,22 @@ def verify_face():
             400,
             reason_code=reason_code,
         )
+
+    # =====================================================
+    # EMERGENCY LOCKDOWN
+    # =====================================================
+
+    if is_emergency_lockdown():
+        save_access_log(
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="NOT_CHECKED",
+            access_result="DENIED",
+            reason_code="EMERGENCY_LOCKDOWN",
+            incident_level="WARNING",
+            description="Permintaan akses ditolak karena Emergency Lockdown aktif.",
+        )
+        return emergency_lockdown_response()
 
     # =====================================================
     # GPS GEOFENCING VALIDATION
@@ -2175,8 +2250,27 @@ def verify_otp():
     # SILENT DURESS PIN (EMERGENCY HOSTAGE / COERCION ALARM)
     # =====================================================
     evidence_image = data.get("image") or None
+    strict_2fa = is_strict_2fa_enabled()
 
     if is_duress_attempt:
+        # Pada Strict 2FA, duress PIN hanya menggantikan OTP SETELAH wajah
+        # teknisi cocok. Tanpa sesi Face ID yang valid, duress diperlakukan
+        # sama seperti OTP biasa (ditolak) agar tidak menjadi jalan pintas.
+        duress_pending_log = None
+        if strict_2fa:
+            duress_pending_log = find_face_pending_log(
+                technician.technician_id,
+                site.site_id,
+                access_type,
+                data.get("pending_log_id"),
+            )
+            if duress_pending_log is None:
+                return api_error(
+                    "Verifikasi wajah wajib diselesaikan sebelum OTP pada mode Strict 2FA.",
+                    403,
+                    reason_code="FACE_VERIFICATION_REQUIRED",
+                )
+
         device_id = get_request_device()
         try:
             gate_opened = open_gate(device_id=device_id, site_id=site.site_id)
@@ -2186,23 +2280,40 @@ def verify_otp():
 
         opened_at = get_gate_opened_at(site.site_id) or datetime.utcnow()
 
-        access_log = save_access_log(
-            technician_id=technician.technician_id,
-            site_id=site.site_id,
-            access_type=access_type,
-            face_result="SKIPPED",
-            otp_result="DURESS_TRIGGERED",
-            access_result="GRANTED" if gate_opened else "DENIED",
-            reason_code="SILENT_DURESS_ALARM" if gate_opened else "SILENT_DURESS_GATE_FAILURE",
-            incident_level="CRITICAL",
-            description=(
+        duress_fields = {
+            "otp_result": "DURESS_TRIGGERED",
+            "access_result": "GRANTED" if gate_opened else "DENIED",
+            "reason_code": "SILENT_DURESS_ALARM" if gate_opened else "SILENT_DURESS_GATE_FAILURE",
+            "incident_level": "CRITICAL",
+            "description": (
                 f"[PERINGATAN DARURAT] Silent Duress PIN digunakan pada Keypad Kiosk "
                 f"oleh teknisi {technician.name} ({technician.technician_id}) di site {site.site_id}! "
                 f"Teknisi kemungkinan berada di bawah ancaman kekerasan atau disandera."
             ),
-            evidence_image=evidence_image,
-            device_id=device_id,
-        )
+        }
+
+        if duress_pending_log is not None:
+            access_log = duress_pending_log
+            for field_name, value in duress_fields.items():
+                setattr(access_log, field_name, value)
+            access_log.device_id = device_id
+            db.session.commit()
+            try:
+                from app.notifications import send_gate_access_notification
+                send_gate_access_notification(access_log)
+            except Exception:
+                pass
+        else:
+            access_log = save_access_log(
+                technician_id=technician.technician_id,
+                site_id=site.site_id,
+                access_type=access_type,
+                face_result="SKIPPED",
+                evidence_image=evidence_image,
+                device_id=device_id,
+                **duress_fields,
+            )
+
         if gate_opened and access_log:
             access_log.gate_status = "OPEN"
             access_log.gate_opened_at = opened_at
@@ -2240,27 +2351,37 @@ def verify_otp():
         except Exception as alert_err:
             print("[DURESS TELEGRAM ALERT ERROR]", alert_err)
 
+        # Jawaban sengaja dibuat sama dengan OTP biasa (tanpa penanda duress)
+        # agar pihak yang memaksa tidak tahu alarm sudah terkirim.
         if not gate_opened:
             return api_error(
-                "Alarm duress tercatat, tetapi gerbang gagal dibuka.",
+                "Gate gagal dibuka.",
                 503,
-                reason_code="SILENT_DURESS_GATE_FAILURE",
-                is_duress=True,
-                gate_opened=False,
+                reason_code="GATE_OPEN_ERROR",
             )
 
         return api_success(
-            message="Kode OTP terverifikasi. Gerbang dibuka!",
+            message="Kode OTP valid. Gate dibuka!",
             access_granted=True,
             gate_opened=True,
             tech_id=technician.technician_id,
             technician_name=technician.name,
             site_id=site.site_id,
             access_type=access_type,
-            gate_open_duration=get_gate_open_seconds(),
+            access_result="GRANTED",
+            gate_status="OPEN",
             gate_open_seconds=get_gate_open_seconds(),
-            is_duress=True,
+            gate_auto_close_seconds=get_gate_open_seconds(),
+            remaining_seconds=get_gate_open_seconds(),
+            log_id=access_log.id if access_log else None,
         )
+
+    # =====================================================
+    # EMERGENCY LOCKDOWN
+    # =====================================================
+
+    if is_emergency_lockdown():
+        return emergency_lockdown_response()
 
     if not technician.totp_secret:
 
@@ -2300,7 +2421,6 @@ def verify_otp():
     # FIND PENDING LOG
     # =====================================================
 
-    strict_2fa = is_strict_2fa_enabled()
     provided_pending_id = data.get("pending_log_id")
     if strict_2fa and not provided_pending_id:
         return api_error(
@@ -2953,6 +3073,9 @@ def manual_gate_open():
     if not site:
         return api_error("BTS Site tidak ditemukan.", 404, reason_code="SITE_NOT_FOUND")
 
+    if is_emergency_lockdown():
+        return emergency_lockdown_response()
+
     device_id = get_request_device()
 
     try:
@@ -3431,7 +3554,7 @@ def kiosk_heartbeat():
 
     kiosk_site_id = str(session.get("kiosk_site_id") or "").strip()
     if (
-        not session.get("is_kiosk")
+        not is_kiosk_session()
         or not kiosk_site_id
         or not secrets.compare_digest(site_id, kiosk_site_id)
     ):
@@ -3462,7 +3585,7 @@ def kiosk_status_endpoint():
     if not (current_user and current_user.is_authenticated):
         kiosk_site_id = str(session.get("kiosk_site_id") or "").strip()
         if (
-            not session.get("is_kiosk")
+            not is_kiosk_session()
             or not kiosk_site_id
             or not secrets.compare_digest(site_id, kiosk_site_id)
         ):
@@ -3486,7 +3609,7 @@ def verify_kiosk_admin_pin():
     pin = str(data.get("pin") or "").strip()
 
     kiosk_site_id = str(session.get("kiosk_site_id") or "").strip()
-    if not session.get("is_kiosk") or not kiosk_site_id:
+    if not is_kiosk_session() or not kiosk_site_id:
         return api_error("Endpoint ini hanya tersedia pada sesi kiosk.", 401, reason_code="AUTH_REQUIRED")
 
     if not pin:
@@ -3495,11 +3618,14 @@ def verify_kiosk_admin_pin():
     # 1. Cek terhadap konfigurasi KIOSK_ADMIN_PIN jika diset
     configured_pin = str(current_app.config.get("KIOSK_ADMIN_PIN", "")).strip()
     if configured_pin and secrets.compare_digest(pin, configured_pin):
+        # Izinkan pindah site dari menu konfigurasi kiosk selama 2 menit.
+        session["kiosk_pin_verified_at"] = time.time()
         return api_success(message="Otorisasi PIN Kiosk berhasil.")
 
     # 2. Cek terhadap password Admin di database
     admin = Admin.query.first()
     if admin and admin.check_password(pin):
+        session["kiosk_pin_verified_at"] = time.time()
         return api_success(message="Otorisasi Admin berhasil.")
 
     return api_error("PIN atau Password Admin tidak valid.", 401, reason_code="INVALID_PIN")
@@ -3687,6 +3813,9 @@ def verify_qr():
     if error:
         message, reason_code = error
         return api_error(message, 400, reason_code=reason_code)
+
+    if is_emergency_lockdown():
+        return emergency_lockdown_response()
 
     if is_strict_2fa_enabled():
         return api_error(
