@@ -37,8 +37,8 @@ class MainActivity : AppCompatActivity() {
         private const val PERMISSION_REQUEST_CODE = 1001
         private const val PREFS_NAME = "bacs_technician_prefs"
         private const val KEY_SERVER_URL = "server_url"
-        private const val DEFAULT_SERVER_URL = "http://192.168.1.12:5000"
-        private const val LOCAL_SERVER_URL = "http://192.168.1.12:5000"
+        private const val DEFAULT_SERVER_URL = "http://192.168.18.83:5000"
+        private const val LOCAL_SERVER_URL = "http://192.168.18.83:5000"
         private const val DISCOVERY_PORT = 5005
     }
 
@@ -217,7 +217,7 @@ class MainActivity : AppCompatActivity() {
         val currentUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         val input = EditText(this).apply {
             setText(currentUrl)
-            hint = "http://192.168.1.12:5000"
+            hint = "http://192.168.18.83:5000"
             setSingleLine(true)
             setSelection(text.length)
         }
@@ -247,7 +247,7 @@ class MainActivity : AppCompatActivity() {
         val currentUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         val input = EditText(this).apply {
             setText(currentUrl)
-            hint = "http://192.168.1.12:5000"
+            hint = "http://192.168.18.83:5000"
             setSingleLine(true)
             setSelection(text.length)
         }

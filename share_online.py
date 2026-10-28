@@ -84,25 +84,38 @@ def main():
     local_ip = get_local_ip()
     print("[*] Menghubungkan ke gateway tunnel publik HTTPS (Zero-Config)...")
 
-    # Jalankan SSH tunnel ke localhost.run dengan protokol TLS resmi
-    ssh_cmd = [
-        "ssh",
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "ServerAliveInterval=30",
-        "-R", f"80:127.0.0.1:{port}",
-        "nokey@localhost.run"
-    ]
+    cloudflared_path = os.path.join(BASE_DIR, "cloudflared.exe")
+    use_cloudflared = os.path.isfile(cloudflared_path)
+
+    if use_cloudflared:
+        print("[✓] Menggunakan Cloudflare Tunnel Engine (cepat & stabil)...")
+        tunnel_cmd = [
+            cloudflared_path,
+            "tunnel",
+            "--url", f"http://127.0.0.1:{port}"
+        ]
+        url_pattern = re.compile(r'(https://[a-zA-Z0-9\-_\.]+\.trycloudflare\.com)')
+    else:
+        print("[*] Menghubungkan via SSH Tunnel...")
+        tunnel_cmd = [
+            "ssh",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "ServerAliveInterval=30",
+            "-R", f"80:127.0.0.1:{port}",
+            "nokey@localhost.run"
+        ]
+        url_pattern = re.compile(r'(https://[a-zA-Z0-9\-_\.]+\.lhr\.life)')
 
     try:
         proc = subprocess.Popen(
-            ssh_cmd,
+            tunnel_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1
         )
     except Exception as e:
-        print(f"\n[!] Gagal menjalankan SSH tunnel: {e}")
+        print(f"\n[!] Gagal menjalankan tunnel publik: {e}")
         print(f"[*] Alternatif jaringan lokal (Wi-Fi): http://{local_ip}:{port}")
         input("\nTekan Enter untuk keluar...")
         return
@@ -110,15 +123,15 @@ def main():
     public_url = None
     start_time = time.time()
 
-    while time.time() - start_time < 20:
+    while time.time() - start_time < 30:
         line = proc.stdout.readline()
-        if not line:
+        if not line and proc.poll() is not None:
             break
         
         # Cari URL https dari output tunnel
-        match = re.search(r'(https://[a-zA-Z0-9\-_\.]+\.lhr\.life)', line)
+        match = url_pattern.search(line)
         if match:
-            public_url = match.group(1)
+            public_url = match.group(1).strip()
             break
 
     if not public_url:
@@ -126,6 +139,16 @@ def main():
         print(f"[*] Anda tetap bisa berbagi via Wi-Fi lokal: http://{local_ip}:{port}")
         input("\nTekan Enter untuk keluar...")
         return
+
+    # Simpan public URL ke file agar bisa diakses sistem & rute mobile
+    try:
+        os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
+        with open(os.path.join(BASE_DIR, "instance", "public_url.txt"), "w") as f:
+            f.write(public_url)
+        with open(os.path.join(BASE_DIR, "public_url.txt"), "w") as f:
+            f.write(public_url)
+    except Exception:
+        pass
 
     # Salin otomatis ke clipboard
     copied = copy_to_clipboard(public_url)

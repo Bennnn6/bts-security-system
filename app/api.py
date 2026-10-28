@@ -31,6 +31,8 @@ from app.face_recognition_module import (
     extract_face_encoding,
     compare_faces,
     analyze_liveness,
+    extract_face_encoding_and_liveness,
+    match_face_against_technicians,
 )
 
 from app.totp_module import verify_totp
@@ -1558,76 +1560,63 @@ def verify_face():
         )
 
     # =====================================================
-    # ANTI-SPOOFING & LIVENESS DETECTION
+    # SINGLE-PASS FACE & LIVENESS DETECTION (HIGH EFFICIENCY)
     # =====================================================
 
-    liveness_enabled = current_app.config.get(
-        "LIVENESS_DETECTION_ENABLED",
-        True,
+    liveness_enabled = bool(current_app.config.get("LIVENESS_DETECTION_ENABLED", True))
+    face_encoding, liveness_tuple, face_error = extract_face_encoding_and_liveness(
+        image,
+        check_liveness=liveness_enabled,
     )
+    is_live, liveness_score, liveness_details, liveness_msg = liveness_tuple
 
-    liveness_score = 1.0
-    liveness_details = {}
+    if liveness_enabled and not is_live:
+        reason_code = "SPOOF_ATTACK_DETECTED"
+        save_access_log(
+            site_id=site.site_id,
+            access_type=access_type,
+            face_result="FAILED",
+            access_result="DENIED",
+            reason_code=reason_code,
+            incident_level="HIGH",
+            description=f"Anti-Spoofing Alert: {liveness_msg} (Skor: {liveness_score})",
+            evidence_image=image,
+        )
 
-    if liveness_enabled:
-        is_live, liveness_score, liveness_details, liveness_msg = analyze_liveness(image)
+        create_activity_log(
+            action="SPOOF_ATTACK_DETECTED",
+            description=f"Percobaan pemalsuan foto/layar terdeteksi pada site {site.site_id}: {liveness_msg}",
+            incident_level="HIGH",
+        )
 
-        if not is_live:
-            reason_code = "SPOOF_ATTACK_DETECTED"
-            save_access_log(
+        try:
+            from app.notifications import send_telegram_alert
+            send_telegram_alert(
+                title="[SECURITY ALERT] Peringatan Anti-Spoofing",
+                message=(
+                    f"Percobaan buka gerbang menggunakan foto/layar HP tidak sah terdeteksi!\n"
+                    f"Detail: {liveness_msg}\nSkor Liveness: {liveness_score}"
+                ),
+                incident_level="HIGH",
+                evidence_base64=image,
                 site_id=site.site_id,
-                access_type=access_type,
-                face_result="FAILED",
-                access_result="DENIED",
-                reason_code=reason_code,
-                incident_level="HIGH",
-                description=f"Anti-Spoofing Alert: {liveness_msg} (Skor: {liveness_score})",
-                evidence_image=image,
             )
+        except Exception:
+            pass
 
-            create_activity_log(
-                action="SPOOF_ATTACK_DETECTED",
-                description=f"Percobaan pemalsuan foto/layar terdeteksi pada site {site.site_id}: {liveness_msg}",
-                incident_level="HIGH",
-            )
-
-            try:
-                from app.notifications import send_telegram_alert
-                send_telegram_alert(
-                    title="[SECURITY ALERT] Peringatan Anti-Spoofing",
-                    message=f"Percobaan buka gerbang menggunakan foto/layar HP tidak sah terdeteksi!\n"
-                            f"Detail: {liveness_msg}\nSkor Liveness: {liveness_score}",
-                    incident_level="HIGH",
-                    evidence_base64=image,
-                    site_id=site.site_id,
-                )
-            except Exception:
-                pass
-
-            return api_error(
-                f"Percobaan pemalsuan foto terdeteksi (Anti-Spoofing Alert): {liveness_msg}",
-                403,
-                reason_code=reason_code,
-                liveness_score=liveness_score,
-                liveness_details=liveness_details,
-            )
+        return api_error(
+            f"Percobaan pemalsuan foto terdeteksi (Anti-Spoofing Alert): {liveness_msg}",
+            403,
+            reason_code=reason_code,
+            liveness_score=liveness_score,
+            liveness_details=liveness_details,
+        )
 
     # Validasi challenge interaktif jika ada
     if challenge_id or challenge_result:
-
-        valid, liveness_error = (
-            validate_liveness(
-                challenge_id,
-                challenge_result,
-            )
-        )
-
+        valid, liveness_error = validate_liveness(challenge_id, challenge_result)
         if not valid:
-
-            message, reason_code = (
-                liveness_error
-            )
-
+            message, reason_code = liveness_error
             save_access_log(
                 site_id=site.site_id,
                 access_type=access_type,
@@ -1638,67 +1627,9 @@ def verify_face():
                 description=message,
                 evidence_image=image,
             )
-
-            return api_error(
-                message,
-                403,
-                reason_code=reason_code,
-            )
-
-    # =====================================================
-    # EXTRACT FACE
-    # =====================================================
-
-    try:
-
-        encoding_result = (
-            extract_face_encoding(
-                image
-            )
-        )
-
-    except Exception as exc:
-
-        save_access_log(
-            site_id=site.site_id,
-            access_type=access_type,
-            face_result="ERROR",
-            access_result="DENIED",
-            reason_code="FACE_PROCESSING_ERROR",
-            incident_level="HIGH",
-            description=(
-                f"Face processing error: {exc}"
-            ),
-            evidence_image=image,
-        )
-
-        return api_error(
-            "Gagal memproses wajah.",
-            500,
-            reason_code="FACE_PROCESSING_ERROR",
-        )
-
-    # Modul face recognition Anda dapat
-    # mengembalikan encoding langsung.
-    if (
-        isinstance(
-            encoding_result,
-            tuple,
-        )
-        and len(encoding_result) == 2
-    ):
-
-        face_encoding, face_message = (
-            encoding_result
-        )
-
-    else:
-
-        face_encoding = encoding_result
-        face_message = ""
+            return api_error(message, 403, reason_code=reason_code)
 
     if face_encoding is None:
-
         save_access_log(
             site_id=site.site_id,
             access_type=access_type,
@@ -1706,83 +1637,23 @@ def verify_face():
             access_result="DENIED",
             reason_code="FACE_NOT_FOUND",
             incident_level="WARNING",
-            description=(
-                face_message
-                or "Wajah tidak ditemukan."
-            ),
+            description=face_error or "Wajah tidak ditemukan.",
             evidence_image=image,
         )
-
-        return api_error(
-            face_message
-            or "Wajah tidak ditemukan.",
-            400,
-            reason_code="FACE_NOT_FOUND",
-        )
+        return api_error(face_error or "Wajah tidak ditemukan.", 400, reason_code="FACE_NOT_FOUND")
 
     # =====================================================
-    # ACTIVE TECHNICIANS
+    # ACTIVE TECHNICIANS & VECTORIZED FACE MATCH
     # =====================================================
 
-    technicians = (
-        Technician.query
-        .filter_by(status="Active")
-        .all()
-    )
-
+    technicians = Technician.query.filter_by(status="Active").all()
     if not technicians:
+        return api_error("Belum ada teknisi aktif.", 503, reason_code="NO_ACTIVE_TECHNICIAN")
 
-        return api_error(
-            "Belum ada teknisi aktif.",
-            503,
-            reason_code="NO_ACTIVE_TECHNICIAN",
-        )
-
-    # =====================================================
-    # FACE MATCH
-    # =====================================================
-
-    best_technician = None
-    best_distance = None
-    best_matched = False
-
-    for technician in technicians:
-
-        if not technician.face_encoding:
-            continue
-
-        try:
-
-            # compare_faces() pada face_recognition_module.py
-            # mengembalikan: (matched, distance)
-            matched, distance = compare_faces(
-                technician.face_encoding,
-                face_encoding,
-            )
-
-            if distance is None:
-                continue
-
-            distance = float(distance)
-
-            if (
-                best_distance is None
-                or distance < best_distance
-            ):
-
-                best_distance = distance
-                best_technician = technician
-                best_matched = bool(matched)
-
-        except Exception as exc:
-
-            print(
-                "[FACE COMPARE SKIP]",
-                technician.technician_id,
-                exc,
-            )
-
-            continue
+    best_technician, best_distance, best_matched = match_face_against_technicians(
+        face_encoding,
+        technicians,
+    )
 
     # =====================================================
     # NO MATCH

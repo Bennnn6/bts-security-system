@@ -63,3 +63,7 @@ cloudflared.exe
 # Uploads & Media
 app/static/uploads/*
 !app/static/uploads/.gitkeep
+
+# Dumps & Backup Venvs
+semua_kode.txt
+.venv_backup*
