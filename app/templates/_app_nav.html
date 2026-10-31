@@ -28,6 +28,10 @@
             <i class="bi bi-geo-alt-fill"></i>
             <span>GIS Map</span>
         </a>
+        <a href="{{ url_for('security_analytics') }}" class="nav-link {% if request.endpoint == 'security_analytics' %}active{% endif %}">
+            <i class="bi bi-graph-up-arrow"></i>
+            <span>Security Analytics</span>
+        </a>
 
         <div class="sidebar-menu-title mt-2">OPERASI SITE</div>
         <a href="{{ url_for('bts_sites') }}" class="nav-link {% if request.endpoint in ('bts_sites', 'edit_bts_site') %}active{% endif %}">
@@ -211,6 +215,11 @@
             <a href="{{ url_for('bts_map') }}" class="drawer-nav-item {% if request.endpoint == 'bts_map' %}active{% endif %}">
                 <span class="drawer-nav-icon"><i class="bi bi-geo-alt-fill"></i></span>
                 <span>GIS Map</span>
+                <i class="bi bi-chevron-right drawer-chevron"></i>
+            </a>
+            <a href="{{ url_for('security_analytics') }}" class="drawer-nav-item {% if request.endpoint == 'security_analytics' %}active{% endif %}">
+                <span class="drawer-nav-icon"><i class="bi bi-graph-up-arrow"></i></span>
+                <span>Security Analytics</span>
                 <i class="bi bi-chevron-right drawer-chevron"></i>
             </a>
             <a href="{{ url_for('work_orders') }}" class="drawer-nav-item {% if request.endpoint == 'work_orders' %}active{% endif %}">

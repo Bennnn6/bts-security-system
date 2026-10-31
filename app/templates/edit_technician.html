@@ -1,204 +1,221 @@
 {% extends "base.html" %}
 
+{% block title %}Edit Data Teknisi ({{ technician.technician_id }}) | BTS Security System{% endblock %}
+
 {% block content %}
 
-<div class="row justify-content-center">
+<div class="app-page p-2 p-md-4">
 
-    <div class="col-md-8">
-
-        <div class="card shadow">
-
-            <!-- HEADER -->
-            <div class="card-header bg-primary text-white text-center">
-
-                <h4 class="mb-0">
-                    Edit Data Teknisi
-                </h4>
-
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+    <div class="card p-4 mb-4" style="border-left: 6px solid var(--jk-primary) !important;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-0.5 font-monospace fw-semibold">
+                        {{ technician.technician_id }}
+                    </span>
+                    {% if technician.status == 'Active' %}
+                        <span class="badge bg-success rounded-pill px-2.5 py-0.5">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary rounded-pill px-2.5 py-0.5">Inactive</span>
+                    {% endif %}
+                </div>
+                <h2 class="section-title mb-1" style="font-size: 1.5rem;">
+                    Edit Profil Teknisi: {{ technician.name }}
+                </h2>
+                <p class="section-subtitle mb-0">
+                    Perbarui informasi biodata, kredensial login, dan parameter keamanan teknisi lapangan.
+                </p>
             </div>
 
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('register_technician') }}" class="btn btn-outline-dark shadow-sm fw-semibold">
+                    <i class="bi bi-arrow-left me-1"></i> Kembali ke Kelola Teknisi
+                </a>
+            </div>
+        </div>
+    </div>
 
-            <div class="card-body">
-
-                <!-- DATA TEKNISI -->
-                <div class="alert alert-info">
-
-                    <strong>
-                        ID Teknisi:
-                    </strong>
-
-                    {{ technician.technician_id }}
-
+    <!-- =====================================================
+         FORM EDIT CARD
+    ====================================================== -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="section-title mb-0" style="font-size: 1.15rem;">
+                        <i class="bi bi-pencil-square text-primary me-2"></i>Formulir Pembaharuan Data
+                    </h5>
+                    <span class="text-muted small">ID Sistem: #{{ technician.id }}</span>
                 </div>
 
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('edit_technician', tech_id=technician.technician_id) }}">
 
-                <!-- FORM -->
-                <form
-                    method="POST"
-                    action="{{ url_for(
-                        'edit_technician',
-                        tech_id=technician.technician_id
-                    ) }}"
-                >
+                        <div class="row g-3 mb-4">
+                            <!-- NAMA TEKNISI -->
+                            <div class="col-md-6">
+                                <label for="name" class="form-label fw-bold">Nama Lengkap Teknisi <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted"><i class="bi bi-person"></i></span>
+                                    <input
+                                        type="text"
+                                        id="name"
+                                        name="name"
+                                        class="form-control"
+                                        value="{{ technician.name }}"
+                                        required
+                                    >
+                                </div>
+                            </div>
 
-                    <!-- NAMA -->
-                    <div class="mb-3">
+                            <!-- USERNAME -->
+                            <div class="col-md-6">
+                                <label for="username" class="form-label fw-bold">Username Login <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted">@</span>
+                                    <input
+                                        type="text"
+                                        id="username"
+                                        name="username"
+                                        class="form-control"
+                                        value="{{ technician.username or '' }}"
+                                        required
+                                    >
+                                </div>
+                            </div>
 
-                        <label
-                            for="name"
-                            class="form-label fw-bold"
-                        >
-                            Nama Teknisi
-                        </label>
+                            <!-- POSISI -->
+                            <div class="col-md-6">
+                                <label for="position" class="form-label fw-bold">Posisi / Jabatan <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted"><i class="bi bi-briefcase"></i></span>
+                                    <input
+                                        type="text"
+                                        id="position"
+                                        name="position"
+                                        class="form-control"
+                                        value="{{ technician.position }}"
+                                        required
+                                    >
+                                </div>
+                            </div>
 
-                        <input
-                            type="text"
-                            id="name"
-                            name="name"
-                            class="form-control"
-                            value="{{ technician.name }}"
-                            required
-                        >
+                            <!-- NOMOR TELEPON -->
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label fw-bold">Nomor Telepon / WA <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted"><i class="bi bi-telephone"></i></span>
+                                    <input
+                                        type="text"
+                                        id="phone"
+                                        name="phone"
+                                        class="form-control"
+                                        value="{{ technician.phone }}"
+                                        required
+                                    >
+                                </div>
+                            </div>
 
-                    </div>
+                            <!-- STATUS -->
+                            <div class="col-md-6">
+                                <label for="status" class="form-label fw-bold">Status Keaktifan <span class="text-danger">*</span></label>
+                                <select id="status" name="status" class="form-select" required>
+                                    <option value="Active" {% if technician.status == 'Active' %}selected{% endif %}>
+                                        Active (Dapat Mengakses Shelter)
+                                    </option>
+                                    <option value="Inactive" {% if technician.status == 'Inactive' %}selected{% endif %}>
+                                        Inactive (Akses Dinonaktifkan)
+                                    </option>
+                                </select>
+                            </div>
 
+                            <!-- PASSWORD BARU (OPSIONAL) -->
+                            <div class="col-md-6">
+                                <label for="password" class="form-label fw-bold">Password Baru (Opsional)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted"><i class="bi bi-key"></i></span>
+                                    <input
+                                        type="password"
+                                        id="password"
+                                        name="password"
+                                        class="form-control"
+                                        placeholder="Kosongkan jika tidak diubah"
+                                    >
+                                </div>
+                                <div class="form-text small">Hanya diisi jika ingin mereset password akun teknisi.</div>
+                            </div>
+                        </div>
 
-                    <!-- USERNAME -->
-                    <div class="mb-3">
+                        <!-- MODUL KREDENSIAL KEAMANAN & 2FA -->
+                        <div class="card border rounded-3 p-3 mb-4 bg-light-subtle">
+                            <h6 class="fw-bold mb-3 text-dark">
+                                <i class="bi bi-shield-check text-primary me-2"></i>Kredensial Keamanan & Biometrik
+                            </h6>
 
-                        <label
-                            for="username"
-                            class="form-label fw-bold"
-                        >
-                            Username
-                        </label>
+                            <div class="row g-3">
+                                <!-- 2FA TOTP -->
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-white border rounded-3 h-100 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <span class="fw-bold small text-muted text-uppercase">Autentikasi 2FA TOTP</span>
+                                                {% if technician.totp_secret %}
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Aktif</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill">Belum Ada</span>
+                                                {% endif %}
+                                            </div>
+                                            <p class="small text-muted mb-3">
+                                                Token dinamis 6-digit untuk otorisasi buka gerbang di shelter BTS.
+                                            </p>
+                                        </div>
+                                        <a href="{{ url_for('totp_setup', tech_id=technician.technician_id) }}" class="btn btn-sm btn-outline-info w-100">
+                                            <i class="bi bi-qr-code-scan me-1"></i> Buka / Reset QR Code 2FA
+                                        </a>
+                                    </div>
+                                </div>
 
-                        <input
-                            type="text"
-                            id="username"
-                            name="username"
-                            class="form-control"
-                            value="{{ technician.username or '' }}"
-                            required
-                        >
+                                <!-- FACE RECOGNITION -->
+                                <div class="col-md-6">
+                                    <div class="p-3 bg-white border rounded-3 h-100 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <span class="fw-bold small text-muted text-uppercase">Biometrik Wajah</span>
+                                                {% if technician.face_encoding %}
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Terdaftar</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">Belum Terdaftar</span>
+                                                {% endif %}
+                                            </div>
+                                            <p class="small text-muted mb-3">
+                                                Data ekstraksi 128-dimensi wajah untuk verifikasi kamera AI.
+                                            </p>
+                                        </div>
+                                        <a href="{{ url_for('face_enrollment', tech_id=technician.technician_id) }}" class="btn btn-sm btn-outline-primary w-100">
+                                            <i class="bi bi-person-bounding-box me-1"></i> Pindai Ulang Wajah
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    </div>
+                        <!-- TOMBOL AKSI -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success px-4 py-2 fw-semibold shadow-sm">
+                                <i class="bi bi-check-circle-fill me-1"></i> Simpan Perubahan
+                            </button>
+                            <a href="{{ url_for('register_technician') }}" class="btn btn-outline-secondary px-4 py-2">
+                                Batal
+                            </a>
+                        </div>
 
-
-                    <!-- POSISI -->
-                    <div class="mb-3">
-
-                        <label
-                            for="position"
-                            class="form-label fw-bold"
-                        >
-                            Posisi
-                        </label>
-
-                        <input
-                            type="text"
-                            id="position"
-                            name="position"
-                            class="form-control"
-                            value="{{ technician.position }}"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- NOMOR TELEPON -->
-                    <div class="mb-3">
-
-                        <label
-                            for="phone"
-                            class="form-label fw-bold"
-                        >
-                            Nomor Telepon
-                        </label>
-
-                        <input
-                            type="text"
-                            id="phone"
-                            name="phone"
-                            class="form-control"
-                            value="{{ technician.phone }}"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- STATUS -->
-                    <div class="mb-4">
-
-                        <label
-                            for="status"
-                            class="form-label fw-bold"
-                        >
-                            Status Teknisi
-                        </label>
-
-                        <select
-                            id="status"
-                            name="status"
-                            class="form-select"
-                            required
-                        >
-
-                            <option
-                                value="Active"
-                                {% if technician.status == 'Active' %}
-                                selected
-                                {% endif %}
-                            >
-                                Active
-                            </option>
-
-                            <option
-                                value="Inactive"
-                                {% if technician.status == 'Inactive' %}
-                                selected
-                                {% endif %}
-                            >
-                                Inactive
-                            </option>
-
-                        </select>
-
-                    </div>
-
-
-                    <!-- BUTTON -->
-                    <div class="d-grid gap-2">
-
-                        <button
-                            type="submit"
-                            class="btn btn-success btn-lg"
-                        >
-
-                            Simpan Perubahan
-
-                        </button>
-
-
-                        <a
-                            href="{{ url_for('dashboard') }}"
-                            class="btn btn-outline-secondary"
-                        >
-
-                            <i class="bi bi-arrow-left me-1"></i> Kembali ke Dashboard
-
-                        </a>
-
-                    </div>
-
-                </form>
-
+                    </form>
+                </div>
             </div>
-
         </div>
-
     </div>
 
 </div>

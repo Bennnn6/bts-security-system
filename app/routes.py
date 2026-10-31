@@ -1122,73 +1122,112 @@ def dashboard():
     )
 
     # -----------------------------------------------------
-    # CHART 7 DAYS
+    # COMPREHENSIVE ANALYTICS FOR DOMINANT CHART DASHBOARD
     # -----------------------------------------------------
+    all_logs = AccessLog.query.all()
+    total_access_all = len(all_logs)
 
+    # 1. Incident Breakdown (Doughnut Chart)
+    incident_counts = {'NORMAL': 0, 'WARNING': 0, 'HIGH': 0, 'CRITICAL': 0}
+    for l in all_logs:
+        lvl = str(l.incident_level or 'NORMAL').upper()
+        if lvl in incident_counts:
+            incident_counts[lvl] += 1
+        elif lvl in ('INFO', 'LOW'):
+            incident_counts['NORMAL'] += 1
+        else:
+            incident_counts['WARNING'] += 1
+
+    # 2. 2FA Multi-Factor Authentication Performance
+    successful_face = sum(1 for l in all_logs if str(l.face_result or '').upper() in ('SUCCESS', 'MATCH', 'MATCHED', 'VERIFIED'))
+    face_evaluated = sum(1 for l in all_logs if str(l.face_result or '').upper() not in ('', 'SKIPPED', 'NONE', 'NOT_CHECKED'))
+    face_failure = max(0, face_evaluated - successful_face)
+    face_rate = round((successful_face / face_evaluated * 100), 1) if face_evaluated else 0
+
+    successful_otp = sum(1 for l in all_logs if str(l.otp_result or '').upper() in ('SUCCESS', 'VALID', 'VERIFIED', 'QR_VERIFIED'))
+    otp_evaluated = sum(1 for l in all_logs if str(l.otp_result or '').upper() not in ('', 'SKIPPED', 'NONE', 'NOT_CHECKED'))
+    otp_failure = max(0, otp_evaluated - successful_otp)
+    otp_rate = round((successful_otp / otp_evaluated * 100), 1) if otp_evaluated else 0
+
+    # 3. Top Sites by Traffic (Horizontal Bar Chart)
+    site_counts = {}
+    for l in all_logs:
+        sid = str(l.site_id or '').strip()
+        if sid and sid != 'None':
+            site_counts[sid] = site_counts.get(sid, 0) + 1
+
+    for s in sites:
+        name = s.site_name or s.site_id
+        if name not in site_counts and s.site_id not in site_counts:
+            site_counts[name] = 0
+
+    top_sites_sorted = sorted(site_counts.items(), key=lambda x: -x[1])[:5]
+    top_sites_labels = [item[0] for item in top_sites_sorted]
+    top_sites_values = [item[1] for item in top_sites_sorted]
+
+    # 4. 7-day trend chart with smart anchor
     chart_labels = []
-
     chart_granted = []
-
     chart_denied = []
+    chart_incidents = []
 
-    for days_ago in range(
-        6,
-        -1,
-        -1
-    ):
+    seven_days_ago = today_start - timedelta(days=6)
+    recent_7_count = AccessLog.query.filter(AccessLog.timestamp >= seven_days_ago).count()
+    latest_log = AccessLog.query.order_by(AccessLog.timestamp.desc()).first()
+    anchor_date = today_start
+    chart_period_label = '7 Hari Terakhir'
+    if recent_7_count == 0 and latest_log and latest_log.timestamp:
+        anchor_date = latest_log.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_period = anchor_date - timedelta(days=6)
+        chart_period_label = f"Periode: {start_period.strftime('%d/%m')} - {anchor_date.strftime('%d/%m')}"
 
-        day_start = (
-            today_start
-            - timedelta(
-                days=days_ago
-            )
-        )
+    for days_ago in range(6, -1, -1):
+        day_start = anchor_date - timedelta(days=days_ago)
+        day_end = day_start + timedelta(days=1)
+        day_logs = AccessLog.query.filter(
+            AccessLog.timestamp >= day_start,
+            AccessLog.timestamp < day_end
+        ).all()
 
-        day_end = (
-            day_start
-            + timedelta(
-                days=1
-            )
-        )
+        chart_labels.append(day_start.strftime('%d/%m'))
+        chart_granted.append(sum(1 for log in day_logs if str(log.access_result).upper() == 'GRANTED'))
+        chart_denied.append(sum(1 for log in day_logs if str(log.access_result).upper() == 'DENIED'))
+        chart_incidents.append(sum(1 for log in day_logs if str(log.incident_level).upper() in ('WARNING', 'HIGH', 'CRITICAL')))
 
-        day_logs = (
-            AccessLog.query
-            .filter(
-                AccessLog.timestamp
-                >= day_start,
+    map_sites = []
+    for site in sites:
+        try:
+            latitude = float(site.latitude)
+            longitude = float(site.longitude)
+            if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                continue
+        except (TypeError, ValueError):
+            continue
 
-                AccessLog.timestamp
-                < day_end
-            )
-            .all()
-        )
-
-        chart_labels.append(
-            day_start.strftime(
-                '%d/%m'
-            )
-        )
-
-        chart_granted.append(
-            sum(
-                1
-                for log in day_logs
-                if log.access_result
-                == 'GRANTED'
-            )
-        )
-
-        chart_denied.append(
-            sum(
-                1
-                for log in day_logs
-                if log.access_result
-                == 'DENIED'
-            )
-        )
+        sm = site_metrics.get(site.site_id, {})
+        map_sites.append({
+            'site_id': site.site_id,
+            'site_name': site.site_name or site.site_id,
+            'location': site.location or '-',
+            'latitude': latitude,
+            'longitude': longitude,
+            'status': site.status or 'Normal (Up)',
+            'temperature': getattr(site, 'temperature', None) or '-',
+            'power_output': getattr(site, 'power_output', None) or '-',
+            'security_status': sm.get('security_status', 'NORMAL'),
+            'access_today': sm.get('access_today', 0),
+            'granted_today': sm.get('granted_today', 0),
+            'denied_today': sm.get('denied_today', 0),
+            'incident_count': sm.get('incident_count', 0),
+            'critical_today': sm.get('critical_today', 0),
+            'inside_count': sm.get('inside_count', 0),
+            'last_access': sm.get('last_access', None),
+            'last_access_type': sm.get('last_access_type', None),
+        })
 
     return render_template(
         'dashboard.html',
+        map_sites=map_sites,
 
         total_techs=total_techs,
 
@@ -1217,10 +1256,20 @@ def dashboard():
         site_metrics=site_metrics,
 
         chart_labels=chart_labels,
-
         chart_granted=chart_granted,
-
         chart_denied=chart_denied,
+        chart_incidents=chart_incidents,
+        chart_period_label=chart_period_label,
+        incident_counts=incident_counts,
+        top_sites_labels=top_sites_labels,
+        top_sites_values=top_sites_values,
+        total_access_all=total_access_all,
+        successful_face=successful_face,
+        face_failure=face_failure,
+        face_rate=face_rate,
+        successful_otp=successful_otp,
+        otp_failure=otp_failure,
+        otp_rate=otp_rate,
 
         gate_status=get_gate_status(),
         gate_health=get_gate_health(),
@@ -1391,9 +1440,22 @@ def worker_work_order_summary():
 def register_technician():
 
     if request.method == 'GET':
+        search_query = request.args.get('q', '').strip()
+        query = Technician.query
+        if search_query:
+            query = query.filter(
+                (Technician.technician_id.ilike(f'%{search_query}%'))
+                | (Technician.name.ilike(f'%{search_query}%'))
+                | (Technician.username.ilike(f'%{search_query}%'))
+                | (Technician.position.ilike(f'%{search_query}%'))
+                | (Technician.phone.ilike(f'%{search_query}%'))
+            )
+        technicians = query.order_by(Technician.created_at.desc()).all()
 
         return render_template(
-            'register_technician.html'
+            'register_technician.html',
+            technicians=technicians,
+            search_query=search_query
         )
 
     data = request.get_json(
@@ -1928,7 +1990,7 @@ def edit_technician(
         )
 
     return redirect(
-        url_for('dashboard')
+        url_for('register_technician')
     )
 
 
@@ -4373,7 +4435,7 @@ def delete_technician(
         )
 
         return redirect(
-            url_for('dashboard')
+            url_for('register_technician')
         )
 
     try:
@@ -4425,7 +4487,7 @@ def delete_technician(
         )
 
     return redirect(
-        url_for('dashboard')
+        url_for('register_technician')
     )
 
 

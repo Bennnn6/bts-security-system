@@ -105,7 +105,7 @@ if __name__ == '__main__':
     use_https = '--https' in sys.argv
     debug_enabled = (
         app.config.get('APP_ENV') != 'production'
-        and os.environ.get('FLASK_DEBUG', 'False').strip().lower() in ('true', '1', 'yes')
+        and os.environ.get('FLASK_DEBUG', 'True').strip().lower() in ('true', '1', 'yes')
     )
     
     if use_https:

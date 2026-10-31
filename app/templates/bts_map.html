@@ -123,13 +123,8 @@
 {# Data JSON dipisahkan dari JavaScript agar tidak menimbulkan false-positive syntax error di editor. #}
 <script type="application/json" id="btsSiteData">{{ map_sites|tojson }}</script>
 
-<link rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIINfQ3Qk0QfM6QWJYy5QYjC7j8kG2yP0TQ="
-      crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-o9N1jGDZ5Pu/E2O2cRZ7VwYh2nqZpJpJqWZP0k5Y7vU="
-        crossorigin=""></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
     .site-popup h6 { margin-bottom: 6px; font-weight: 700; }

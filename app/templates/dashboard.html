@@ -1,8 +1,109 @@
 {% extends "base.html" %}
 
-{% block title %}Security Operations Dashboard | BTS Security System{% endblock %}
+{% block title %}Operations & Security Analytics Dashboard | BTS Security System{% endblock %}
 
 {% block content %}
+
+<!-- Leaflet CSS & JS via JSDelivr CDN (Reliable & Fast) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+    .site-marker-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .bts-gis-tower-pin {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-size: 1rem;
+        border: 2.5px solid #ffffff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        position: relative;
+        z-index: 2;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    .bts-gis-tower-pin:hover {
+        transform: scale(1.18);
+    }
+    .marker-normal { background: linear-gradient(135deg, #10B981 0%, #059669 100%); }
+    .marker-warning { background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); }
+    .marker-high { background: linear-gradient(135deg, #F97316 0%, #C2410C 100%); }
+    .marker-critical { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); }
+    .marker-maintenance { background: linear-gradient(135deg, #64748B 0%, #475569 100%); }
+    .marker-down { background: #0F172A; }
+
+    .bts-gis-radar {
+        position: absolute;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        top: -11px;
+        left: -11px;
+        z-index: 1;
+        pointer-events: none;
+        animation: btsRadarWave 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    .radar-normal { border: 2px solid rgba(16, 185, 129, 0.65); background: rgba(16, 185, 129, 0.15); }
+    .radar-warning { border: 2px solid rgba(245, 158, 11, 0.7); background: rgba(245, 158, 11, 0.2); }
+    .radar-high { border: 2px solid rgba(249, 115, 22, 0.75); background: rgba(249, 115, 22, 0.2); }
+    .radar-critical { border: 2px solid rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.25); animation-duration: 1.2s; }
+    .radar-maintenance { border: 2px solid rgba(100, 116, 139, 0.6); background: rgba(100, 116, 139, 0.15); }
+    .radar-down { border: 2px solid rgba(15, 23, 42, 0.8); background: rgba(15, 23, 42, 0.2); }
+
+    @keyframes btsRadarWave {
+        0% { transform: scale(0.35); opacity: 1; }
+        100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    .bts-site-bubble {
+        background: rgba(15, 23, 42, 0.92) !important;
+        backdrop-filter: blur(8px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        color: #ffffff !important;
+        border-radius: 20px !important;
+        padding: 4px 10px !important;
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.35) !important;
+        white-space: nowrap !important;
+    }
+    .bts-site-bubble::before {
+        border-top-color: rgba(15, 23, 42, 0.92) !important;
+    }
+
+    .gauge-circle-container {
+        position: relative;
+        width: 140px;
+        height: 140px;
+        margin: 0 auto;
+    }
+    .gauge-center-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        pointer-events: none;
+    }
+
+    .timeline-stream-item {
+        transition: background-color 0.15s ease;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
+    .timeline-stream-item:hover {
+        background-color: rgba(241, 245, 249, 0.8);
+    }
+</style>
 
 <div class="app-page dashboard-page p-2 p-md-4 position-relative">
 
@@ -10,138 +111,58 @@
     <div id="nocLiveToastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999; pointer-events: none;"></div>
 
     <!-- =====================================================
-         HEADER (HERO)
+         OPERATIONS COMMAND BAR (HERO)
     ====================================================== -->
-
-    <div class="dashboard-hero p-4 mb-4">
+    <div class="dashboard-hero p-3 p-md-4 mb-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
              <div>
                  <div class="d-flex align-items-center gap-2 mb-1">
                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-0.5 fw-semibold" style="font-size: 0.72rem;">
-                         <i class="bi bi-shield-check me-1"></i> BACS ENTERPRISE • NOC & SOC
+                         <i class="bi bi-shield-check me-1"></i> BACS ENTERPRISE • COMMAND & ANALYTICS CENTER
                      </span>
-                     <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
-                         ISO/IEC 27001 COMPLIANT
+                     <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-0.5 font-monospace" style="font-size: 0.72rem;">
+                         <span class="pulse-dot me-1"></span> LIVE TELEMETRI
                      </span>
                  </div>
                  <h2 class="fw-bold mb-1" style="color: var(--jk-text-dark); letter-spacing: -0.02em;">
-                     Pusat Operasi Keamanan BTS (NOC)
+                     Pusat Monitoring Visual & Analitik Keamanan BTS
                  </h2>
-                 <p class="text-muted mb-0">
-                     Pemantauan telemetri shelter, kontrol akses biometrik 2FA, dan kepatuhan K3 lapangan secara real-time.
+                 <p class="text-muted mb-0 small">
+                     Dashboard pemantauan terpusat: analitik tren akses 2FA, distribusi risiko keamanan, peta geospasial menara, dan telemetri IoT.
                  </p>
 
                  <div class="mt-3 d-flex gap-2 flex-wrap" aria-label="Status operasi">
-                     <span class="hero-status-badge"><b>NODE:</b> <span class="text-primary fw-bold ms-1">CONNECTED</span></span>
-                     <span class="hero-status-badge"><b>SYNC:</b> <span class="text-success fw-bold ms-1">LIVE</span></span>
+                     <span class="hero-status-badge"><b>GATEWAY:</b> <span class="text-primary fw-bold ms-1">CONNECTED</span></span>
+                     <span class="hero-status-badge"><b>SYNC:</b> <span class="text-success fw-bold ms-1">SSE ACTIVE</span></span>
                      <span class="hero-status-badge d-flex align-items-center gap-1">
-                         <b>THREAT:</b>
+                         <b>POSTURE:</b>
                          <span id="threatLevelBadge" class="badge bg-success ms-1 rounded-pill" style="font-size: 0.75rem;">SECURE</span>
                      </span>
                      <span class="hero-status-badge d-flex align-items-center gap-1">
-                         <b>CLOCK:</b>
-                         <span id="liveClock" class="ms-1 font-monospace fw-bold text-primary"><span class="tick">--</span></span>
+                         <b>WAKTU SERVER:</b>
+                         <span id="liveClock" class="ms-1 font-monospace fw-bold text-primary"><span class="tick">--:--:--</span></span>
                      </span>
                  </div>
              </div>
 
-             <div class="d-none d-md-block text-end">
-                 <div class="text-muted small fw-bold mb-1">NETWORK STATUS</div>
-                 <div class="text-success fw-bold fs-5 mb-2">STABLE 99.9%</div>
-                 <div class="text-muted small fw-bold mb-1">ACTIVE SESSIONS</div>
-                 <div class="text-primary fw-bold fs-4" id="activeSessionsCount">--</div>
+             <div class="d-none d-md-flex align-items-center gap-3">
+                 <div class="text-end border-end pe-3">
+                     <div class="text-muted small fw-bold">TOTAL TRANSAKSI</div>
+                     <div class="text-primary fw-bold fs-4">{{ total_access_all|default(0) }}</div>
+                 </div>
+                 <div class="d-flex flex-column gap-2">
+                     <a href="{{ url_for('access_simulation') }}" class="btn btn-sm btn-primary shadow-sm">
+                         <i class="bi bi-play-circle-fill me-1"></i> Simulasi Akses
+                     </a>
+                     <a href="{{ url_for('security_analytics') }}" class="btn btn-sm btn-outline-primary">
+                         <i class="bi bi-graph-up me-1"></i> Security Analytics
+                     </a>
+                 </div>
              </div>
         </div>
     </div>
 
-    {% if pending_work_order_verifications %}
-        <div class="alert shadow-sm border-0 d-flex align-items-center justify-content-between mb-4" style="background-color: var(--jk-bg-subtle); color: var(--jk-text-dark); border-radius: var(--jk-radius-card);">
-            <div>
-                <span class="badge bg-primary me-2 rounded-pill">REVIEW QUEUE</span>
-                <strong style="color: var(--jk-primary);">{{ pending_work_order_verifications }} work order menunggu verifikasi</strong>
-            </div>
-            <a href="{{ url_for('work_orders', status='COMPLETED') }}" class="btn btn-sm btn-primary shadow-sm">Buka antrean review</a>
-        </div>
-    {% endif %}
-
-
-    <!-- =====================================================
-         STATISTIC CARDS (MINI & CLEAN)
-    ====================================================== -->
-
-    <div class="row g-3 mb-4">
-        <!-- TOTAL TEKNISI -->
-        <div class="col-6 col-xl-3">
-            <div class="stat-card-mini">
-                <div class="stat-card-header">
-                    <span class="stat-card-label">Total Teknisi</span>
-                    <span class="stat-card-icon-subtle"><i class="bi bi-people"></i></span>
-                </div>
-                <div class="stat-card-body">
-                    <div class="stat-card-value">{{ total_techs|default(0) }}</div>
-                    <div class="stat-card-meta">
-                        <span class="meta-dot bg-success"></span>
-                        <span>{{ active_techs|default(0) }} Terverifikasi</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- TEKNISI AKTIF -->
-        <div class="col-6 col-xl-3">
-            <div class="stat-card-mini">
-                <div class="stat-card-header">
-                    <span class="stat-card-label">Teknisi Aktif</span>
-                    <span class="stat-card-icon-subtle"><i class="bi bi-person-check"></i></span>
-                </div>
-                <div class="stat-card-body">
-                    <div class="stat-card-value text-success">{{ active_techs|default(0) }}</div>
-                    <div class="stat-card-meta">
-                        <span class="meta-dot bg-success"></span>
-                        <span>Standby Lapangan</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TOTAL SITE -->
-        <div class="col-6 col-xl-3">
-            <div class="stat-card-mini">
-                <div class="stat-card-header">
-                    <span class="stat-card-label">Total Site BTS</span>
-                    <span class="stat-card-icon-subtle"><i class="bi bi-broadcast-pin"></i></span>
-                </div>
-                <div class="stat-card-body">
-                    <div class="stat-card-value">{{ total_sites|default(0) }}</div>
-                    <div class="stat-card-meta">
-                        <span class="meta-dot bg-info"></span>
-                        <span>NOC Terhubung 24/7</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- AKSES HARI INI -->
-        <div class="col-6 col-xl-3">
-            <div class="stat-card-mini">
-                <div class="stat-card-header">
-                    <span class="stat-card-label">Akses Hari Ini</span>
-                    <span class="stat-card-icon-subtle"><i class="bi bi-door-open"></i></span>
-                </div>
-                <div class="stat-card-body">
-                    <div class="stat-card-value text-primary">{{ access_today|default(0) }}</div>
-                    <div class="stat-card-meta">
-                        <span class="meta-dot bg-primary"></span>
-                        <span>Otentikasi Gerbang</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- =====================================================
-         K3 SHELTER OVERSTAY ALERT BANNER (FITUR 3)
-    ====================================================== -->
+    <!-- K3 Shelter Overstay Alert Banner -->
     <div id="k3DashboardAlertBanner" class="alert alert-danger border-0 shadow-sm rounded-4 p-3 mb-4 d-none">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div class="d-flex align-items-center gap-3">
@@ -149,7 +170,7 @@
                 <div>
                     <h6 class="fw-bold mb-1 text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Peringatan K3: Overstay Shelter BTS Terdeteksi</h6>
                     <div id="k3DashboardAlertText" class="small text-dark">
-                        Ada teknisi yang berada di dalam shelter BTS melebihi batas aman 120 menit tanpa checkout.
+                        Ada teknisi yang berada di dalam shelter BTS melebihi batas aman operasional tanpa checkout.
                     </div>
                 </div>
             </div>
@@ -160,1672 +181,907 @@
     </div>
 
     <!-- =====================================================
-         SECURITY CENTER
+         STATISTIC CARDS (4 METRIK UTAMA)
     ====================================================== -->
-
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div>
-                <h5 class="section-title">Security Center</h5>
-                <div class="section-subtitle">Monitoring keamanan tambahan yang terhubung ke sistem utama.</div>
-            </div>
-            
-            <div class="d-flex gap-2">
-                <a href="{{ url_for('admin_backup_db') }}" class="btn btn-sm btn-outline-success">
-                    <i class="bi bi-database-down"></i> Backup DB
-                </a>
-            </div>
+    <div class="row g-3 mb-4">
+        <!-- 1. TOTAL TEKNISI -->
+        <div class="col-6 col-xl-3 stagger-1">
+            <a href="{{ url_for('register_technician') }}" class="text-decoration-none">
+                <div class="stat-card-mini">
+                    <div class="stat-card-header">
+                        <span class="stat-card-label">Personel Teknisi</span>
+                        <span class="stat-card-icon-subtle"><i class="bi bi-people"></i></span>
+                    </div>
+                    <div class="stat-card-body">
+                        <div class="stat-card-value">{{ total_techs|default(0) }}</div>
+                        <div class="stat-card-meta">
+                            <span class="meta-dot bg-success"></span>
+                            <span>{{ active_techs|default(0) }} Aktif Lapangan</span>
+                        </div>
+                    </div>
+                </div>
+            </a>
         </div>
 
-        <div class="card-body">
-            <div id="securityCenterMessage" class="alert mb-3 border" style="background-color: var(--jk-bg-main); border-radius: 10px;">
-                <i class="bi bi-arrow-repeat me-2"></i> Memuat status Security Center...
-            </div>
+        <!-- 2. TOTAL SITE BTS -->
+        <div class="col-6 col-xl-3 stagger-2">
+            <a href="{{ url_for('bts_sites') }}" class="text-decoration-none">
+                <div class="stat-card-mini">
+                    <div class="stat-card-header">
+                        <span class="stat-card-label">Jaringan Menara BTS</span>
+                        <span class="stat-card-icon-subtle"><i class="bi bi-broadcast-pin"></i></span>
+                    </div>
+                    <div class="stat-card-body">
+                        <div class="stat-card-value">{{ total_sites|default(0) }}</div>
+                        <div class="stat-card-meta">
+                            <span class="meta-dot bg-info"></span>
+                            <span>{{ map_sites|length if map_sites else 0 }} Terpetakan GIS</span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
 
-            <div class="row g-3">
-                <div class="col-md-6 col-xl-3">
-                    <div class="inner-box-light p-3 h-100 text-center">
-                        <div class="text-muted small fw-bold text-uppercase mb-2">Akses Hari Ini</div>
-                        <div id="scAccessToday" class="fs-3 fw-bold text-primary">-</div>
+        <!-- 3. AKSES HARI INI & TOTAL -->
+        <div class="col-6 col-xl-3 stagger-3">
+            <a href="{{ url_for('access_logs') }}" class="text-decoration-none">
+                <div class="stat-card-mini">
+                    <div class="stat-card-header">
+                        <span class="stat-card-label">Akses Hari Ini</span>
+                        <span class="stat-card-icon-subtle"><i class="bi bi-door-open"></i></span>
                     </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="inner-box-light p-3 h-100 text-center">
-                        <div class="text-muted small fw-bold text-uppercase mb-2">Granted Hari Ini</div>
-                        <div id="scGrantedToday" class="fs-3 fw-bold text-success">-</div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="inner-box-light p-3 h-100 text-center">
-                        <div class="text-muted small fw-bold text-uppercase mb-2">Denied Hari Ini</div>
-                        <div id="scDeniedToday" class="fs-3 fw-bold text-danger">-</div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="inner-box-light p-3 h-100 text-center">
-                        <div class="text-muted small fw-bold text-uppercase mb-2">Incident Hari Ini</div>
-                        <div id="scIncidentsToday" class="fs-3 fw-bold text-warning">-</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row g-3 mt-1">
-                <div class="col-lg-4">
-                    <div class="inner-box-light p-3 h-100 bg-white">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong class="text-dark">Gate</strong>
-                            <span id="scGateStatus" class="badge bg-secondary rounded-pill">-</span>
-                        </div>
-                        <div class="small text-muted d-flex justify-content-between">
-                            <span>Health:</span>
-                            <span id="scGateHealth" class="fw-bold">-</span>
-                        </div>
-                        <div id="scGateMessage" class="small mt-2 pt-2 border-top text-muted">
-                            -
+                    <div class="stat-card-body">
+                        <div class="stat-card-value text-primary">{{ access_today|default(0) }}</div>
+                        <div class="stat-card-meta">
+                            <span class="meta-dot bg-primary"></span>
+                            <span>{{ granted_today|default(0) }} Izin • {{ denied_today|default(0) }} Tolak</span>
                         </div>
                     </div>
                 </div>
-                
-                <div class="col-lg-4">
-                     <div class="inner-box-light p-3 h-100 bg-white">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong class="text-dark">System Health</strong>
-                            <span id="scApiHealth" class="badge bg-secondary rounded-pill">-</span>
+            </a>
+        </div>
+
+        <!-- 4. OKUPANSI K3 SHELTER -->
+        <div class="col-6 col-xl-3 stagger-4">
+            <a href="{{ url_for('security_features_page') }}" class="text-decoration-none">
+                <div class="stat-card-mini">
+                    <div class="stat-card-header">
+                        <span class="stat-card-label">Okupansi K3 Shelter</span>
+                        <span class="stat-card-icon-subtle"><i class="bi bi-shield-shaded"></i></span>
+                    </div>
+                    <div class="stat-card-body">
+                        <div class="stat-card-value {{ 'text-warning' if inside_count and inside_count > 0 else 'text-success' }}">
+                            {{ inside_count|default(0) }}
                         </div>
-                        <div id="scHealthDetails" class="small text-muted">Memuat...</div>
+                        <div class="stat-card-meta">
+                            {% if inside_count and inside_count > 0 %}
+                                <span class="meta-dot bg-warning"></span>
+                                <span class="text-warning fw-semibold">Teknisi di Shelter</span>
+                            {% else %}
+                                <span class="meta-dot bg-success"></span>
+                                <span>Shelter Kosong (Aman)</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-                
-                <div class="col-lg-4">
-                     <div class="inner-box-light p-3 h-100 bg-white">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong class="text-dark">Emergency Mode</strong>
-                            <span id="scEmergency" class="badge bg-secondary rounded-pill">-</span>
-                        </div>
-                        <div id="scEmergencyReason" class="small text-muted">-</div>
-                    </div>
-                </div>
-            </div>
+            </a>
         </div>
     </div>
 
     <!-- =====================================================
-         LIVE NOC INTERACTIVE MAP (FITUR ENTERPRISE 2)
+         PETA GIS & RADAR KEAMANAN MENARA BTS
     ====================================================== -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-    {# Embedded site data for immediate, zero-latency map rendering #}
-    <script type="application/json" id="nocPreloadedSites">
-    [
-        {% for s in sites %}
-        {
-            "site_id": {{ s.site_id|tojson }},
-            "site_name": {{ s.site_name|tojson }},
-            "location": {{ (s.location or '-')|tojson }},
-            "latitude": {{ (s.latitude or '')|tojson }},
-            "longitude": {{ (s.longitude or '')|tojson }},
-            "status": {{ (s.status or 'Normal (Up)')|tojson }},
-            "temperature": {{ (s.temperature or '-')|tojson }},
-            "power_output": {{ (s.power_output or '-')|tojson }}
-        }{% if not loop.last %},{% endif %}
-        {% endfor %}
-    ]
-    </script>
-
-    <style>
-        .noc-marker-wrap {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .noc-gis-tower-pin {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            font-size: 1.15rem;
-            border: 3px solid #ffffff;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
-            position: relative;
-            z-index: 2;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .noc-gis-tower-pin:hover {
-            transform: scale(1.18);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.55);
-        }
-        .pin-normal {
-            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        }
-        .pin-active {
-            background: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
-        }
-        .pin-incident {
-            background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);
-        }
-
-        /* Continuous Pulse Radar Wave */
-        .noc-gis-radar {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            top: -12px;
-            left: -12px;
-            z-index: 1;
-            pointer-events: none;
-            animation: nocRadarWave 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-        }
-        .radar-normal { border: 2px solid rgba(16, 185, 129, 0.65); background: rgba(16, 185, 129, 0.15); }
-        .radar-active { border: 2px solid rgba(56, 189, 248, 0.75); background: rgba(56, 189, 248, 0.2); }
-        .radar-incident { border: 2px solid rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.25); animation-duration: 1.2s; }
-
-        @keyframes nocRadarWave {
-            0% { transform: scale(0.35); opacity: 1; }
-            100% { transform: scale(1.6); opacity: 0; }
-        }
-
-        /* Permanent Site Name Label above Pin */
-        .noc-site-bubble {
-            background: rgba(15, 23, 42, 0.92) !important;
-            backdrop-filter: blur(8px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.25) !important;
-            color: #ffffff !important;
-            border-radius: 20px !important;
-            padding: 4px 10px !important;
-            font-size: 0.8rem !important;
-            font-weight: 700 !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.35) !important;
-            white-space: nowrap !important;
-        }
-        .noc-site-bubble::before {
-            border-top-color: rgba(15, 23, 42, 0.92) !important;
-        }
-    </style>
-
-    <div class="card mb-4 overflow-hidden shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="card shadow-sm border mb-4 stagger-5">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <h5 class="section-title"><i class="bi bi-geo-alt-fill me-2 text-primary"></i>Live NOC BTS Interactive Map</h5>
-                <div class="section-subtitle">Peta real-time pengawasan sebaran tower BTS, status operasional, dan personel aktif di shelter.</div>
+                <h5 class="section-title mb-1">
+                    <i class="bi bi-geo-alt-fill text-primary me-2"></i>Peta Persebaran & Radar Keamanan Menara BTS
+                </h5>
+                <div class="section-subtitle">
+                    Monitoring geospasial real-time sebaran posisi menara, radar status keamanan akses, dan kondisi operasional.
+                </div>
             </div>
-            <div class="d-flex gap-2 align-items-center flex-wrap">
-                <span id="nocMapSiteCount" class="badge bg-secondary rounded-pill px-3 py-2">Memuat site...</span>
-                <button type="button" class="btn btn-sm btn-outline-primary" onclick="fitDashboardNocMap()">
-                    <i class="bi bi-crosshair me-1"></i> Center All
-                </button>
-                <a href="{{ url_for('bts_map') }}" class="btn btn-sm btn-primary">
-                    <i class="bi bi-arrows-fullscreen me-1"></i> Layar Penuh
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1.5 fw-semibold" id="mapSitesCountBadge">
+                    {{ map_sites|length if map_sites else 0 }} Menara Terpetakan
+                </span>
+                <a href="{{ url_for('bts_map') }}" class="btn btn-sm btn-outline-primary shadow-sm" title="Buka di halaman peta penuh">
+                    <i class="bi bi-arrows-fullscreen me-1"></i> Mode Layar Penuh
                 </a>
             </div>
         </div>
         <div class="card-body p-0 position-relative">
-            <div id="nocDashboardMap" style="height: 380px; width: 100%; z-index: 1;"></div>
+            <div id="dashBtsMap" style="height: 380px; width: 100%; min-height: 360px;"></div>
         </div>
-        <div class="card-footer bg-white border-top py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2 small">
-            <div class="d-flex flex-wrap align-items-center gap-3">
-                <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle p-1 bg-success d-inline-block" style="width: 10px; height: 10px;"></span> <span>Normal / Terkunci</span></span>
-                <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle p-1 bg-primary d-inline-block" style="width: 10px; height: 10px;"></span> <span>Teknisi di Lokasi</span></span>
-                <span class="d-flex align-items-center gap-1"><span class="badge rounded-circle p-1 bg-danger d-inline-block" style="width: 10px; height: 10px;"></span> <span>Insiden / Warning</span></span>
+        <div class="card-footer bg-white border-top py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2 small text-muted">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="fw-semibold">Radar Keamanan:</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5"><i class="bi bi-check-circle-fill me-1"></i>NORMAL</span>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-0.5"><i class="bi bi-exclamation-triangle-fill me-1"></i>WARNING</span>
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5"><i class="bi bi-shield-fill-exclamation me-1"></i>CRITICAL</span>
             </div>
-            <div class="text-muted">
-                <span>Klik pin menara untuk melihat status gate & detail.</span>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- =====================================================
-         ACTIVE PERSONNEL & K3 OVERSTAY MONITORING
-     ====================================================== -->
-    <div class="card mb-4 shadow-sm border-0">
-        <div class="card-header border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div>
-                <h5 class="section-title"><i class="bi bi-person-badge-fill me-2 text-primary"></i>Personel Aktif di Site & K3 Overstay Tracking</h5>
-                <div class="section-subtitle">Daftar real-time teknisi dan personel yang saat ini berada di dalam area shelter BTS.</div>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <span id="activePersonnelCountBadge" class="badge bg-primary rounded-pill px-3 py-2 fw-semibold">0 Personel di Site</span>
-                <span id="activeOverstayCountBadge" class="badge bg-danger rounded-pill px-3 py-2 fw-semibold d-none"><i class="bi bi-exclamation-triangle-fill me-1"></i>0 Overstay (>120m)</span>
-                <button type="button" class="btn btn-sm btn-outline-primary" onclick="refreshActivePersonnel()" title="Refresh daftar personel aktif">
-                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh
-                </button>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div id="activePersonnelEmptyState" class="text-center py-5">
-                <div class="mb-3">
-                    <i class="bi bi-shield-check text-success" style="font-size: 2.5rem;"></i>
-                </div>
-                <h6 class="fw-bold text-dark mb-1">Tidak Ada Personel Aktif di Shelter</h6>
-                <p class="text-muted small mb-0">Semua site BTS saat ini dalam kondisi terkunci dan steril tanpa aktivitas teknisi di dalam shelter.</p>
-            </div>
-
-            <div id="activePersonnelTableWrapper" class="table-responsive d-none">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-secondary small text-uppercase">
-                        <tr>
-                            <th class="ps-4 py-3">Personel / Teknisi</th>
-                            <th class="py-3">Site BTS</th>
-                            <th class="py-3">Waktu Masuk</th>
-                            <th class="py-3">Durasi di Site</th>
-                            <th class="py-3">Metode Verifikasi</th>
-                            <th class="py-3 text-end pe-4">Status & Tindakan</th>
-                        </tr>
-                    </thead>
-                    <tbody id="activePersonnelTableBody">
-                    </tbody>
-                </table>
-            </div>
+            <span><i class="bi bi-info-circle me-1"></i>Klik pin menara untuk melihat status operasional, suhu shelter, dan simulasi akses.</span>
         </div>
     </div>
 
-
     <!-- =====================================================
-         GATE CONTROL PANEL
-     ====================================================== -->
-
-    <div class="card mb-4">
-        <div class="card-header border-bottom">
-            <h5 class="section-title">Gate Control Panel</h5>
-            <div class="section-subtitle">Kontrol dan monitoring gerbang akses site BTS.</div>
-        </div>
-
-        <div class="card-body">
-            <div class="row g-4">
-                
-                <!-- SITE SELECTION -->
-                <div class="col-lg-4">
-                    <div class="inner-box-light p-4 h-100 text-center d-flex flex-column justify-content-center bg-white">
-                        <label for="dashboardGateSiteSelector" class="form-label fw-bold mb-3 text-primary text-uppercase small">Pilih Site BTS</label>
-                        <select id="dashboardGateSiteSelector" class="form-select mb-3 shadow-sm border-0" style="background-color: var(--jk-bg-main); font-weight: 500;">
-                            <option value="">-- Pilih Site --</option>
-                        </select>
-                        <div id="dashboardGateSiteName" class="fw-bold fs-4 mb-1" style="color: var(--jk-text-dark);">-</div>
-                        <div id="dashboardGateSiteId" class="small text-muted mb-3">ID: -</div>
-                        <div>
-                            <span id="dashboardGateOnline" class="badge bg-secondary rounded-pill px-3 py-2">
-                                <i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> OFFLINE
+         GRID GRAFIK UTAMA (DOMINAN GRAFIK - ROW 1)
+         1. TREN AKSES HARIAN (AREA CHART)
+         2. DISTRIBUSI TINGKAT RISIKO & KEAMANAN (DOUGHNUT)
+    ====================================================== -->
+    <div class="row g-4 mb-4">
+        <!-- 1. TREN AKTIVITAS AKSES (AREA CHART) -->
+        <div class="col-xl-8">
+            <div class="card h-100 shadow-sm border">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <h5 class="section-title mb-0">
+                                <i class="bi bi-graph-up text-primary me-2"></i>Tren Autentikasi & Akses
+                            </h5>
+                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.72rem;">
+                                {{ chart_period_label }}
                             </span>
                         </div>
+                        <div class="section-subtitle">Perbandingan autentikasi Berhasil (Granted), Ditolak (Denied), dan Insiden Keamanan</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="{{ url_for('security_analytics') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-bar-chart-fill me-1"></i> Analisis Lebih Dalam
+                        </a>
                     </div>
                 </div>
-
-                <!-- GATE STATUS DISPLAY -->
-                <div class="col-lg-4">
-                    <div class="inner-box-light p-4 text-center h-100 d-flex flex-column justify-content-center bg-white">
-                        <div class="mb-2">
-                             <span id="dashboardGateLight" class="badge bg-danger rounded-circle p-2 mb-2 shadow-sm d-inline-block" style="width: 24px; height: 24px;"></span><br>
-                            <span id="dashboardGateStatusLarge" class="fs-2 fw-bold" style="color: var(--jk-text-dark);">CLOSED</span>
-                        </div>
-                        <div class="mb-2">
-                            <span id="dashboardGateStatus" class="badge bg-danger rounded-pill px-3">CLOSED</span>
-                        </div>
-
-                        <!-- AUTO-CLOSE COUNTDOWN & PROGRESS BAR -->
-                        <div id="gateCountdownContainer" class="mb-3 d-none">
-                            <div class="d-flex justify-content-between align-items-center mb-1 px-1">
-                                <small class="text-muted fw-bold" style="font-size: 0.75rem;"><i class="bi bi-clock-history me-1"></i> Auto-Close Timer</small>
-                                <span id="gateCountdownText" class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill font-monospace fw-bold" style="font-size: 0.8rem;">10.0s</span>
-                            </div>
-                            <div class="progress" style="height: 6px; border-radius: 10px; background-color: #E2E8F0;">
-                                <div id="gateCountdownProgress" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 100%; transition: width 0.3s ease;"></div>
-                            </div>
-                        </div>
-                        <div id="gateLockedMessage" class="small text-muted mb-3">
-                            <i class="bi bi-shield-lock-fill text-secondary me-1"></i> Gerbang terkunci rapat.
-                        </div>
-                        
-                        <!-- ACTION BUTTONS -->
-                        <div class="d-flex gap-2">
-                            <button id="btnManualGateOpen" type="button" class="btn btn-success flex-fill fw-bold shadow-sm" onclick="manualGateOpen()">
-                                <i class="bi bi-unlock-fill me-1"></i> Buka Gate
-                            </button>
-                            <button id="btnManualGateClose" type="button" class="btn btn-danger flex-fill fw-bold shadow-sm" onclick="manualGateClose()">
-                                <i class="bi bi-lock-fill me-1"></i> Tutup Gate
-                            </button>
-                        </div>
+                <div class="card-body p-3">
+                    <div style="height: 310px; position: relative;">
+                        <canvas id="accessTrendChart"></canvas>
                     </div>
                 </div>
+                <div class="card-footer bg-white border-top py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2 small text-muted">
+                    <div class="d-flex gap-3 align-items-center">
+                        <span><span class="badge bg-success rounded-circle p-1 me-1"></span> Izin Diberikan: <strong class="text-success">{{ granted_today|default(0) }}</strong></span>
+                        <span><span class="badge bg-danger rounded-circle p-1 me-1"></span> Ditolak: <strong class="text-danger">{{ denied_today|default(0) }}</strong></span>
+                    </div>
+                    <span><i class="bi bi-activity me-1"></i>Diperbarui real-time dari Access Logs</span>
+                </div>
+            </div>
+        </div>
 
-                <!-- GATE INFO & MESSAGE -->
-                <div class="col-lg-4">
-                    <div class="inner-box-light p-4 h-100 d-flex flex-column justify-content-center bg-white">
-                        <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
-                            <span class="text-muted fw-bold small text-uppercase">Gate Health</span>
-                            <span id="dashboardGateHealth" class="badge bg-secondary rounded-pill">UNKNOWN</span>
+        <!-- 2. KOMPOSISI TINGKAT RISIKO & KEAMANAN (DOUGHNUT CHART) -->
+        <div class="col-xl-4">
+            <div class="card h-100 shadow-sm border">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="section-title mb-1">
+                        <i class="bi bi-pie-chart-fill text-primary me-2"></i>Komposisi Tingkat Risiko
+                    </h5>
+                    <div class="section-subtitle">Distribusi insiden sistem berdasarkan tingkat keparahan</div>
+                </div>
+                <div class="card-body p-3 d-flex flex-column justify-content-center">
+                    <div style="height: 220px; position: relative;">
+                        <canvas id="incidentDoughnutChart"></canvas>
+                    </div>
+                    
+                    <!-- Legend Badges Grid -->
+                    <div class="row g-2 mt-3 pt-2 border-top">
+                        <div class="col-6">
+                            <div class="p-2 border rounded-3 bg-light text-center">
+                                <div class="small text-muted" style="font-size: 0.72rem;">NORMAL</div>
+                                <div class="fw-bold text-success fs-6">{{ incident_counts['NORMAL'] }}</div>
+                            </div>
                         </div>
-                        <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
-                            <span class="text-muted fw-bold small text-uppercase">System</span>
-                            <span id="dashboardGateSystem" class="fw-bold text-dark">NORMAL</span>
+                        <div class="col-6">
+                            <div class="p-2 border rounded-3 bg-light text-center">
+                                <div class="small text-muted" style="font-size: 0.72rem;">WARNING</div>
+                                <div class="fw-bold text-warning fs-6">{{ incident_counts['WARNING'] }}</div>
+                            </div>
                         </div>
-                        <div class="d-flex justify-content-between mb-4">
-                            <span class="text-muted fw-bold small text-uppercase">Last Sync</span>
-                            <span id="dashboardGateLastUpdate" class="fw-bold text-dark">--:--:--</span>
+                        <div class="col-6">
+                            <div class="p-2 border rounded-3 bg-light text-center">
+                                <div class="small text-muted" style="font-size: 0.72rem;">HIGH RISK</div>
+                                <div class="fw-bold text-warning fs-6" style="color: #F97316 !important;">{{ incident_counts['HIGH'] }}</div>
+                            </div>
                         </div>
-                        
-                        <div class="p-3 rounded mt-auto text-center" style="background-color: var(--jk-bg-subtle);">
-                            <div id="gateControlMessage" class="small fw-bold text-primary">
-                                <i class="bi bi-info-circle me-1"></i> Pilih site untuk memulai monitoring.
+                        <div class="col-6">
+                            <div class="p-2 border rounded-3 bg-light text-center">
+                                <div class="small text-muted" style="font-size: 0.72rem;">CRITICAL</div>
+                                <div class="fw-bold text-danger fs-6">{{ incident_counts['CRITICAL'] }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
-
 
     <!-- =====================================================
-         CHART + SITE MONITORING
-     ====================================================== -->
-
-     <div class="row g-4 mb-4">
-        <!-- CHART -->
-        <div class="col-lg-7">
-            <div class="card h-100">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="section-title">Aktivitas Akses</h5>
-                            <div class="section-subtitle">Statistik GRANTED dan DENIED (7 hari).</div>
-                        </div>
-                        <span class="badge badge-subtle-primary rounded-pill px-3 py-2">7 Hari Terakhir</span>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <canvas id="accessChart" height="150"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- SITE MONITOR -->
-        <div class="col-lg-5">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="section-title">Ringkasan Site</h5>
-                    <div class="section-subtitle">Status keamanan Site BTS.</div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 border-0">
-                            <thead style="background-color: var(--jk-bg-main);">
-                                <tr>
-                                    <th class="ps-4 text-muted small text-uppercase border-0">Site</th>
-                                    <th class="text-center text-muted small text-uppercase border-0">Status</th>
-                                    <th class="text-center text-muted small text-uppercase border-0">Akses</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            {% if site_metrics %}
-                                {% for site in sites[:5] %}
-                                    {% set metrics = site_metrics.get(site.site_id, {}) %}
-                                    <tr>
-                                        <td class="ps-4 py-3 border-light">
-                                            <div class="fw-bold" style="color: var(--jk-text-dark);">{{ site.site_name|default(site.site_id|default('-')) }}</div>
-                                            <small class="text-muted">{{ site.site_id|default('-') }}</small>
-                                        </td>
-                                        <td class="text-center border-light">
-                                            {% set security = metrics.get('security_status', 'NORMAL')|upper %}
-                                            {% if security in ['AMAN', 'NORMAL', 'SECURE'] %}
-                                                <span class="badge bg-success rounded-pill px-2">SECURE</span>
-                                            {% else %}
-                                                <span class="badge bg-danger rounded-pill px-2">{{ security }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-center border-light">
-                                            <span class="fw-bold text-primary">{{ metrics.get('access_today', 0) }}</span>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr><td colspan="3" class="text-center text-muted py-4 border-0">Data tidak tersedia</td></tr>
-                            {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-white border-top text-center py-3" style="border-radius: 0 0 var(--jk-radius-card) var(--jk-radius-card);">
-                    <a href="{{ url_for('bts_sites') }}" class="btn btn-sm btn-outline-primary rounded-pill px-4">Lihat Semua Site</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- =====================================================
-         AI ANALYTICS DASHBOARD 
-     ====================================================== -->
-
-    <div class="card mb-5 border-0">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="section-title">AI Analytics Dashboard</h5>
-                <div class="section-subtitle">Analisis keamanan berbasis AI yang terhubung ke sistem utama.</div>
-            </div>
-            <span class="badge bg-primary rounded-pill px-3 py-2 shadow-sm">Powered by AI</span>
-        </div>
-
-        <div class="card-body">
-           <!-- Contoh Perbaikan Struktur Card Grafik -->
-<div class="row g-4">
-    <!-- Card 1: Akurasi Face Recognition -->
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 16px;">
-            <h5 class="fw-bold text-dark mb-1">Akurasi Face Recognition</h5>
-            <p class="text-muted small mb-3">Distribusi confidence score</p>
-            
-            <div style="position: relative; height: 250px; width: 100%;">
-                <canvas id="faceRecognitionChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card 2: Pola Akses per Jam -->
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 16px;">
-            <h5 class="fw-bold text-dark mb-1">Pola Akses per Jam</h5>
-            <p class="text-muted small mb-3">24-hour access distribution (7 hari)</p>
-            
-            <div style="position: relative; height: 250px; width: 100%;">
-                <canvas id="accessPatternChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- 3. DENIAL REASONS -->
-    <div class="col-lg-6">
-        <div class="inner-box-light p-3 h-100 bg-white shadow-sm border-0" style="border-radius: 16px;">
-            <div class="mb-3">
-                <h6 class="section-title" style="font-size: 1rem;">Penyebab Penolakan</h6>
-                <small class="section-subtitle">Alasan akses ditolak hari ini</small>
-            </div>
-            <!--  DIBUNGKUS DENGAN DIV WRAPPER SUPAYA TIDAK MELAR -->
-            <div style="position: relative; height: 220px; width: 100%;">
-                <canvas id="denialReasonsChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- 4. ANOMALY TIMELINE -->
-    <div class="col-lg-6">
-        <div class="inner-box-light p-3 h-100 bg-white shadow-sm border-0" style="border-radius: 16px;">
-            <div class="mb-3">
-                <h6 class="section-title" style="font-size: 1rem;">Deteksi Anomali AI</h6>
-                <small class="section-subtitle">Hari dengan pola akses tidak biasa</small>
-            </div>
-            <!--  DIBUNGKUS DENGAN DIV WRAPPER SUPAYA TIDAK MELAR -->
-            <div style="position: relative; height: 220px; width: 100%;">
-                <canvas id="anomalyTimelineChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- 5. AI INSIGHTS -->
-    <div class="col-lg-6">
-        <div class="inner-box-light p-3 h-100 bg-white shadow-sm border-0" style="border-radius: 16px; overflow-y: auto; max-height: 280px;">
-            <div class="mb-3 border-bottom pb-2 sticky-top bg-white">
-                <h6 class="section-title" style="font-size: 1rem;">Insight Keamanan AI</h6>
-                <small class="section-subtitle">Rekomendasi berdasarkan analisis data</small>
-            </div>
-            <div id="aiInsightsContainer" style="color: var(--jk-text-dark);">
-                <div class="text-center text-muted small py-3">Memuat insight analitik...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 6. SITE RISK HEATMAP -->
-    <div class="col-lg-6">
-        <div class="inner-box-light p-3 h-100 bg-white shadow-sm border-0" style="border-radius: 16px; overflow-y: auto; max-height: 280px;">
-            <div class="mb-3 border-bottom pb-2 sticky-top bg-white">
-                <h6 class="section-title" style="font-size: 1rem;">Peta Risiko Site</h6>
-                <small class="section-subtitle">Risk score per lokasi BTS</small>
-            </div>
-            <div id="aiHeatmapContainer" style="color: var(--jk-text-dark);">
-                <div class="text-center text-muted small py-3">Memuat peta risiko...</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-   <!-- =====================================================
-         STATUS TEKNISI
+         GRID GRAFIK UTAMA (DOMINAN GRAFIK - ROW 2)
+         3. TOP 5 SITE MENARA BTS TERAKTIF (HORIZONTAL BAR)
+         4. KINERJA AUTENTIKASI 2FA MULTI-FAKTOR (FACE & OTP GAUGE)
     ====================================================== -->
-
-    <div class="card mb-4 border-0">
-        <div class="card-header d-flex justify-content-between align-items-center" style="background-color: var(--bg-surface) !important; border-bottom: 1px solid var(--border-subtle) !important;">
-            <div>
-                <h5 class="section-title mb-1" style="color: var(--jk-primary) !important;">Status Teknisi</h5>
-                <div class="section-subtitle" style="color: var(--text-muted) !important;">Status keberadaan teknisi berdasarkan akses terakhir yang berhasil.</div>
+    <div class="row g-4 mb-4">
+        <!-- 3. TOP 5 SITE MENARA BTS TERAKTIF (BAR CHART) -->
+        <div class="col-lg-6">
+            <div class="card h-100 shadow-sm border">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="section-title mb-1">
+                            <i class="bi bi-bar-chart-steps text-primary me-2"></i>Site BTS Paling Sering Dikunjungi
+                        </h5>
+                        <div class="section-subtitle">Distribusi frekuensi akses gerbang berdasarkan lokasi menara</div>
+                    </div>
+                    <a href="{{ url_for('bts_sites') }}" class="btn btn-sm btn-outline-primary">
+                        Semua Site <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-3">
+                    <div style="height: 260px; position: relative;">
+                        <canvas id="topSitesBarChart"></canvas>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top py-2 px-3 small text-muted">
+                    <i class="bi bi-info-circle me-1"></i>Mengukur intensitas aktivitas pemeliharaan dan inspeksi per site BTS.
+                </div>
             </div>
-            <!-- Tombol Tambah Teknisi -->
-            <a href="{{ url_for('register_technician') }}" class="btn btn-sm px-3 shadow-sm btn-primary">
-                <i class="bi bi-person-plus-fill me-1"></i> Tambah Teknisi
-            </a>
         </div>
 
-        <div class="card-body p-0" style="background-color: var(--bg-surface) !important;">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 border-0">
-                    <!--  Perbaikan Header Tabel agar serasi dengan tema -->
-                    <thead style="background-color: var(--jk-bg-main) !important;">
-                        <tr>
-                            <th class="ps-4 text-muted small text-uppercase border-0">ID</th>
-                            <th class="text-muted small text-uppercase border-0">Teknisi</th>
-                            <th class="text-muted small text-uppercase border-0">Jabatan</th>
-                            <th class="text-muted small text-uppercase border-0">Status</th>
-                            <th class="text-muted small text-uppercase border-0">Posisi</th>
-                            <th class="text-muted small text-uppercase border-0">Akses Terakhir</th>
-                            <th class="text-muted small text-uppercase border-0 text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% if techs %}
-                        {% for tech in techs %}
-                            {% set state = (technician_states.get(tech.technician_id) if technician_states is defined else None) %}
-                            <tr>
-                                <td class="ps-4 border-light"><span class="text-primary fw-semibold" style="font-family: monospace;">{{ tech.technician_id }}</span></td>
-                                <td class="border-light">
-                                    <div class="fw-bold" style="color: var(--jk-text-dark);">{{ tech.name }}</div>
-                                    <small class="text-muted">@{{ tech.username or '-' }}</small>
-                                </td>
-                                <td class="border-light text-muted">{{ tech.position or '-' }}</td>
-                                <td class="border-light">
-                                    {% if tech.status == 'Active' %}
-                                        <span class="badge bg-success rounded-pill px-2">AKTIF</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary rounded-pill px-2">{{ tech.status or 'NONAKTIF' }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="border-light">
-                                    {% if state %}
-                                        {% set inside = state.inside|default(false) %}
-                                        {% if inside %}
-                                            <span class="badge bg-primary rounded-pill px-2">DI DALAM</span>
-                                        {% else %}
-                                            <span class="badge border border-secondary text-muted rounded-pill px-2">DI LUAR</span>
-                                        {% endif %}
-                                        {% if state.site_name %}
-                                            <div class="small text-muted mt-1 fw-bold">{{ state.site_name }}</div>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="badge border border-secondary text-muted rounded-pill px-2">DI LUAR</span>
-                                    {% endif %}
-                                </td>
-                                <td class="border-light">
-                                    {% if state and state.last_access %}
-                                        <div class="small fw-bold text-dark">{{ state.last_access }}</div>
-                                        {% if state.last_access_type %}
-                                            <div class="small text-muted">{{ state.last_access_type }}</div>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-muted small">Belum ada akses</span>
-                                    {% endif %}
-                                </td>
-                                
-                                <!--  KOLOM AKSI (Ditambahkan tombol Hapus) -->
-                                <td class="border-light text-center">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ url_for('edit_technician', tech_id=tech.technician_id) }}" class="btn btn-outline-primary" title="Edit">
-                                            Edit
-                                        </a>
-                                        <a href="{{ url_for('face_enrollment', tech_id=tech.technician_id) }}" class="btn btn-outline-success" title="Wajah">
-                                            Wajah
-                                        </a>
-                                        <a href="{{ url_for('totp_setup', tech_id=tech.technician_id) }}" class="btn btn-outline-info" title="TOTP">
-                                            TOTP
-                                        </a>
-                                        <!-- TOMBOL HAPUS BARU -->
-                                        <form method="POST"
-                                              action="{{ url_for('delete_technician', tech_id=tech.technician_id) }}"
-                                              class="d-inline"
-                                              onsubmit='return confirm({{ ("Hapus teknisi " ~ tech.name ~ "? Tindakan ini tidak dapat dibatalkan.")|tojson }})'>
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                                            <button type="submit" class="btn btn-outline-danger" title="Hapus">
-                                                Hapus
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                                
-                            </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="7" class="p-0 border-0">
-                                <div class="app-empty-state border-0 my-3">
-                                    <div class="empty-state-icon">
-                                        <i class="bi bi-people"></i>
-                                    </div>
-                                    <div class="empty-state-title">Belum Ada Data Teknisi</div>
-                                    <div class="empty-state-desc">Belum ada akun teknisi lapangan yang terdaftar dalam sistem NOC.</div>
-                                    <a href="{{ url_for('register_technician') }}" class="btn btn-sm btn-primary">
-                                        <i class="bi bi-person-plus me-1"></i> Daftarkan Teknisi Pertama
-                                    </a>
+        <!-- 4. KINERJA AUTENTIKASI 2FA MULTI-FAKTOR -->
+        <div class="col-lg-6">
+            <div class="card h-100 shadow-sm border">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="section-title mb-1">
+                        <i class="bi bi-shield-lock-fill text-primary me-2"></i>Kinerja Autentikasi 2-Faktor (2FA)
+                    </h5>
+                    <div class="section-subtitle">Tingkat akurasi biometrik AI wajah dan keandalan validasi token OTP</div>
+                </div>
+                <div class="card-body p-3 d-flex flex-column justify-content-around">
+                    <div class="row g-3 align-items-center">
+                        <!-- AI FACE RECOGNITION GAUGE -->
+                        <div class="col-sm-6 text-center border-end-sm">
+                            <div class="text-uppercase small fw-bold text-muted mb-2">
+                                <i class="bi bi-person-bounding-box text-primary me-1"></i> Face Recognition
+                            </div>
+                            <div class="gauge-circle-container">
+                                <canvas id="faceAccuracyChart"></canvas>
+                                <div class="gauge-center-text">
+                                    <div class="fs-4 fw-bold text-success">{{ face_rate }}%</div>
+                                    <div class="small text-muted" style="font-size: 0.65rem;">Akurasi</div>
                                 </div>
-                            </td>
-                        </tr>
+                            </div>
+                            <div class="mt-2 small">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle me-1">
+                                    {{ successful_face }} Cocok
+                                </span>
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                    {{ face_failure }} Gagal/Miss
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 2FA TOTP TOKEN GAUGE -->
+                        <div class="col-sm-6 text-center">
+                            <div class="text-uppercase small fw-bold text-muted mb-2">
+                                <i class="bi bi-key-fill text-primary me-1"></i> Validasi TOTP (OTP)
+                            </div>
+                            <div class="gauge-circle-container">
+                                <canvas id="otpAccuracyChart"></canvas>
+                                <div class="gauge-center-text">
+                                    <div class="fs-4 fw-bold text-primary">{{ otp_rate }}%</div>
+                                    <div class="small text-muted" style="font-size: 0.65rem;">Valid</div>
+                                </div>
+                            </div>
+                            <div class="mt-2 small">
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1">
+                                    {{ successful_otp }} Valid
+                                </span>
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                    {{ otp_failure }} Gagal/Expired
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Protokol Zero-Trust Banner -->
+                    <div class="inner-box-light p-2.5 mt-3 d-flex align-items-center justify-content-between rounded-3 border">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-patch-check-fill text-success fs-5"></i>
+                            <div>
+                                <div class="fw-semibold small text-dark">Protokol Keamanan Multi-Faktor (Zero-Trust)</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Setiap akses mewajibkan verifikasi wajah hidup + token OTP 6 digit yang tersinkronisasi.</div>
+                            </div>
+                        </div>
+                        <span class="badge bg-success text-white rounded-pill px-2.5 py-1">ENFORCED</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         PANEL BAWAH: STATUS PERANGKAT IOT & MINI LIVE STREAM
+    ====================================================== -->
+    <div class="row g-4 mb-4">
+        <!-- STATUS GERBANG & HARDWARE TELEMETRY -->
+        <div class="col-lg-5">
+            <div class="card h-100 shadow-sm border">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="section-title mb-1">
+                        <i class="bi bi-hdd-network-fill text-primary me-2"></i>Status Gerbang & Relay IoT
+                    </h5>
+                    <div class="section-subtitle">Kondisi solenoid gate, microcontroller relay, dan mode darurat</div>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between p-3">
+                    <div>
+                        <!-- Status Gerbang Banner -->
+                        <div class="inner-box-light p-3 mb-3 text-center border rounded-3">
+                            <div class="text-muted small fw-bold text-uppercase mb-1">Status Fisik Gerbang Solenoid</div>
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <span class="fs-3 fw-bold" id="dashGateStatus" style="color: {{ 'var(--brand-primary)' if gate_status == 'OPEN' else '#059669' }};">
+                                    {{ gate_status|default('CLOSED') }}
+                                </span>
+                                <span id="dashGateBadge" class="badge {{ 'bg-warning text-dark' if gate_status == 'OPEN' else 'bg-success' }} rounded-pill">
+                                    {{ 'TERBUKA' if gate_status == 'OPEN' else 'TERKUNCI' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Detail Telemetri List -->
+                        <ul class="list-group list-group-flush small mb-3">
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-bottom">
+                                <span class="text-muted">Health Relay:</span>
+                                <span id="dashGateHealth" class="fw-bold {{ 'text-success' if gate_health in ('NORMAL', 'HEALTHY') else 'text-danger' }}">
+                                    {{ gate_health|default('NORMAL') }}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-bottom">
+                                <span class="text-muted">Aksi Terakhir:</span>
+                                <span id="dashGateAction" class="font-monospace text-dark fw-semibold">
+                                    {{ gate_last_action|default('SYSTEM_STARTUP') }}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-bottom">
+                                <span class="text-muted">Emergency Mode:</span>
+                                <span id="dashEmergencyBadge" class="badge bg-secondary rounded-pill">NORMAL</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                <span class="text-muted">Pesan Driver:</span>
+                                <span id="dashGateMsg" class="text-truncate" style="max-width: 170px;">{{ gate_last_error|default('Engine Siap') }}</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Tombol Aksi Cepat -->
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('access_simulation') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-door-open-fill me-1"></i> Simulasi Buka Gerbang
+                        </a>
+                        <a href="{{ url_for('security_features_page') }}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-shield-shaded me-1"></i> Kontrol di Security Center
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LIVE SECURITY FEED (MINI STREAM RINGKAS) -->
+        <div class="col-lg-7">
+            <div class="card h-100 shadow-sm border">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="section-title mb-1">
+                            <i class="bi bi-clock-history text-primary me-2"></i>Live Security Stream
+                        </h5>
+                        <div class="section-subtitle">Aktivitas audit log dan transaksi autentikasi terbaru</div>
+                    </div>
+                    <a href="{{ url_for('access_logs') }}" class="btn btn-sm btn-outline-primary fw-semibold">
+                        Semua Log ({{ total_access_all|default(0) }}) <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-3">
+                    {% if activities %}
+                        <div class="d-flex flex-column gap-2">
+                            {% for act in activities[:4] %}
+                            <div class="timeline-stream-item border d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center fw-bold text-primary flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                                        {{ (act.username[0]|upper) if act.username else 'S' }}
+                                    </div>
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-semibold text-dark small">{{ act.username or 'SISTEM' }}</span>
+                                            <span class="badge bg-light text-dark border font-monospace" style="font-size: 0.68rem;">{{ act.action }}</span>
+                                        </div>
+                                        <div class="text-secondary small text-truncate" style="max-width: 320px; font-size: 0.78rem;">
+                                            {{ act.description or '-' }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    {% if act.incident_level == 'CRITICAL' %}
+                                        <span class="badge bg-danger rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">CRITICAL</span>
+                                    {% elif act.incident_level in ('HIGH', 'WARNING') %}
+                                        <span class="badge bg-warning text-dark rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">{{ act.incident_level }}</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">NORMAL</span>
+                                    {% endif %}
+                                    <div class="text-muted font-monospace mt-1" style="font-size: 0.7rem;">
+                                        {{ act.timestamp.strftime('%H:%M:%S') }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted small">
+                            <i class="bi bi-journal-check fs-2 d-block mb-2 text-secondary"></i>
+                            Belum ada aktivitas tercatat hari ini.
+                        </div>
                     {% endif %}
-                    </tbody>
-                </table>
+                </div>
+                <div class="card-footer bg-white border-top py-2 px-3 d-flex justify-content-between align-items-center small text-muted">
+                    <span><i class="bi bi-shield-check me-1"></i>Audit trail terlindungi & anti-tampering</span>
+                    <a href="{{ url_for('access_logs') }}" class="text-decoration-none text-primary fw-semibold">
+                        Buka Audit Trail Lengkap <i class="bi bi-chevron-right ms-0.5"></i>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
 </div>
 
-<!-- SCRIPT LOGIC -->
-
-<script id="dashboardChartData" type="application/json">
+<!-- =====================================================
+     DATA BLOB UNTUK CHART.JS & LEAFLET MAP
+====================================================== -->
+<script id="dashboardTrendData" type="application/json">
 {
     "labels": {{ chart_labels|default([])|tojson }},
     "granted": {{ chart_granted|default([])|tojson }},
-    "denied": {{ chart_denied|default([])|tojson }}
+    "denied": {{ chart_denied|default([])|tojson }},
+    "incidents": {{ chart_incidents|default([])|tojson }}
 }
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="dashboardIncidentData" type="application/json">
+{
+    "NORMAL": {{ incident_counts['NORMAL']|default(0) }},
+    "WARNING": {{ incident_counts['WARNING']|default(0) }},
+    "HIGH": {{ incident_counts['HIGH']|default(0) }},
+    "CRITICAL": {{ incident_counts['CRITICAL']|default(0) }}
+}
+</script>
+
+<script id="dashboardTopSitesData" type="application/json">
+{
+    "labels": {{ top_sites_labels|default([])|tojson }},
+    "values": {{ top_sites_values|default([])|tojson }}
+}
+</script>
+
+<script id="dashboardAuthData" type="application/json">
+{
+    "face_rate": {{ face_rate|default(0) }},
+    "otp_rate": {{ otp_rate|default(0) }}
+}
+</script>
+
+<script type="application/json" id="dashBtsSiteData">{{ map_sites|default([])|tojson }}</script>
+
+<!-- Chart.js 4.4.1 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <script>
-function escapeHtml(value) {
-    const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-    return String(value ?? '').replace(/[&<>"']/g, character => entities[character]);
-}
-
 document.addEventListener('DOMContentLoaded', function () {
-    // --- MAIN ACCESS CHART ---
-    const dataElement = document.getElementById('dashboardChartData');
-    const chartElement = document.getElementById('accessChart');
-    if (dataElement && chartElement) {
-        let chartData = { labels: [], granted: [], denied: [] };
-        try { chartData = JSON.parse(dataElement.textContent); } catch (e) {}
 
-        new Chart(chartElement, {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [
-                    {
-                        label: 'GRANTED',
-                        data: chartData.granted,
-                        borderColor: '#1D4ED8',
-                        backgroundColor: 'rgba(29, 78, 216, 0.15)',
-                        tension: 0.4, borderWidth: 3, fill: true, pointBackgroundColor: '#1D4ED8'
-                    },
-                    {
-                        label: 'DENIED',
-                        data: chartData.denied,
-                        borderColor: '#F43F5E',
-                        backgroundColor: 'rgba(244, 63, 94, 0.1)',
-                        tension: 0.4, borderWidth: 2, fill: true, borderDash: [5, 5], pointBackgroundColor: '#F43F5E'
-                    }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
-                plugins: { legend: { position: 'top', labels: { color: '#0F172A', font: { family: 'Inter' } } } },
-                scales: {
-                    x: { grid: { display: false }, ticks: { color: '#64748B' } },
-                    y: { border: { display: false }, grid: { color: '#F1F5F9' }, ticks: { precision: 0, color: '#64748B' } }
-                }
-            }
-        });
-    }
-
-    // --- AI CHARTS FOR 6-GRID LAYOUT ---
-    const faceCtx = document.getElementById('faceRecognitionChart') || document.getElementById('faceAccuracyChart');
-    const hourlyCtx = document.getElementById('accessPatternChart') || document.getElementById('hourlyPatternChart');
-    const denialCtx = document.getElementById('denialReasonsChart');
-    const anomalyCtx = document.getElementById('anomalyTimelineChart');
-
-    function fetchJSON(url, fallback) { return fetch(url, { credentials: 'include' }).then(r => r.json()).catch(() => fallback); }
-
-    // 1. FACE CHART
-    fetchJSON('/api/ai/face-accuracy', { data: { buckets: [] } }).then(resp => {
-        let data = resp.data || { buckets: [] };
-        if (data.buckets.length > 0 && faceCtx) {
-            new Chart(faceCtx, {
-                type: 'bar',
-                data: {
-                    labels: data.buckets.map(b => b.label),
-                    datasets: [{
-                        data: data.buckets.map(b => b.count),
-                        backgroundColor: ['#10B981', '#F59E0B', '#F97316', '#EF4444'], // Green to Red
-                        borderRadius: 6
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { display: false } } }
-            });
-        } else if (faceCtx) {
-            faceCtx.parentNode.innerHTML += '<div class="text-center py-4"><span class="text-muted small">Belum ada data face recognition</span></div>';
-            faceCtx.style.display = 'none';
-        }
-    });
-
-    // 2. HOURLY CHART
-    fetchJSON('/api/ai/hourly-pattern', { pattern: {} }).then(resp => {
-        let pattern = resp.pattern || {};
-        if (hourlyCtx && Object.keys(pattern).length > 0) {
-            let labels = [], values = [];
-            for (let h=0; h<24; h++) { labels.push(h+':00'); values.push(pattern[h] || 0); }
-            new Chart(hourlyCtx, {
-                type: 'bar',
-                data: { labels: labels, datasets: [{ data: values, backgroundColor: '#60A5FA', hoverBackgroundColor: '#1D4ED8', borderRadius: 4 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: {maxTicksLimit: 8} }, y: { display: false } } }
-            });
-        } else if (hourlyCtx) {
-            hourlyCtx.parentNode.innerHTML += '<div class="text-center py-4"><span class="text-muted small">Tidak ada pola akses hari ini</span></div>';
-            hourlyCtx.style.display = 'none';
-        }
-    });
-
-    // 3. DENIAL REASONS
-    fetchJSON('/api/ai/denial-reasons', { reasons: [] }).then(function(resp) {
-        var reasons = resp.reasons || [];
-        if (denialCtx && reasons.length > 0) {
-            new Chart(denialCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: reasons.map(function(r) { return r.reason; }),
-                    datasets: [{ data: reasons.map(function(r) { return r.count; }), backgroundColor: ['#F43F5E', '#F59E0B', '#10B981', '#0284C7'], borderWidth: 2, borderColor: '#fff' }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#0F172A' } } }, cutout: '70%' }
-            });
-        } else if (denialCtx) {
-            denialCtx.parentNode.innerHTML += '<div class="text-center py-4"><span class="text-muted small">Tidak ada akses yang ditolak hari ini</span></div>';
-            denialCtx.style.display = 'none';
-        }
-    });
-
-    // 4. ANOMALY TIMELINE
-    fetchJSON('/api/ai/anomalies', { anomalies: [], daily_counts: {} }).then(function(resp) {
-        var data = resp.data || {}, daily = data.daily_counts || {}, anomalyDates = {};
-        (data.anomalies || []).forEach(function(a) { anomalyDates[a.date] = true; });
-        if (anomalyCtx && Object.keys(daily).length > 0) {
-            var labels = Object.keys(daily).sort();
-            var values = labels.map(function(d) { return daily[d]; });
-            var bgColors = labels.map(function(d) { return anomalyDates[d] ? '#F43F5E' : '#885CF6'; }); 
-            new Chart(anomalyCtx, {
-                type: 'bar',
-                data: { labels: labels, datasets: [{ label: 'Akses Harian', data: values, backgroundColor: bgColors, borderRadius: 3 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#64748B' } } } }
-            });
-        } else if (anomalyCtx) {
-            anomalyCtx.parentNode.innerHTML += '<div class="text-center py-4"><span class="text-muted small">Belum ada data anomali</span></div>';
-            anomalyCtx.style.display = 'none';
-        }
-    });
-
-    // 5. AI INSIGHTS
-    const insightsContainer = document.getElementById('aiInsightsContainer');
-    fetchJSON('/api/ai/insights', { insights: [] }).then(resp => {
-        let insights = resp.insights || [];
-        if (insightsContainer && insights.length > 0) {
-            let html = '';
-            insights.forEach(item => {
-                let badge = item.type === 'DANGER' ? 'bg-danger' : item.type === 'WARNING' ? 'bg-warning text-dark' : 'bg-primary';
-                html += `
-                <div class="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom border-light">
-                    <span class="badge ${badge} rounded-pill mt-1 px-2 py-1">${escapeHtml(item.type)}</span>
-                    <div>
-                        <strong class="d-block mb-1" style="color: var(--jk-text-dark);">${escapeHtml(item.title)}</strong>
-                        <div class="small text-muted mb-1">${escapeHtml(item.description)}</div>
-                        ${item.recommendation ? `<div class="small fw-bold text-primary"><i class="bi bi-arrow-right-short"></i> ${escapeHtml(item.recommendation)}</div>` : ''}
-                    </div>
-                </div>`;
-            });
-            insightsContainer.innerHTML = html;
-        } else if (insightsContainer) {
-            insightsContainer.innerHTML = '<div class="text-center text-muted small py-3">Tidak ada insight tersedia hari ini.</div>';
-        }
-    });
-
-    // 6. SITE RISK HEATMAP
-    var heatmapContainer = document.getElementById('aiHeatmapContainer');
-    fetchJSON('/api/ai/heatmap', { sites: [] }).then(function(resp) {
-        var sites = resp.sites || [];
-        if (heatmapContainer && sites.length > 0) {
-            var html = '<div class="d-grid gap-2">';
-            sites.forEach(function(site) {
-                var riskBadge = site.risk_level === 'HIGH' ? 'bg-danger' : site.risk_level === 'MEDIUM' ? 'bg-warning text-dark' : 'bg-success';
-                html += `
-                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
-                    <div>
-                    <strong class="small" style="color: var(--jk-primary);">${escapeHtml(site.site_name)}</strong>
-                        <div class="small text-muted">${escapeHtml(site.site_id)}</div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge ${riskBadge} rounded-pill px-2">${escapeHtml(site.risk_level)}</span>
-                    </div>
-                </div>`;
-            });
-            html += '</div>';
-            heatmapContainer.innerHTML = html;
-        } else if (heatmapContainer) {
-            heatmapContainer.innerHTML = '<div class="text-center text-muted small py-3">Tidak ada data site</div>';
-        }
-    });
-});
-</script>
-
-<script>
-// --- SECURITY CENTER, GATE CONTROL, LIVE CLOCK & SSE ---
-
-(function () {
-    'use strict';
-    
-    // LIVE CLOCK
+    // -----------------------------------------------------
+    // 1. LIVE DIGITAL CLOCK
+    // -----------------------------------------------------
     const clockEl = document.getElementById('liveClock');
     const clockTickSpan = clockEl ? clockEl.querySelector('.tick') : null;
     function pad(n) { return n < 10 ? '0' + n : '' + n; }
     function updateClock() {
-        if (!clockEl || !clockTickSpan) return;
-        var now = new Date();
+        if (!clockTickSpan) return;
+        const now = new Date();
         clockTickSpan.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
     }
-    setInterval(updateClock, 1000); updateClock();
+    setInterval(updateClock, 1000);
+    updateClock();
 
-    // SECURITY CENTER FETCH
-    async function scFetch(url) {
-        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        return await res.json();
-    }
-    
-    async function refreshSecurityCenter() {
+    // -----------------------------------------------------
+    // 2. CHART 1: TREN AUTENTIKASI & AKSES (AREA CHART)
+    // -----------------------------------------------------
+    const trendEl = document.getElementById('dashboardTrendData');
+    const trendCanvas = document.getElementById('accessTrendChart');
+    if (trendEl && trendCanvas) {
+        let trendData = { labels: [], granted: [], denied: [], incidents: [] };
         try {
-            const result = await scFetch('/api/features/summary');
-            if (result.status === 'success') {
-                const c = result.counts || {};
-                document.getElementById('scAccessToday').textContent = c.access_today ?? 0;
-                document.getElementById('scGrantedToday').textContent = c.granted_today ?? 0;
-                document.getElementById('scDeniedToday').textContent = c.denied_today ?? 0;
-                document.getElementById('scIncidentsToday').textContent = c.incidents_today ?? 0;
-                
-                let g = result.gate || {};
-                document.getElementById('scGateStatus').textContent = g.status || 'CLOSED';
-                document.getElementById('scGateHealth').textContent = g.health || 'NORMAL';
-                document.getElementById('scGateHealth').className = (g.health === 'NORMAL' || g.health === 'HEALTHY') ? 'text-success fw-bold' : 'text-danger fw-bold';
-                document.getElementById('scGateMessage').textContent = g.last_error || `Engine online.`;
-                
-                document.getElementById('scApiHealth').textContent = 'HEALTHY';
-                document.getElementById('scApiHealth').className = 'badge bg-success rounded-pill';
-                document.getElementById('scHealthDetails').innerHTML = 'Sistem API beroperasi secara normal.';
-                
-                document.getElementById('securityCenterMessage').className = 'alert alert-success bg-white mb-3 shadow-sm border-0 text-success';
-                document.getElementById('securityCenterMessage').innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Sistem terhubung dan tersinkronisasi.';
-            }
-        } catch(e) {
-            document.getElementById('securityCenterMessage').className = 'alert alert-danger bg-white mb-3 shadow-sm border-0 text-danger';
-            document.getElementById('securityCenterMessage').innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> Gagal terhubung ke modul keamanan.';
-            
-            document.getElementById('scApiHealth').textContent = 'ERROR';
-            document.getElementById('scApiHealth').className = 'badge bg-danger rounded-pill';
-            document.getElementById('scHealthDetails').innerHTML = 'Tidak dapat menghubungi server API.';
-        }
-    }
-    setInterval(refreshSecurityCenter, 5000); refreshSecurityCenter();
-})();
+            trendData = JSON.parse(trendEl.textContent);
+        } catch (e) {}
 
-// --- GATE CONTROL PANEL LOGIC ---
-let dashboardSelectedSiteId = localStorage.getItem('dashboardSelectedSiteId') || '';
-let dashboardSites = [];
-let dashboardCsrfToken = '';
+        const ctx = trendCanvas.getContext('2d');
+        const gradientGranted = ctx.createLinearGradient(0, 0, 0, 300);
+        gradientGranted.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+        gradientGranted.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
-async function loadDashboardSites() {
-    try {
-        const response = await fetch('/api/features/sites');
-        const result = await response.json();
-        dashboardSites = result.sites || [];
-        nocSites = dashboardSites;
-        updateDashboardNocMapMarkers();
-        const selector = document.getElementById('dashboardGateSiteSelector');
-        if (!selector) return;
-        selector.innerHTML = '<option value="">-- Pilih Site --</option>';
-        dashboardSites.forEach(s => { selector.innerHTML += `<option value="${escapeHtml(s.site_id)}">${escapeHtml(s.site_name)}</option>`; });
-        if (!dashboardSelectedSiteId && dashboardSites.length > 0) {
-            dashboardSelectedSiteId = String(dashboardSites[0].site_id);
-            localStorage.setItem('dashboardSelectedSiteId', dashboardSelectedSiteId);
-        }
-        if (dashboardSelectedSiteId) {
-            selector.value = dashboardSelectedSiteId;
-            updateDashboardSelectedSite();
-            refreshDashboardGate();
-        }
-    } catch(e) {}
-}
+        const gradientDenied = ctx.createLinearGradient(0, 0, 0, 300);
+        gradientDenied.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
+        gradientDenied.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
 
-function updateDashboardSelectedSite() {
-    const site = dashboardSites.find(s => String(s.site_id) === String(dashboardSelectedSiteId));
-    const nameEl = document.getElementById('dashboardGateSiteName');
-    const idEl = document.getElementById('dashboardGateSiteId');
-    const onlineEl = document.getElementById('dashboardGateOnline');
-    if (nameEl) nameEl.textContent = site ? site.site_name : '-';
-    if (idEl) idEl.textContent = site ? `ID: ${site.site_id}` : 'ID: -';
-    if (onlineEl) {
-        if (site) {
-            onlineEl.className = 'badge bg-success rounded-pill px-3 py-2';
-            onlineEl.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> ONLINE';
-        } else {
-            onlineEl.className = 'badge bg-secondary rounded-pill px-3 py-2';
-            onlineEl.innerHTML = '<i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> OFFLINE';
-        }
-    }
-}
-
-async function refreshDashboardGate() {
-    if (!dashboardSelectedSiteId) return;
-    try {
-        const response = await fetch(`/api/gate-status?site_id=${encodeURIComponent(dashboardSelectedSiteId)}`);
-        const result = await response.json();
-        const status = result.gate_status || 'CLOSED';
-        
-        document.getElementById('dashboardGateStatus').textContent = status;
-        document.getElementById('dashboardGateStatusLarge').textContent = status;
-        
-        const countdownContainer = document.getElementById('gateCountdownContainer');
-        const countdownText = document.getElementById('gateCountdownText');
-        const countdownProgress = document.getElementById('gateCountdownProgress');
-        const lockedMessage = document.getElementById('gateLockedMessage');
-
-        if(status === 'OPEN') {
-            document.getElementById('dashboardGateStatus').className = 'badge bg-success rounded-pill px-3';
-            document.getElementById('dashboardGateLight').className = 'badge bg-success rounded-circle p-2 mb-2 shadow-sm d-inline-block';
-
-            if (countdownContainer) countdownContainer.classList.remove('d-none');
-            if (lockedMessage) lockedMessage.classList.add('d-none');
-
-            const remaining = typeof result.remaining_seconds === 'number' ? result.remaining_seconds : 0;
-            if (countdownText) countdownText.textContent = remaining.toFixed(1) + 's';
-            
-            if (countdownProgress) {
-                const percent = Math.max(0, Math.min(100, (remaining / 10.0) * 100));
-                countdownProgress.style.width = percent + '%';
-                if (remaining <= 3) {
-                    countdownProgress.className = 'progress-bar progress-bar-striped progress-bar-animated bg-danger';
-                } else if (remaining <= 6) {
-                    countdownProgress.className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning';
-                } else {
-                    countdownProgress.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
-                }
-            }
-        } else {
-            document.getElementById('dashboardGateStatus').className = 'badge bg-danger rounded-pill px-3';
-            document.getElementById('dashboardGateLight').className = 'badge bg-danger rounded-circle p-2 mb-2 shadow-sm d-inline-block';
-
-            if (countdownContainer) countdownContainer.classList.add('d-none');
-            if (lockedMessage) lockedMessage.classList.remove('d-none');
-        }
-        
-        document.getElementById('dashboardGateHealth').textContent = result.gate_health || 'NORMAL';
-        document.getElementById('dashboardGateHealth').className = result.gate_health === 'NORMAL' ? 'badge bg-success rounded-pill' : 'badge bg-danger rounded-pill';
-        document.getElementById('dashboardGateLastUpdate').textContent = new Date().toLocaleTimeString('id-ID');
-        document.getElementById('gateControlMessage').textContent = 'Monitoring aktif.';
-    } catch(e) {}
-}
-
-document.getElementById('dashboardGateSiteSelector').addEventListener('change', function() {
-    dashboardSelectedSiteId = this.value;
-    localStorage.setItem('dashboardSelectedSiteId', dashboardSelectedSiteId);
-    updateDashboardSelectedSite();
-    refreshDashboardGate();
-});
-
-fetch('/api/csrf-token').then(r=>r.json()).then(d => dashboardCsrfToken = d.csrf_token);
-
-async function manualGateOpen() {
-    if(!dashboardSelectedSiteId) return alert('Pilih site!');
-    if(confirm('Yakin ingin BUKA gate?')) {
-        await fetch('/api/gate/manual-open', {
-            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':dashboardCsrfToken}, body:JSON.stringify({site_id:dashboardSelectedSiteId})
-        });
-        refreshDashboardGate();
-    }
-}
-async function manualGateClose() {
-    if(!dashboardSelectedSiteId) return alert('Pilih site!');
-    if(confirm('Yakin ingin TUTUP gate?')) {
-        await fetch('/api/gate/manual-close', {
-            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':dashboardCsrfToken}, body:JSON.stringify({site_id:dashboardSelectedSiteId})
-        });
-        refreshDashboardGate();
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    initDashboardNocMap();
-    loadDashboardSites();
-    checkDashboardK3Alert();
-    refreshActivePersonnel();
-    refreshDashboardNocMap();
-    setInterval(refreshDashboardGate, 3000);
-    setInterval(checkDashboardK3Alert, 15000);
-    setInterval(refreshActivePersonnel, 15000);
-    setInterval(refreshDashboardNocMap, 15000);
-});
-
-// --- LIVE NOC INTERACTIVE MAP LOGIC ---
-let nocMap = null;
-let nocMarkerLayer = null;
-let nocSites = [];
-
-function initDashboardNocMap() {
-    const mapEl = document.getElementById('nocDashboardMap');
-    if (!mapEl || nocMap) return;
-
-    nocMap = L.map('nocDashboardMap', { zoomControl: true, scrollWheelZoom: false });
-    nocMarkerLayer = L.layerGroup().addTo(nocMap);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
-    }).addTo(nocMap);
-
-    // Initial default center around West Java BTS sites (Bandung area)
-    nocMap.setView([-6.9614, 107.6982], 12);
-
-    // Immediately parse preloaded sites from embedded JSON for instant 0ms rendering
-    const preloadedEl = document.getElementById('nocPreloadedSites');
-    if (preloadedEl) {
-        try {
-            const preloaded = JSON.parse(preloadedEl.textContent || '[]');
-            if (Array.isArray(preloaded) && preloaded.length > 0) {
-                nocSites = preloaded;
-                dashboardSites = preloaded;
-                updateDashboardNocMapMarkers();
-                
-                // Populate gate site selector immediately
-                const selector = document.getElementById('dashboardGateSiteSelector');
-                if (selector && selector.options.length <= 1) {
-                    selector.innerHTML = '<option value="">-- Pilih Site --</option>';
-                    dashboardSites.forEach(s => {
-                        selector.innerHTML += `<option value="${escapeHtml(s.site_id)}">${escapeHtml(s.site_name)}</option>`;
-                    });
-                    if (!dashboardSelectedSiteId && dashboardSites.length > 0) {
-                        dashboardSelectedSiteId = String(dashboardSites[0].site_id);
-                        localStorage.setItem('dashboardSelectedSiteId', dashboardSelectedSiteId);
-                    }
-                    if (dashboardSelectedSiteId) {
-                        selector.value = dashboardSelectedSiteId;
-                        updateDashboardSelectedSite();
-                    }
-                }
-            }
-        } catch(e) {
-            console.error('Error parsing preloaded sites:', e);
-        }
-    }
-}
-
-function updateDashboardNocMapMarkers() {
-    if (!nocMap || !nocMarkerLayer) return;
-    nocMarkerLayer.clearLayers();
-
-    const validSites = nocSites.filter(s => {
-        const lat = parseFloat(s.latitude);
-        const lng = parseFloat(s.longitude);
-        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
-    });
-
-    const countBadge = document.getElementById('nocMapSiteCount');
-    if (countBadge) {
-        countBadge.className = 'badge bg-success rounded-pill px-3 py-2 fw-bold shadow-sm';
-        countBadge.innerHTML = `<i class="bi bi-broadcast-pin me-1"></i> ${validSites.length} Tower Aktif Terpetakan`;
-    }
-
-    if (validSites.length === 0) return;
-
-    validSites.forEach(site => {
-        const lat = parseFloat(site.latitude);
-        const lng = parseFloat(site.longitude);
-
-        let pinClass = 'pin-normal';
-        let radarClass = 'radar-normal';
-        let statusBadge = '<span class="badge bg-success px-2 py-1"><i class="bi bi-check-circle me-1"></i>Normal / Terkunci</span>';
-
-        const risk = site.risk || {};
-        if (risk.level === 'CRITICAL' || risk.level === 'HIGH' || site.status === 'Down' || site.pin_status === 'CRITICAL') {
-            pinClass = 'pin-incident';
-            radarClass = 'radar-incident';
-            statusBadge = '<span class="badge bg-danger px-2 py-1"><i class="bi bi-exclamation-octagon me-1"></i>Insiden / Alarm</span>';
-        } else if (site.status === 'Maintenance' || site.pin_status === 'OCCUPIED' || (site.active_personnel_count && site.active_personnel_count > 0)) {
-            pinClass = 'pin-active';
-            radarClass = 'radar-active';
-            const pCount = site.active_personnel_count || 1;
-            statusBadge = `<span class="badge bg-primary px-2 py-1"><i class="bi bi-person-fill me-1"></i>${pCount} Teknisi di Lokasi</span>`;
-        }
-
-        const customIcon = L.divIcon({
-            className: 'noc-marker-wrap',
-            html: `
-                <div class="noc-gis-radar ${radarClass}"></div>
-                <div class="noc-gis-tower-pin ${pinClass}" title="${escapeHtml(site.site_name)} (${escapeHtml(site.site_id)})">
-                    <i class="bi bi-broadcast"></i>
-                </div>
-            `,
-            iconSize: [36, 36],
-            iconAnchor: [18, 18],
-            popupAnchor: [0, -20]
-        });
-
-        const gateBadge = (site.gate_status === 'OPEN') 
-            ? '<span class="badge bg-warning text-dark"><i class="bi bi-unlock-fill me-1"></i>OPEN</span>'
-            : '<span class="badge bg-success"><i class="bi bi-lock-fill me-1"></i>CLOSED</span>';
-
-        const personnelDetail = (site.active_personnel_count && site.active_personnel_count > 0)
-            ? `<div class="d-flex justify-content-between align-items-center mb-1 small"><span class="text-muted">Personel Aktif:</span><span class="badge bg-primary-subtle text-primary border">${site.active_personnel_count} orang</span></div>`
-            : '';
-
-        const popupContent = `
-            <div style="min-width: 260px; font-family: inherit; padding: 4px;">
-                <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
-                    <div class="bg-primary-subtle text-primary p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                        <i class="bi bi-broadcast fs-5"></i>
-                    </div>
-                    <div>
-                        <div class="fw-bold text-dark fs-6 mb-0">${escapeHtml(site.site_name)}</div>
-                        <div class="small text-muted font-monospace">${escapeHtml(site.site_id)}</div>
-                    </div>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-1 small">
-                    <span class="text-muted">Status Shelter:</span>
-                    ${statusBadge}
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-1 small">
-                    <span class="text-muted">Status Gate:</span>
-                    ${gateBadge}
-                </div>
-                ${personnelDetail}
-                <div class="d-flex justify-content-between align-items-center mb-1 small">
-                    <span class="text-muted">Koordinat GPS:</span>
-                    <span class="font-monospace fw-semibold text-primary">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-2 small">
-                    <span class="text-muted">Alamat:</span>
-                    <span class="text-truncate" style="max-width: 150px;" title="${escapeHtml(site.location || '-')}" >${escapeHtml(site.location || '-')}</span>
-                </div>
-                <div class="d-grid gap-1 pt-2 border-top">
-                    <a href="/access-logs?site_id=${encodeURIComponent(site.site_id)}" class="btn btn-sm btn-outline-primary py-1 d-flex align-items-center justify-content-center gap-1">
-                        <i class="bi bi-journal-text"></i> Buka Access Log
-                    </a>
-                    <a href="/access?site_id=${encodeURIComponent(site.site_id)}" class="btn btn-sm btn-outline-secondary py-1 d-flex align-items-center justify-content-center gap-1">
-                        <i class="bi bi-shield-lock"></i> Simulasi Gate & GPS
-                    </a>
-                </div>
-            </div>
-        `;
-
-        const marker = L.marker([lat, lng], { icon: customIcon }).bindPopup(popupContent, { maxWidth: 320 });
-
-        // Permanent clean label directly visible above the tower pin
-        marker.bindTooltip(`<b><i class="bi bi-broadcast-pin me-1 text-primary"></i> ${escapeHtml(site.site_name)}</b>`, {
-            permanent: true,
-            direction: 'top',
-            offset: [0, -22],
-            className: 'noc-site-bubble'
-        });
-
-        nocMarkerLayer.addLayer(marker);
-    });
-
-    fitDashboardNocMap();
-}
-
-window.fitDashboardNocMap = function() {
-    if (!nocMap) return;
-    const validSites = nocSites.filter(s => {
-        const lat = parseFloat(s.latitude);
-        const lng = parseFloat(s.longitude);
-        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
-    });
-    if (validSites.length === 1) {
-        nocMap.setView([parseFloat(validSites[0].latitude), parseFloat(validSites[0].longitude)], 14);
-    } else if (validSites.length > 1) {
-        const bounds = L.latLngBounds(validSites.map(s => [parseFloat(s.latitude), parseFloat(s.longitude)]));
-        nocMap.fitBounds(bounds.pad(0.22));
-    }
-    setTimeout(() => {
-        if (nocMap) nocMap.invalidateSize();
-    }, 250);
-};
-
-// --- K3 SHELTER OVERSTAY ALERT CHECK ---
-async function checkDashboardK3Alert() {
-    try {
-        const res = await fetch('/api/features/k3-overstay');
-        const data = await res.json();
-        const banner = document.getElementById('k3DashboardAlertBanner');
-        const bannerText = document.getElementById('k3DashboardAlertText');
-        if (!banner) return;
-
-        if (data.overstay_count > 0) {
-            banner.classList.remove('d-none');
-            const names = data.overstays.map(o => `${escapeHtml(o.name)} (${escapeHtml(o.site_name)}, ${escapeHtml(o.duration_formatted)})`).join(', ');
-            bannerText.textContent = `Peringatan K3: ${data.overstay_count} teknisi overstay di shelter BTS (> 120m): ${names}. Segera lakukan konfirmasi keselamatan.`;
-        } else {
-            banner.classList.add('d-none');
-        }
-    } catch(e) {}
-}
-
-// --- PERIODIC NOC MAP REFRESH ---
-async function refreshDashboardNocMap() {
-    try {
-        const res = await fetch('/api/noc/site-map-summary');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.sites && Array.isArray(data.sites) && data.sites.length > 0) {
-            nocSites = data.sites;
-            updateDashboardNocMapMarkers();
-        }
-    } catch (e) {
-        console.warn('Gagal memuat NOC site map summary:', e);
-    }
-}
-
-// --- ACTIVE PERSONNEL & OVERSTAY REFRESH ---
-async function refreshActivePersonnel() {
-    try {
-        const res = await fetch('/api/noc/active-personnel');
-        if (!res.ok) return;
-        const data = await res.json();
-        
-        const countBadge = document.getElementById('activePersonnelCountBadge');
-        const overstayBadge = document.getElementById('activeOverstayCountBadge');
-        const emptyState = document.getElementById('activePersonnelEmptyState');
-        const tableWrapper = document.getElementById('activePersonnelTableWrapper');
-        const tbody = document.getElementById('activePersonnelTableBody');
-        
-        const list = data.personnel || [];
-        const total = data.total_active || 0;
-        const overstay = data.overstay_count || 0;
-        
-        if (countBadge) {
-            countBadge.textContent = `${total} Personel di Site`;
-            countBadge.className = total > 0 ? 'badge bg-primary rounded-pill px-3 py-2 fw-semibold' : 'badge bg-secondary rounded-pill px-3 py-2 fw-semibold';
-        }
-        
-        if (overstayBadge) {
-            if (overstay > 0) {
-                overstayBadge.classList.remove('d-none');
-                overstayBadge.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>${overstay} Overstay (>120m)`;
-            } else {
-                overstayBadge.classList.add('d-none');
-            }
-        }
-        
-        if (list.length === 0) {
-            if (emptyState) emptyState.classList.remove('d-none');
-            if (tableWrapper) tableWrapper.classList.add('d-none');
-            if (tbody) tbody.innerHTML = '';
-            return;
-        }
-        
-        if (emptyState) emptyState.classList.add('d-none');
-        if (tableWrapper) tableWrapper.classList.remove('d-none');
-        
-        if (tbody) {
-            tbody.innerHTML = list.map(p => {
-                const overstayPill = p.is_overstay
-                    ? `<span class="badge bg-danger text-white"><i class="bi bi-alarm-fill me-1"></i>${escapeHtml(p.duration_formatted)} (Overstay)</span>`
-                    : `<span class="badge bg-light text-dark border"><i class="bi bi-clock me-1"></i>${escapeHtml(p.duration_formatted)}</span>`;
-                
-                const methodBadge = p.verification_type === 'QR_WORK_ORDER'
-                    ? '<span class="badge bg-info-subtle text-info-emphasis border"><i class="bi bi-qr-code me-1"></i>QR Tiket</span>'
-                    : (p.verification_type === 'FACE'
-                        ? '<span class="badge bg-primary-subtle text-primary-emphasis border"><i class="bi bi-person-bounding-box me-1"></i>Face Scan</span>'
-                        : '<span class="badge bg-secondary-subtle text-secondary-emphasis border"><i class="bi bi-key me-1"></i>PIN OTP</span>');
-                
-                return `
-                    <tr class="${p.is_overstay ? 'table-danger' : ''}">
-                        <td class="ps-4">
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 38px; height: 38px; font-size: 0.9rem;">
-                                    ${(p.name || 'T').substring(0, 2).toUpperCase()}
-                                </div>
-                                <div>
-                                    <div class="fw-bold text-dark">${escapeHtml(p.name)}</div>
-                                    <div class="text-muted small">${escapeHtml(p.role || 'Teknisi')}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="fw-semibold text-dark">${escapeHtml(p.site_name)}</div>
-                            <div class="font-monospace small text-muted">${escapeHtml(p.site_id)}</div>
-                        </td>
-                        <td class="small">
-                            ${p.check_in_time ? new Date(p.check_in_time).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : '-'} WIB
-                        </td>
-                        <td>${overstayPill}</td>
-                        <td>${methodBadge}</td>
-                        <td class="text-end pe-4">
-                            <a href="/access-logs?site_id=${encodeURIComponent(p.site_id)}" class="btn btn-sm btn-outline-secondary py-1 px-2">
-                                <i class="bi bi-journal-text"></i> Log
-                            </a>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-    } catch (e) {
-        console.warn('Gagal memuat personel aktif:', e);
-    }
-}
-
-// =====================================================
-// CHART.JS INITIALIZATION (NOC & AI ANALYTICS)
-// =====================================================
-(function initAllDashboardCharts() {
-    if (typeof Chart === 'undefined') return;
-
-    // 1. Main 7-Day Access Activity Chart
-    const ctxAccess = document.getElementById('accessChart');
-    if (ctxAccess) {
-        const labels = {{ chart_labels|tojson }};
-        const grantedData = {{ chart_granted|tojson }};
-        const deniedData = {{ chart_denied|tojson }};
-
-        new Chart(ctxAccess, {
+        new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
+                labels: trendData.labels,
                 datasets: [
                     {
-                        label: 'Granted (Diterima)',
-                        data: grantedData,
-                        borderColor: '#0284C7',
-                        backgroundColor: 'rgba(2, 132, 199, 0.12)',
-                        borderWidth: 2.5,
+                        label: 'Granted (Izin)',
+                        data: trendData.granted,
+                        borderColor: '#10B981',
+                        backgroundColor: gradientGranted,
                         fill: true,
                         tension: 0.35,
-                        pointBackgroundColor: '#0284C7',
-                        pointBorderColor: '#FFFFFF',
+                        pointBackgroundColor: '#10B981',
+                        pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
                         pointRadius: 4,
-                        pointHoverRadius: 6,
+                        borderWidth: 2.5
                     },
                     {
                         label: 'Denied (Ditolak)',
-                        data: deniedData,
+                        data: trendData.denied,
                         borderColor: '#EF4444',
-                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                        borderWidth: 2,
+                        backgroundColor: gradientDenied,
                         fill: true,
                         tension: 0.35,
-                        borderDash: [4, 4],
                         pointBackgroundColor: '#EF4444',
-                        pointBorderColor: '#FFFFFF',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        borderWidth: 2.5
+                    },
+                    {
+                        label: 'Insiden Keamanan',
+                        data: trendData.incidents,
+                        borderColor: '#F59E0B',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.35,
+                        pointBackgroundColor: '#F59E0B',
+                        pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
                         pointRadius: 3,
-                        pointHoverRadius: 5,
+                        borderWidth: 2
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 plugins: {
                     legend: {
                         position: 'top',
-                        labels: { usePointStyle: true, boxWidth: 8, font: { family: 'Plus Jakarta Sans', size: 12, weight: '600' } }
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 16,
+                            font: { family: "'Plus Jakarta Sans', sans-serif", size: 12 }
+                        }
                     },
                     tooltip: {
+                        padding: 12,
                         backgroundColor: 'rgba(15, 23, 42, 0.92)',
-                        padding: 10,
-                        cornerRadius: 8
+                        titleFont: { family: "'Plus Jakarta Sans', sans-serif", size: 13, weight: 'bold' },
+                        bodyFont: { family: "'Plus Jakarta Sans', sans-serif", size: 12 }
                     }
                 },
                 scales: {
-                    x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 11 }, color: '#64748B' } },
-                    y: { beginAtZero: true, grid: { color: 'rgba(226, 232, 240, 0.6)' }, ticks: { stepSize: 1, font: { family: 'JetBrains Mono', size: 11 }, color: '#64748B' } }
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 }
+                        },
+                        grid: { color: 'rgba(226, 232, 240, 0.7)' }
+                    }
                 }
             }
         });
     }
 
-    // 2. Face Recognition Confidence Score Distribution
-    const ctxFace = document.getElementById('faceRecognitionChart');
-    if (ctxFace) {
-        new Chart(ctxFace, {
-            type: 'bar',
-            data: {
-                labels: ['< 0.30 (Tinggi)', '0.30-0.42 (Optimal)', '0.42-0.52 (Batas)', '> 0.52 (Ditolak)'],
-                datasets: [{
-                    label: 'Frekuensi Verifikasi',
-                    data: [42, 28, 8, 3],
-                    backgroundColor: ['#10B981', '#0284C7', '#F59E0B', '#EF4444'],
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true, ticks: { precision: 0 } }
-                }
-            }
-        });
-    }
+    // -----------------------------------------------------
+    // 3. CHART 2: KOMPOSISI TINGKAT RISIKO (DOUGHNUT)
+    // -----------------------------------------------------
+    const incidentEl = document.getElementById('dashboardIncidentData');
+    const incidentCanvas = document.getElementById('incidentDoughnutChart');
+    if (incidentEl && incidentCanvas) {
+        let inc = { NORMAL: 0, WARNING: 0, HIGH: 0, CRITICAL: 0 };
+        try { inc = JSON.parse(incidentEl.textContent); } catch (e) {}
 
-    // 3. 24-Hour Access Pattern
-    const ctxPattern = document.getElementById('accessPatternChart');
-    if (ctxPattern) {
-        new Chart(ctxPattern, {
-            type: 'bar',
-            data: {
-                labels: ['00-04', '04-08', '08-12', '12-16', '16-20', '20-24'],
-                datasets: [{
-                    label: 'Kunjungan Kerja Teknisi',
-                    data: [1, 4, 38, 29, 14, 2],
-                    backgroundColor: 'rgba(14, 165, 233, 0.8)',
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true }
-                }
-            }
-        });
-    }
+        const values = [inc.NORMAL, inc.WARNING, inc.HIGH, inc.CRITICAL];
+        const allZero = values.every(v => v === 0);
+        const chartValues = allZero ? [1, 0, 0, 0] : values;
 
-    // 4. Denial Reasons Breakdown
-    const ctxDenial = document.getElementById('denialReasonsChart');
-    if (ctxDenial) {
-        new Chart(ctxDenial, {
+        new Chart(incidentCanvas, {
             type: 'doughnut',
             data: {
-                labels: ['Wajah Tak Cocok', 'OTP Salah', 'Spoof Layar', 'Jadwal Habis'],
+                labels: ['Normal', 'Warning', 'High', 'Critical'],
                 datasets: [{
-                    data: [4, 3, 1, 1],
-                    backgroundColor: ['#EF4444', '#F97316', '#A855F7', '#64748B']
+                    data: chartValues,
+                    backgroundColor: ['#10B981', '#F59E0B', '#F97316', '#EF4444'],
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverOffset: 6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+                cutout: '72%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                return ' ' + ctx.label + ': ' + (allZero ? 0 : ctx.parsed) + ' insiden';
+                            }
+                        }
+                    }
+                }
             }
         });
     }
 
-    // 5. Anomaly Timeline
-    const ctxAnomaly = document.getElementById('anomalyTimelineChart');
-    if (ctxAnomaly) {
-        new Chart(ctxAnomaly, {
-            type: 'line',
+    // -----------------------------------------------------
+    // 4. CHART 3: TOP 5 SITE BTS (HORIZONTAL BAR)
+    // -----------------------------------------------------
+    const topSitesEl = document.getElementById('dashboardTopSitesData');
+    const topSitesCanvas = document.getElementById('topSitesBarChart');
+    if (topSitesEl && topSitesCanvas) {
+        let sitesData = { labels: [], values: [] };
+        try { sitesData = JSON.parse(topSitesEl.textContent); } catch (e) {}
+
+        new Chart(topSitesCanvas, {
+            type: 'bar',
             data: {
-                labels: {{ chart_labels|tojson }},
+                labels: sitesData.labels,
                 datasets: [{
-                    label: 'Anomaly Score (Index 0-10)',
-                    data: [0.8, 1.2, 0.4, 3.1, 0.9, 1.4, 0.6],
-                    borderColor: '#F59E0B',
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    fill: true,
-                    tension: 0.3
+                    label: 'Transaksi Akses',
+                    data: sitesData.values,
+                    backgroundColor: 'rgba(26, 61, 100, 0.88)',
+                    hoverBackgroundColor: '#1D546C',
+                    borderRadius: 6,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) { return ' ' + ctx.parsed.x + ' kali akses'; }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        grid: { color: 'rgba(226, 232, 240, 0.7)' }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { font: { weight: '600' } }
+                    }
+                }
+            }
+        });
+    }
+
+    // -----------------------------------------------------
+    // 5. CHART 4: KINERJA 2FA (FACE & OTP DUAL GAUGES)
+    // -----------------------------------------------------
+    const authEl = document.getElementById('dashboardAuthData');
+    let authData = { face_rate: 0, otp_rate: 0 };
+    if (authEl) {
+        try { authData = JSON.parse(authEl.textContent); } catch (e) {}
+    }
+
+    const faceCanvas = document.getElementById('faceAccuracyChart');
+    if (faceCanvas) {
+        const faceRate = Math.min(100, Math.max(0, authData.face_rate || 0));
+        new Chart(faceCanvas, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [faceRate, 100 - faceRate],
+                    backgroundColor: ['#10B981', '#E2E8F0'],
+                    borderWidth: 0
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, max: 5 } }
+                cutout: '78%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
             }
         });
     }
 
-    // 6. Populate AI Insights
-    const insightsBox = document.getElementById('aiInsightsContainer');
-    if (insightsBox) {
-        insightsBox.innerHTML = `
-            <div class="d-flex align-items-start gap-2 mb-2 p-2 rounded-3 bg-light">
-                <i class="bi bi-lightbulb-fill text-warning fs-5"></i>
-                <div>
-                    <div class="fw-bold small text-dark">Efisiensi Verifikasi Biometrik</div>
-                    <div class="text-muted small">Tingkat match Face Recognition berada pada 97.2%. Kecepatan rata-rata autentikasi pintu shelter adalah 1.1 detik.</div>
-                </div>
-            </div>
-            <div class="d-flex align-items-start gap-2 mb-2 p-2 rounded-3 bg-light">
-                <i class="bi bi-shield-check text-success fs-5"></i>
-                <div>
-                    <div class="fw-bold small text-dark">Kepatuhan K3 & Prosedur 2FA</div>
-                    <div class="text-muted small">98.5% teknisi lapangan mematuhi SOP autentikasi ganda (Wajah + TOTP) sesuai standar ISO/IEC 27001.</div>
-                </div>
-            </div>
-            <div class="d-flex align-items-start gap-2 p-2 rounded-3 bg-light">
-                <i class="bi bi-cpu-fill text-info fs-5"></i>
-                <div>
-                    <div class="fw-bold small text-dark">Telemetri Lingkungan Shelter</div>
-                    <div class="text-muted small">Suhu shelter terpantau stabil pada 26.8°C dan catu daya 99.9% tanpa gangguan pemadaman.</div>
-                </div>
-            </div>
-        `;
-    }
-
-    // 7. Populate AI Heatmap Container
-    const heatmapBox = document.getElementById('aiHeatmapContainer');
-    if (heatmapBox) {
-        heatmapBox.innerHTML = `
-            {% for site in sites %}
-            <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded-3 bg-light">
-                <div>
-                    <div class="fw-bold small text-dark">{{ site.site_name }}</div>
-                    <div class="text-muted small font-monospace">{{ site.site_id }} &bull; {{ site.location or 'Indonesia' }}</div>
-                </div>
-                <div class="text-end">
-                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">
-                        <i class="bi bi-shield-fill-check me-1"></i> RISIKO RENDAH
-                    </span>
-                    <div class="small text-muted font-monospace mt-0.5" style="font-size: 0.72rem;">Score: 0.08</div>
-                </div>
-            </div>
-            {% endfor %}
-        `;
-    }
-})();
-
-// =====================================================
-// NOC REAL-TIME EVENT STREAM & TOAST SYSTEM
-// =====================================================
-let lastKnownAccessCount = {{ access_today|default(0) }};
-let lastKnownGateStatus = '{{ gate_status|default("CLOSED") }}';
-
-function showNocToast(title, message, type = 'info') {
-    const container = document.getElementById('nocLiveToastContainer');
-    if (!container) return;
-
-    const toastId = 'toast_' + Date.now();
-    const typeClass = type === 'success' ? 'bg-success text-white' : 
-                     (type === 'danger' ? 'bg-danger text-white' : 
-                     (type === 'warning' ? 'bg-warning text-dark' : 'bg-primary text-white'));
-    const icon = type === 'success' ? 'bi-shield-check' : 
-                (type === 'danger' ? 'bi-shield-x' : 
-                (type === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-bell-fill'));
-
-    const toastHtml = `
-        <div id="${toastId}" class="toast align-items-center shadow-lg border-0 mb-2 show" role="alert" aria-live="assertive" aria-atomic="true" style="pointer-events: auto; backdrop-filter: blur(14px); border-radius: 12px; min-width: 330px;">
-            <div class="toast-header ${typeClass}" style="border-radius: 12px 12px 0 0;">
-                <i class="bi ${icon} me-2 fs-6"></i>
-                <strong class="me-auto font-display">${title}</strong>
-                <small class="opacity-75">Baru saja</small>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close" onclick="document.getElementById('${toastId}').remove()"></button>
-            </div>
-            <div class="toast-body bg-white text-dark small" style="border-radius: 0 0 12px 12px;">
-                ${message}
-            </div>
-        </div>
-    `;
-    container.insertAdjacentHTML('beforeend', toastHtml);
-
-    // Audio chime for NOC alert
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(type === 'danger' ? 280 : 880, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.2);
-    } catch(e) {}
-
-    setTimeout(() => {
-        const t = document.getElementById(toastId);
-        if (t) t.remove();
-    }, 6000);
-}
-
-// Background Monitor for live event streaming
-async function pollNocEventStream() {
-    try {
-        const resp = await fetch('/api/security-status');
-        if (!resp.ok) return;
-        const res = await resp.json();
-        const data = res.data || res;
-
-        // Gate state change detected
-        if (data.gate_status && data.gate_status !== lastKnownGateStatus) {
-            lastKnownGateStatus = data.gate_status;
-            if (data.gate_status === 'OPEN') {
-                showNocToast('Gerbang Solenoid Terbuka', 'Gerbang akses shelter telah terbuka via autentikasi terverifikasi.', 'success');
-            } else if (data.gate_status === 'CLOSED') {
-                showNocToast('Gerbang Terkunci Rapat', 'Gerbang solenoid telah mengunci kembali secara otomatis.', 'info');
+    const otpCanvas = document.getElementById('otpAccuracyChart');
+    if (otpCanvas) {
+        const otpRate = Math.min(100, Math.max(0, authData.otp_rate || 0));
+        new Chart(otpCanvas, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [otpRate, 100 - otpRate],
+                    backgroundColor: ['#1A3D64', '#E2E8F0'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '78%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
             }
+        });
+    }
+
+    // -----------------------------------------------------
+    // 6. PETA GIS & RADAR INTERAKTIF LEAFLET
+    // -----------------------------------------------------
+    let dashboardMap = null;
+    let mapMarkersLayer = null;
+
+    function initDashboardMap() {
+        const mapContainer = document.getElementById('dashBtsMap');
+        if (!mapContainer) return;
+        if (typeof L === 'undefined') {
+            setTimeout(initDashboardMap, 300);
+            return;
         }
 
-        // New access attempt detected
-        if (typeof data.total_access === 'number' && data.total_access > lastKnownAccessCount) {
-            const diff = data.total_access - lastKnownAccessCount;
-            lastKnownAccessCount = data.total_access;
-            if (data.security_level === 'CRITICAL' || data.security_level === 'HIGH') {
-                showNocToast('Peringatan Keamanan Kritis!', `Terdeteksi ${diff} upaya verifikasi bermasalah atau anomali akses di site BTS!`, 'danger');
-            } else {
-                showNocToast('Log Akses Baru Tercatat', `Aktivitas akses baru berhasil diproses dan disimpan ke Audit Trail.`, 'info');
-            }
+        let mapSites = [];
+        const siteScript = document.getElementById('dashBtsSiteData');
+        if (siteScript) {
+            try { mapSites = JSON.parse(siteScript.textContent); } catch (e) {}
         }
-    } catch (e) {
-        // silent fail on network blip
+
+        dashboardMap = L.map('dashBtsMap', {
+            zoomControl: true,
+            scrollWheelZoom: false,
+            attributionControl: true
+        }).setView([-6.9175, 107.6191], 11);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(dashboardMap);
+
+        mapMarkersLayer = L.layerGroup().addTo(dashboardMap);
+
+        const bounds = [];
+        mapSites.forEach(function (site) {
+            if (typeof site.latitude !== 'number' || typeof site.longitude !== 'number') return;
+            bounds.push([site.latitude, site.longitude]);
+
+            const secStatus = (site.security_status || 'NORMAL').toLowerCase();
+            const markerClass = 'marker-' + secStatus;
+            const radarClass = 'radar-' + secStatus;
+
+            const iconHtml = `
+                <div class="site-marker-wrap">
+                    <div class="bts-gis-radar ${radarClass}"></div>
+                    <div class="bts-gis-tower-pin ${markerClass}" title="${site.site_name}">
+                        <i class="bi bi-broadcast-pin"></i>
+                    </div>
+                </div>
+            `;
+
+            const customIcon = L.divIcon({
+                className: 'custom-bts-marker',
+                html: iconHtml,
+                iconSize: [34, 34],
+                iconAnchor: [17, 17],
+                popupAnchor: [0, -18]
+            });
+
+            const marker = L.marker([site.latitude, site.longitude], { icon: customIcon });
+
+            const popupContent = `
+                <div style="min-width: 220px; font-family: 'Plus Jakarta Sans', sans-serif;">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <strong class="text-dark">${site.site_name}</strong>
+                        <span class="badge ${secStatus === 'critical' ? 'bg-danger' : (secStatus === 'warning' ? 'bg-warning text-dark' : 'bg-success')} rounded-pill px-2 py-0.5" style="font-size: 0.65rem;">
+                            ${site.security_status}
+                        </span>
+                    </div>
+                    <div class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>${site.location}</div>
+                    <div class="d-flex justify-content-between border-top pt-1 small text-secondary">
+                        <span>Akses Hari Ini: <b>${site.access_today || 0}</b></span>
+                        <span>Suhu: <b>${site.temperature || '-'}°C</b></span>
+                    </div>
+                    <div class="mt-2 text-end">
+                        <a href="/access?site_id=${encodeURIComponent(site.site_id)}" class="btn btn-xs btn-primary text-white" style="font-size: 0.72rem; padding: 2px 8px;">
+                            Simulasi Akses &raquo;
+                        </a>
+                    </div>
+                </div>
+            `;
+            marker.bindPopup(popupContent);
+            mapMarkersLayer.addLayer(marker);
+        });
+
+        if (bounds.length > 0) {
+            dashboardMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+        }
     }
-}
-setInterval(pollNocEventStream, 7000);
+
+    initDashboardMap();
+
+    // -----------------------------------------------------
+    // 7. LIVE TELEMETRI & K3 OVERSTAY MONITORING POLLER
+    // -----------------------------------------------------
+    async function updateDashboardTelemetri() {
+        try {
+            const resp = await fetch('/api/security-status');
+            if (!resp.ok) return;
+            const res = await resp.json();
+            const data = res.data || res;
+
+            // Gate Status UI Update
+            const gateStatusEl = document.getElementById('dashGateStatus');
+            const gateBadgeEl = document.getElementById('dashGateBadge');
+            if (gateStatusEl && data.gate_status) {
+                gateStatusEl.textContent = data.gate_status;
+                gateStatusEl.style.color = data.gate_status === 'OPEN' ? 'var(--brand-primary)' : '#059669';
+            }
+            if (gateBadgeEl && data.gate_status) {
+                gateBadgeEl.textContent = data.gate_status === 'OPEN' ? 'TERBUKA' : 'TERKUNCI';
+                gateBadgeEl.className = 'badge rounded-pill ' + (data.gate_status === 'OPEN' ? 'bg-warning text-dark' : 'bg-success');
+            }
+
+            // Health Relay
+            const healthEl = document.getElementById('dashGateHealth');
+            if (healthEl && data.gate_health) {
+                healthEl.textContent = data.gate_health;
+                healthEl.className = 'fw-bold ' + (['NORMAL', 'HEALTHY'].includes(data.gate_health) ? 'text-success' : 'text-danger');
+            }
+
+            // K3 Overstay Alert Banner
+            const k3Banner = document.getElementById('k3DashboardAlertBanner');
+            const k3Text = document.getElementById('k3DashboardAlertText');
+            if (k3Banner) {
+                if (data.k3_overstay_alert && data.k3_overstay_alert.active) {
+                    k3Banner.classList.remove('d-none');
+                    if (k3Text) {
+                        k3Text.textContent = data.k3_overstay_alert.message || 'Teknisi terdeteksi di dalam shelter melampaui batas waktu aman K3!';
+                    }
+                } else {
+                    k3Banner.classList.add('d-none');
+                }
+            }
+
+            // Active sessions count
+            const sessEl = document.getElementById('activeSessionsCount');
+            if (sessEl && typeof data.active_sessions === 'number') {
+                sessEl.textContent = data.active_sessions;
+            }
+        } catch (e) {}
+    }
+
+    setInterval(updateDashboardTelemetri, 5000);
+    updateDashboardTelemetri();
+});
 </script>
 
 {% endblock %}

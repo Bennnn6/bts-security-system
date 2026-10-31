@@ -1,931 +1,579 @@
 {% extends "base.html" %}
 
+{% block title %}Kelola & Registrasi Teknisi | BTS Security System{% endblock %}
+
 {% block content %}
 
-<div class="row justify-content-center">
+<div class="app-page p-2 p-md-4">
 
-    <div class="col-md-9">
-
-        <div class="card shadow">
-
-            <!-- HEADER -->
-            <div class="card-header bg-primary text-white text-center">
-
-                <h4 class="mb-0">
-                    Registrasi Teknisi
-                </h4>
-
-                <small>
-                    Data Teknisi + Face Recognition
-                </small>
-
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+    <div class="card p-4 mb-4" style="border-left: 6px solid var(--jk-primary) !important;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2 class="section-title mb-1" style="font-size: 1.5rem;">
+                    Kelola & Direktori Teknisi
+                </h2>
+                <p class="section-subtitle mb-0">
+                    Manajemen identitas personel lapangan, verifikasi biometrik Face ID, dan status 2FA TOTP.
+                </p>
             </div>
 
-
-            <div class="card-body">
-
-
-                <!-- INFORMASI -->
-                <div class="alert alert-info">
-
-                    <strong>ID Teknisi dibuat otomatis.</strong>
-
-                    <p class="mb-0 mt-2">
-
-                        Sistem akan membuat ID secara otomatis
-                        dengan format:
-
-                        <strong>
-                            TECH-001
-                        </strong>
-
-                    </p>
-
-                </div>
-
-
-                <!-- STATUS -->
-                <div
-                    id="statusBox"
-                    class="alert alert-secondary"
-                >
-
-                    <span id="statusText">
-                        Silakan isi data teknisi.
-                    </span>
-
-                </div>
-
-
-                <!-- =====================================================
-                     FORM DATA
-                ====================================================== -->
-
-                <form
-                    id="registerForm"
-                    autocomplete="off"
-                >
-
-
-                    <!-- NAMA -->
-                    <div class="mb-3">
-
-                        <label
-                            for="name"
-                            class="form-label fw-bold"
-                        >
-                            Nama Teknisi
-                        </label>
-
-
-                        <input
-                            type="text"
-                            id="name"
-                            class="form-control"
-                            placeholder="Nama lengkap teknisi"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- USERNAME -->
-                    <div class="mb-3">
-
-                        <label
-                            for="username"
-                            class="form-label fw-bold"
-                        >
-                            Username
-                        </label>
-
-
-                        <input
-                            type="text"
-                            id="username"
-                            class="form-control"
-                            placeholder="Username login teknisi"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- PASSWORD -->
-                    <div class="mb-3">
-
-                        <label
-                            for="password"
-                            class="form-label fw-bold"
-                        >
-                            Password
-                        </label>
-
-
-                        <input
-                            type="password"
-                            id="password"
-                            class="form-control"
-                            placeholder="Password teknisi"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- POSISI -->
-                    <div class="mb-3">
-
-                        <label
-                            for="position"
-                            class="form-label fw-bold"
-                        >
-                            Posisi
-                        </label>
-
-
-                        <input
-                            type="text"
-                            id="position"
-                            class="form-control"
-                            value="Teknisi Lapangan"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- NOMOR TELEPON -->
-                    <div class="mb-4">
-
-                        <label
-                            for="phone"
-                            class="form-label fw-bold"
-                        >
-                            Nomor Telepon
-                        </label>
-
-
-                        <input
-                            type="text"
-                            id="phone"
-                            class="form-control"
-                            placeholder="08xxxxxxxxxx"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- =================================================
-                         FACE RECOGNITION
-                    ================================================== -->
-
-                    <div class="text-center">
-
-                        <h5 class="fw-bold mb-3">
-                            <i class="bi bi-camera-fill me-1 text-primary"></i> Face Recognition
-                        </h5>
-
-
-                        <div class="alert alert-warning text-start">
-
-                            <strong>Petunjuk:</strong>
-
-                            <ul class="mb-0 mt-2">
-
-                                <li>
-                                    Posisikan wajah di tengah kamera.
-                                </li>
-
-                                <li>
-                                    Pastikan pencahayaan cukup.
-                                </li>
-
-                                <li>
-                                    Jangan menggunakan masker.
-                                </li>
-
-                                <li>
-                                    Pastikan hanya satu wajah
-                                    berada di depan kamera.
-                                </li>
-
-                            </ul>
-
-                        </div>
-
-
-                        <!-- VIDEO -->
-                        <div class="d-flex justify-content-center">
-
-                            <video
-                                id="video"
-                                width="640"
-                                height="480"
-                                autoplay
-                                playsinline
-                                muted
-                                style="
-                                    width: 100%;
-                                    max-width: 640px;
-                                    height: auto;
-                                    min-height: 320px;
-                                    object-fit: cover;
-                                    background: #000;
-                                    border: 4px solid #0d6efd;
-                                    border-radius: 15px;
-                                "
-                            ></video>
-
-                        </div>
-
-
-                        <!-- CANVAS -->
-                        <canvas
-                            id="canvas"
-                            width="640"
-                            height="480"
-                            style="display: none;"
-                        ></canvas>
-
-
-                        <!-- CAMERA STATUS -->
-                        <div
-                            id="cameraStatus"
-                            class="alert alert-secondary mt-3"
-                        >
-                            Menyiapkan kamera...
-                        </div>
-
-                    </div>
-
-
-                    <!-- =================================================
-                         BUTTON
-                    ================================================== -->
-
-                    <div class="d-grid gap-2 mt-4">
-
-                        <button
-                            type="submit"
-                            id="registerButton"
-                            class="btn btn-success btn-lg"
-                        >
-
-                            <i class="bi bi-person-plus-fill me-1"></i> Daftarkan Teknisi + Wajah
-
-                        </button>
-
-
-                        <a
-                            href="{{ url_for('dashboard') }}"
-                            class="btn btn-outline-secondary"
-                        >
-
-                            <i class="bi bi-arrow-left me-1"></i> Kembali ke Dashboard
-
-                        </a>
-
-                    </div>
-
-                </form>
-
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-dark shadow-sm fw-semibold">
+                    <i class="bi bi-arrow-left me-1"></i> Dashboard
+                </a>
+                <a href="#registerSection" class="btn btn-primary shadow-sm" onclick="smoothScrollToForm()">
+                    <i class="bi bi-person-plus-fill me-1"></i> + Daftarkan Teknisi Baru
+                </a>
             </div>
+        </div>
+    </div>
 
+    <!-- =====================================================
+         MINI STATS CARDS
+    ====================================================== -->
+    <div class="row g-3 mb-4">
+        <!-- TOTAL TEKNISI -->
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border p-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small fw-bold text-uppercase">Total Teknisi</span>
+                    <i class="bi bi-people text-primary fs-5"></i>
+                </div>
+                <div class="fs-4 fw-bold text-dark">{{ (technicians|length) if technicians else 0 }}</div>
+                <div class="small text-muted">Personel terdaftar</div>
+            </div>
         </div>
 
+        <!-- TEKNISI AKTIF -->
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border p-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small fw-bold text-uppercase">Teknisi Aktif</span>
+                    <i class="bi bi-person-check text-success fs-5"></i>
+                </div>
+                <div class="fs-4 fw-bold text-success">
+                    {{ (technicians|selectattr('status', 'equalto', 'Active')|list|length) if technicians else 0 }}
+                </div>
+                <div class="small text-muted">Siap tugas lapangan</div>
+            </div>
+        </div>
+
+        <!-- TERDAFTAR FACE ID -->
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border p-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small fw-bold text-uppercase">Biometrik Wajah</span>
+                    <i class="bi bi-camera-fill text-info fs-5"></i>
+                </div>
+                <div class="fs-4 fw-bold text-info">
+                    {{ (technicians|selectattr('face_encoding')|list|length) if technicians else 0 }}
+                </div>
+                <div class="small text-muted">Face ID tersimpan</div>
+            </div>
+        </div>
+
+        <!-- 2FA TOTP AKTIF -->
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border p-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small fw-bold text-uppercase">2FA TOTP</span>
+                    <i class="bi bi-shield-lock-fill text-warning fs-5"></i>
+                </div>
+                <div class="fs-4 fw-bold text-warning">
+                    {{ (technicians|selectattr('totp_secret')|list|length) if technicians else 0 }}
+                </div>
+                <div class="small text-muted">Token OTP aktif</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         PENCARIAN TEKNISI
+    ====================================================== -->
+    <div class="card mb-4 shadow-sm border">
+        <div class="card-body p-3">
+            <form method="GET" action="{{ url_for('register_technician') }}" class="row g-2 align-items-center">
+                <div class="col-md-9 col-lg-10">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input
+                            type="text"
+                            name="q"
+                            class="form-control border-start-0"
+                            placeholder="Cari berdasarkan Nama, ID Teknisi (TECH-xxx), Username, Posisi, atau No Telepon..."
+                            value="{{ search_query|default('') }}"
+                        >
+                    </div>
+                </div>
+                <div class="col-md-3 col-lg-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100 shadow-sm">
+                        Cari
+                    </button>
+                    {% if search_query %}
+                    <a href="{{ url_for('register_technician') }}" class="btn btn-outline-secondary" title="Reset Pencarian">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         TABEL DAFTAR TEKNISI (EDIT & KELOLA)
+    ====================================================== -->
+    <div class="card shadow-sm border mb-5">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="section-title mb-1" style="font-size: 1.25rem;">
+                    <i class="bi bi-people-fill text-primary me-2"></i>Daftar Teknisi Terdaftar
+                </h5>
+                <div class="section-subtitle">
+                    Klik tombol <strong>Edit</strong> pada kolom Aksi untuk mengubah data nama, posisi, telepon, password, atau status.
+                </div>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2 fw-semibold">
+                {{ technicians|length if technicians else 0 }} Teknisi Ditemukan
+            </span>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4 text-muted small text-uppercase">Teknisi</th>
+                            <th class="text-muted small text-uppercase">Posisi & Kontak</th>
+                            <th class="text-center text-muted small text-uppercase">Face ID</th>
+                            <th class="text-center text-muted small text-uppercase">2FA TOTP</th>
+                            <th class="text-center text-muted small text-uppercase">Status</th>
+                            <th class="text-center pe-4 text-muted small text-uppercase">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if technicians and technicians|length > 0 %}
+                            {% for tech in technicians %}
+                            <tr>
+                                <!-- NAMA & IDENTITAS -->
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px; font-size: 1.1rem; flex-shrink: 0;">
+                                            {{ (tech.name[0]|upper) if tech.name else 'T' }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">{{ tech.name }}</div>
+                                            <div class="d-flex align-items-center gap-2 small">
+                                                <span class="badge bg-dark-subtle text-dark font-monospace" style="font-size: 0.72rem;">{{ tech.technician_id }}</span>
+                                                {% if tech.username %}
+                                                    <span class="text-muted">@{{ tech.username }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- POSISI & KONTAK -->
+                                <td>
+                                    <div class="fw-semibold text-secondary small">{{ tech.position }}</div>
+                                    <div class="small text-muted">
+                                        <i class="bi bi-telephone me-1"></i>{{ tech.phone or '-' }}
+                                    </div>
+                                </td>
+
+                                <!-- FACE ID -->
+                                <td class="text-center">
+                                    {% if tech.face_encoding %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Terdaftar
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1">
+                                            <i class="bi bi-exclamation-circle-fill me-1"></i> Belum Ada
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- 2FA TOTP -->
+                                <td class="text-center">
+                                    {% if tech.totp_secret %}
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2.5 py-1">
+                                            <i class="bi bi-shield-check me-1"></i> Aktif
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2.5 py-1">
+                                            Belum Aktif
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- STATUS -->
+                                <td class="text-center">
+                                    {% if tech.status == 'Active' %}
+                                        <span class="badge bg-success rounded-pill px-2.5 py-1">
+                                            <span class="pulse-dot me-1" style="width: 6px; height: 6px; display: inline-block; background-color: #fff; border-radius: 50%;"></span>
+                                            Active
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary rounded-pill px-2.5 py-1">
+                                            Inactive
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- AKSI: EDIT, TOTP, HAPUS -->
+                                <td class="text-center pe-4 text-nowrap">
+                                    <!-- TOMBOL EDIT DATA TEKNISI -->
+                                    <a
+                                        href="{{ url_for('edit_technician', tech_id=tech.technician_id) }}"
+                                        class="btn btn-sm btn-outline-primary fw-semibold px-2.5 me-1 shadow-sm"
+                                        title="Edit Data Teknisi"
+                                    >
+                                        <i class="bi bi-pencil-square me-1"></i> Edit
+                                    </a>
+
+                                    <!-- TOMBOL TOTP QR -->
+                                    <a
+                                        href="{{ url_for('totp_setup', tech_id=tech.technician_id) }}"
+                                        class="btn btn-sm btn-outline-info px-2 me-1 shadow-sm"
+                                        title="Buka / Generate Ulang QR Code 2FA TOTP"
+                                    >
+                                        <i class="bi bi-qr-code-scan"></i>
+                                    </a>
+
+                                    <!-- TOMBOL ENROLL WAJAH -->
+                                    <a
+                                        href="{{ url_for('face_enrollment', tech_id=tech.technician_id) }}"
+                                        class="btn btn-sm btn-outline-secondary px-2 me-1 shadow-sm"
+                                        title="Scan Ulang Wajah (Face Re-enroll)"
+                                    >
+                                        <i class="bi bi-person-bounding-box"></i>
+                                    </a>
+
+                                    <!-- TOMBOL HAPUS / NONAKTIFKAN -->
+                                    <a
+                                        href="{{ url_for('delete_technician', tech_id=tech.technician_id) }}"
+                                        class="btn btn-sm btn-outline-danger px-2 shadow-sm"
+                                        onclick="return confirm('Apakah Anda yakin ingin menonaktifkan atau menghapus teknisi {{ tech.name }} ({{ tech.technician_id }})?');"
+                                        title="Hapus / Nonaktifkan Teknisi"
+                                    >
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="bi bi-person-x fs-1 d-block mb-2 text-secondary"></i>
+                                    {% if search_query %}
+                                        Tidak ditemukan teknisi dengan kata kunci "<strong>{{ search_query }}</strong>".
+                                        <div class="mt-2">
+                                            <a href="{{ url_for('register_technician') }}" class="btn btn-sm btn-outline-secondary">Reset Pencarian</a>
+                                        </div>
+                                    {% else %}
+                                        Belum ada teknisi terdaftar di sistem.
+                                        <div class="mt-2">
+                                            <a href="#registerSection" class="btn btn-sm btn-primary">Daftarkan Teknisi Pertama</a>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         SECTION FORMULIR REGISTRASI TEKNISI BARU
+    ====================================================== -->
+    <div id="registerSection" class="row justify-content-center pt-2">
+        <div class="col-lg-10">
+            <div class="card shadow-sm border mb-5">
+                <div class="card-header bg-primary text-white p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 fw-bold">
+                            <i class="bi bi-person-plus-fill me-2"></i>Registrasi Teknisi Baru + Face Recognition
+                        </h5>
+                        <small class="opacity-75">Isi identitas akun dan posisikan wajah di depan kamera untuk verifikasi biometrik</small>
+                    </div>
+                    <span class="badge bg-white text-primary fw-bold">ID OTOMATIS</span>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- INFORMASI ID OTOMATIS -->
+                    <div class="alert alert-info d-flex align-items-center gap-2 mb-3">
+                        <i class="bi bi-info-circle-fill fs-5 text-primary"></i>
+                        <div>
+                            <strong>ID Teknisi dibuat otomatis</strong> oleh server dengan format <code>TECH-xxx</code> setelah data dan sampel wajah berhasil tersimpan.
+                        </div>
+                    </div>
+
+                    <!-- STATUS NOTIFIKASI -->
+                    <div id="statusBox" class="alert alert-secondary mb-4">
+                        <span id="statusText">Silakan isi formulir identitas dan pastikan kamera siap mengambil foto wajah.</span>
+                    </div>
+
+                    <form id="registerForm" autocomplete="off">
+                        <div class="row g-3 mb-4">
+                            <!-- NAMA -->
+                            <div class="col-md-6">
+                                <label for="name" class="form-label fw-bold">Nama Lengkap Teknisi <span class="text-danger">*</span></label>
+                                <input type="text" id="name" class="form-control" placeholder="Contoh: Budi Prasetyo" required>
+                            </div>
+
+                            <!-- USERNAME -->
+                            <div class="col-md-6">
+                                <label for="username" class="form-label fw-bold">Username Login <span class="text-danger">*</span></label>
+                                <input type="text" id="username" class="form-control" placeholder="Username tanpa spasi" required>
+                            </div>
+
+                            <!-- PASSWORD -->
+                            <div class="col-md-6">
+                                <label for="password" class="form-label fw-bold">Password Login <span class="text-danger">*</span></label>
+                                <input type="password" id="password" class="form-control" placeholder="Minimal 6 karakter" required>
+                            </div>
+
+                            <!-- POSISI -->
+                            <div class="col-md-6">
+                                <label for="position" class="form-label fw-bold">Posisi / Jabatan <span class="text-danger">*</span></label>
+                                <input type="text" id="position" class="form-control" value="Teknisi Lapangan" required>
+                            </div>
+
+                            <!-- NOMOR TELEPON -->
+                            <div class="col-12">
+                                <label for="phone" class="form-label fw-bold">Nomor Telepon / WhatsApp <span class="text-danger">*</span></label>
+                                <input type="text" id="phone" class="form-control" placeholder="08xxxxxxxxxx" required>
+                            </div>
+                        </div>
+
+                        <!-- MODUL KAMERA FACE RECOGNITION -->
+                        <div class="card border rounded-3 p-3 mb-4 bg-light-subtle">
+                            <div class="text-center mb-3">
+                                <h6 class="fw-bold text-dark mb-1">
+                                    <i class="bi bi-camera-video-fill text-primary me-2"></i>Perekaman Biometrik Wajah (Face Recognition)
+                                </h6>
+                                <p class="text-muted small mb-0">Wajah akan diekstraksi ke 128-dimensi HOG encoding untuk autentikasi gerbang BTS.</p>
+                            </div>
+
+                            <div class="alert alert-warning text-start small mb-3">
+                                <strong>Petunjuk Perekaman Wajah:</strong>
+                                <ul class="mb-0 ps-3 mt-1">
+                                    <li>Posisikan wajah tepat di area tengah kamera.</li>
+                                    <li>Pastikan ruangan memiliki pencahayaan cukup dan tidak backlight.</li>
+                                    <li>Lepaskan masker, kacamata hitam, atau penutup wajah.</li>
+                                    <li>Pastikan hanya ada satu wajah di depan kamera.</li>
+                                </ul>
+                            </div>
+
+                            <!-- VIDEO PREVIEW -->
+                            <div class="d-flex justify-content-center">
+                                <video
+                                    id="video"
+                                    width="640"
+                                    height="480"
+                                    autoplay
+                                    playsinline
+                                    muted
+                                    style="
+                                        width: 100%;
+                                        max-width: 540px;
+                                        height: auto;
+                                        min-height: 280px;
+                                        object-fit: cover;
+                                        background: #0f172a;
+                                        border: 3px solid var(--jk-primary);
+                                        border-radius: 12px;
+                                    "
+                                ></video>
+                            </div>
+
+                            <!-- CANVAS TERSEMBUNYI UNTUK CAPTURE -->
+                            <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+
+                            <!-- STATUS KAMERA -->
+                            <div id="cameraStatus" class="alert alert-secondary mt-3 mb-0 text-center small">
+                                Menyiapkan akses kamera...
+                            </div>
+                        </div>
+
+                        <!-- TOMBOL SUBMIT -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" id="registerButton" class="btn btn-success btn-lg shadow-sm">
+                                <i class="bi bi-person-plus-fill me-1"></i> Daftarkan Teknisi + Simpan Wajah
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
 
-
+<!-- =====================================================
+     JAVASCRIPT LIVE CAMERA & REGISTRATION AJAX
+====================================================== -->
 <script>
+function smoothScrollToForm() {
+    const el = document.getElementById("registerSection");
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+    }
+}
 
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("registerForm");
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const registerButton = document.getElementById("registerButton");
+    const statusBox = document.getElementById("statusBox");
+    const statusText = document.getElementById("statusText");
+    const cameraStatus = document.getElementById("cameraStatus");
 
+    let cameraStream = null;
 
-        // =====================================================
-        // ELEMENT
-        // =====================================================
+    function setStatus(message, type) {
+        if (!statusText || !statusBox) return;
+        statusText.innerText = message;
+        statusBox.className = "alert alert-" + type;
+    }
 
-        const form =
-            document.getElementById(
-                "registerForm"
-            );
+    function setCameraStatus(message, type) {
+        if (!cameraStatus) return;
+        cameraStatus.innerText = message;
+        cameraStatus.className = "alert mt-3 mb-0 text-center small alert-" + type;
+    }
 
+    // CEK MEDIA DEVICES
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraStatus("Browser Anda tidak mendukung akses kamera.", "danger");
+        if (registerButton) registerButton.disabled = true;
+        return;
+    }
 
-        const video =
-            document.getElementById(
-                "video"
-            );
+    // AKTIFKAN KAMERA
+    navigator.mediaDevices.getUserMedia({
+        video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: "user"
+        },
+        audio: false
+    })
+    .then(function (stream) {
+        cameraStream = stream;
+        video.srcObject = stream;
+        setCameraStatus("Kamera aktif. Posisikan wajah di tengah kamera.", "success");
+    })
+    .catch(function (error) {
+        console.error("Camera Error:", error);
+        setCameraStatus("Tidak dapat mengakses kamera: " + error.message, "danger");
+        if (registerButton) registerButton.disabled = true;
+    });
 
+    // SUBMIT FORM
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
 
-        const canvas =
-            document.getElementById(
-                "canvas"
-            );
-
-
-        const registerButton =
-            document.getElementById(
-                "registerButton"
-            );
-
-
-        const statusBox =
-            document.getElementById(
-                "statusBox"
-            );
-
-
-        const statusText =
-            document.getElementById(
-                "statusText"
-            );
-
-
-        const cameraStatus =
-            document.getElementById(
-                "cameraStatus"
-            );
-
-
-        // =====================================================
-        // CAMERA STREAM
-        // =====================================================
-
-        let cameraStream = null;
-
-
-        // =====================================================
-        // STATUS
-        // =====================================================
-
-        function setStatus(
-            message,
-            type
-        ) {
-
-            statusText.innerText =
-                message;
-
-            statusBox.className =
-                "alert alert-" + type;
-
-        }
-
-
-        function setCameraStatus(
-            message,
-            type
-        ) {
-
-            cameraStatus.innerText =
-                message;
-
-            cameraStatus.className =
-                "alert mt-3 alert-" + type;
-
-        }
-
-
-        // =====================================================
-        // CEK CAMERA
-        // =====================================================
-
-        if (
-            !navigator.mediaDevices ||
-            !navigator.mediaDevices.getUserMedia
-        ) {
-
-            setCameraStatus(
-                "Browser tidak mendukung kamera.",
-                "danger"
-            );
-
-            registerButton.disabled =
-                true;
-
+        if (!cameraStream) {
+            setStatus("Kamera belum aktif. Izinkan akses kamera terlebih dahulu.", "danger");
             return;
-
         }
 
+        if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
+            setStatus("Kamera belum siap memindai wajah. Harap tunggu sebentar.", "warning");
+            return;
+        }
 
-        // =====================================================
-        // AKTIFKAN CAMERA
-        // =====================================================
+        const name = document.getElementById("name").value.trim();
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+        const position = document.getElementById("position").value.trim();
+        const phone = document.getElementById("phone").value.trim();
 
-        navigator.mediaDevices
-            .getUserMedia({
+        if (!name || !username || !password || !position || !phone) {
+            setStatus("Harap lengkapi semua kolom formulir pendaftaran.", "danger");
+            return;
+        }
 
-                video: {
+        // CAPTURE FOTO DARI VIDEO
+        const context = canvas.getContext("2d");
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL("image/jpeg", 0.90);
 
-                    width: {
-                        ideal: 640
-                    },
+        setStatus("Sedang memproses dan memverifikasi wajah...", "info");
+        setCameraStatus("Wajah sedang diekstrak oleh server...", "warning");
+        registerButton.disabled = true;
+        registerButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mendaftarkan...';
 
-                    height: {
-                        ideal: 480
-                    },
-
-                    facingMode: "user"
-
-                },
-
-                audio: false
-
+        // KIRIM KE SERVER
+        fetch("{{ url_for('register_technician') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: name,
+                username: username,
+                password: password,
+                position: position,
+                phone: phone,
+                image: imageData
             })
-
-            .then(function (stream) {
-
-                cameraStream =
-                    stream;
-
-                video.srcObject =
-                    stream;
-
-                setCameraStatus(
-                    "Kamera aktif. Posisikan wajah di tengah kamera.",
-                    "success"
-                );
-
-            })
-
-            .catch(function (error) {
-
-                console.error(
-                    "Camera Error:",
-                    error
-                );
-
-                setCameraStatus(
-                    "Tidak dapat mengakses kamera: " +
-                    error.message,
-                    "danger"
-                );
-
-                registerButton.disabled =
-                    true;
-
+        })
+        .then(function (response) {
+            return response.json().then(function (data) {
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    data: data
+                };
             });
-
-
-        // =====================================================
-        // REGISTER
-        // =====================================================
-
-        form.addEventListener(
-            "submit",
-            function (event) {
-
-                event.preventDefault();
-
-
-                // -------------------------------------------------
-                // CEK CAMERA
-                // -------------------------------------------------
-
-                if (!cameraStream) {
-
-                    setStatus(
-                        "Kamera belum aktif.",
-                        "danger"
-                    );
-
-                    return;
-
-                }
-
-
-                // -------------------------------------------------
-                // CEK VIDEO
-                // -------------------------------------------------
-
-                if (
-                    video.readyState <
-                    HTMLMediaElement.HAVE_ENOUGH_DATA
-                ) {
-
-                    setStatus(
-                        "Kamera belum siap. Tunggu sebentar.",
-                        "warning"
-                    );
-
-                    return;
-
-                }
-
-
-                // =================================================
-                // AMBIL DATA
-                // =================================================
-
-                const name =
-                    document
-                        .getElementById("name")
-                        .value
-                        .trim();
-
-
-                const username =
-                    document
-                        .getElementById("username")
-                        .value
-                        .trim();
-
-
-                const password =
-                    document
-                        .getElementById("password")
-                        .value;
-
-
-                const position =
-                    document
-                        .getElementById("position")
-                        .value
-                        .trim();
-
-
-                const phone =
-                    document
-                        .getElementById("phone")
-                        .value
-                        .trim();
-
-
-                // =================================================
-                // VALIDASI
-                // =================================================
-
-                if (!name) {
-
-                    setStatus(
-                        "Nama teknisi wajib diisi.",
-                        "danger"
-                    );
-
-                    return;
-
-                }
-
-
-                if (!username) {
-
-                    setStatus(
-                        "Username wajib diisi.",
-                        "danger"
-                    );
-
-                    return;
-
-                }
-
-
-                if (!password) {
-
-                    setStatus(
-                        "Password wajib diisi.",
-                        "danger"
-                    );
-
-                    return;
-
-                }
-
-
-                if (!position) {
-
-                    setStatus(
-                        "Posisi teknisi wajib diisi.",
-                        "danger"
-                    );
-
-                    return;
-
-                }
-
-
-                if (!phone) {
-
-                    setStatus(
-                        "Nomor telepon wajib diisi.",
-                        "danger"
-                    );
-
-                    return;
-
-                }
-
-
-                // =================================================
-                // AMBIL FOTO
-                // =================================================
-
-                const context =
-                    canvas.getContext(
-                        "2d"
-                    );
-
-
-                context.drawImage(
-                    video,
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height
-                );
-
-
-                const imageData =
-                    canvas.toDataURL(
-                        "image/jpeg",
-                        0.90
-                    );
-
-
-                // =================================================
-                // STATUS
-                // =================================================
-
-                setStatus(
-                    "Memproses data dan face recognition...",
-                    "warning"
-                );
-
-
-                setCameraStatus(
-                    "Wajah sedang diproses...",
-                    "warning"
-                );
-
-
-                registerButton.disabled =
-                    true;
-
-
-                registerButton.innerText =
-                    "Mendaftarkan...";
-
-
-                // =================================================
-                // KIRIM KE SERVER
-                // =================================================
-
-                fetch(
-                    "{{ url_for('register_technician') }}",
-                    {
-
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body: JSON.stringify({
-
-                            name:
-                                name,
-
-                            username:
-                                username,
-
-                            password:
-                                password,
-
-                            position:
-                                position,
-
-                            phone:
-                                phone,
-
-                            image:
-                                imageData
-
-                        })
-
-                    }
-                )
-
-
-                // =================================================
-                // RESPONSE
-                // =================================================
-
-                .then(
-                    function (response) {
-
-                        return response
-                            .json()
-                            .then(
-                                function (data) {
-
-                                    return {
-                                        ok:
-                                            response.ok,
-
-                                        status:
-                                            response.status,
-
-                                        data:
-                                            data
-                                    };
-
-                                }
-                            );
-
-                    }
-                )
-
-
-                // =================================================
-                // HASIL
-                // =================================================
-
-                .then(
-                    function (result) {
-
-                        console.log(
-                            "Register response:",
-                            result
-                        );
-
-
-                        const data =
-                            result.data;
-
-
-                        // -------------------------------------------------
-                        // BERHASIL
-                        // -------------------------------------------------
-
-                        if (
-                            result.ok &&
-                            data.status === "success"
-                        ) {
-
-                            setStatus(
-                                "" +
-                                data.message,
-                                "success"
-                            );
-
-
-                            setCameraStatus(
-                                "Face recognition berhasil disimpan.",
-                                "success"
-                            );
-
-
-                            registerButton.innerText =
-                                "Registrasi Berhasil";
-
-
-                            // ---------------------------------------------
-                            // MATIKAN KAMERA
-                            // ---------------------------------------------
-
-                            if (cameraStream) {
-
-                                cameraStream
-                                    .getTracks()
-                                    .forEach(
-                                        function (track) {
-
-                                            track.stop();
-
-                                        }
-                                    );
-
-                                cameraStream =
-                                    null;
-
-                            }
-
-
-                            // ---------------------------------------------
-                            // TAMPILKAN ID
-                            // ---------------------------------------------
-
-                            setTimeout(
-                                function () {
-
-                                    window.location.href =
-                                        "{{ url_for('totp_setup', tech_id='__TECH_ID__') }}"
-                                        .replace(
-                                            "__TECH_ID__",
-                                            encodeURIComponent(
-                                                data.tech_id
-                                            )
-                                        );
-
-                                },
-                                1200
-                            );
-
-                        }
-
-
-                        // -------------------------------------------------
-                        // GAGAL
-                        // -------------------------------------------------
-
-                        else {
-
-                            setStatus(
-                                "" +
-                                (
-                                    data.message ||
-                                    "Registrasi gagal."
-                                ),
-                                "danger"
-                            );
-
-
-                            setCameraStatus(
-                                "Face recognition gagal.",
-                                "danger"
-                            );
-
-
-                            registerButton.disabled =
-                                false;
-
-
-                            registerButton.innerText =
-                                "<i class="bi bi-person-plus-fill me-1"></i> Daftarkan Teknisi + Wajah";
-
-                        }
-
-                    }
-                )
-
-
-                // =================================================
-                // ERROR
-                // =================================================
-
-                .catch(
-                    function (error) {
-
-                        console.error(
-                            "Register Error:",
-                            error
-                        );
-
-
-                        setStatus(
-                            "Terjadi kesalahan saat menghubungi server.",
-                            "danger"
-                        );
-
-
-                        registerButton.disabled =
-                            false;
-
-
-                        registerButton.innerText =
-                            "<i class="bi bi-person-plus-fill me-1"></i> Daftarkan Teknisi + Wajah";
-
-                    }
-                );
-
-            }
-        );
-
-
-        // =====================================================
-        // MATIKAN CAMERA
-        // =====================================================
-
-        window.addEventListener(
-            "beforeunload",
-            function () {
+        })
+        .then(function (result) {
+            const data = result.data;
+            if (result.ok && data.status === "success") {
+                setStatus("" + data.message, "success");
+                setCameraStatus("Face recognition berhasil disimpan.", "success");
+                registerButton.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Registrasi Berhasil!';
 
                 if (cameraStream) {
-
-                    cameraStream
-                        .getTracks()
-                        .forEach(
-                            function (track) {
-
-                                track.stop();
-
-                            }
-                        );
-
+                    cameraStream.getTracks().forEach(function (track) { track.stop(); });
+                    cameraStream = null;
                 }
 
+                setTimeout(function () {
+                    window.location.href = "{{ url_for('totp_setup', tech_id='__TECH_ID__') }}".replace("__TECH_ID__", encodeURIComponent(data.tech_id));
+                }, 1200);
+            } else {
+                setStatus("" + (data.message || "Registrasi gagal."), "danger");
+                setCameraStatus("Face recognition gagal diproses.", "danger");
+                registerButton.disabled = false;
+                registerButton.innerHTML = '<i class="bi bi-person-plus-fill me-1"></i> Daftarkan Teknisi + Simpan Wajah';
             }
-        );
+        })
+        .catch(function (error) {
+            console.error("Register Error:", error);
+            setStatus("Terjadi kesalahan koneksi saat menghubungi server.", "danger");
+            registerButton.disabled = false;
+            registerButton.innerHTML = '<i class="bi bi-person-plus-fill me-1"></i> Daftarkan Teknisi + Simpan Wajah';
+        });
+    });
 
-    }
-);
-
+    window.addEventListener("beforeunload", function () {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(function (track) { track.stop(); });
+        }
+    });
+});
 </script>
 
 {% endblock %}
