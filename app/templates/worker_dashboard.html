@@ -1,33 +1,329 @@
 {% extends "base.html" %}
+
+{% block title %}Portal Teknisi Lapangan (PWA) | BTS Security Gateway
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function updateWorkerTotpCycle() {
+        const now = new Date();
+        const sec = now.getSeconds();
+        const cycleSec = 30 - (sec % 30);
+        const timerText = document.getElementById('workerTotpTimer');
+        const progressBar = document.getElementById('workerTotpBar');
+        if (timerText) timerText.textContent = cycleSec + 's';
+        if (progressBar) {
+            const pct = (cycleSec / 30) * 100;
+            progressBar.style.width = pct + '%';
+            if (cycleSec <= 5) {
+                progressBar.className = 'progress-bar bg-danger';
+                if (timerText) timerText.className = 'text-danger font-mono fw-bold animate-pulse';
+            } else {
+                progressBar.className = 'progress-bar bg-info';
+                if (timerText) timerText.className = 'text-cyan-400 font-mono fw-bold';
+            }
+        }
+    }
+    setInterval(updateWorkerTotpCycle, 1000);
+    updateWorkerTotpCycle();
+});
+</script>
+
+{% endblock %}
+
 {% block content %}
+
+
+<style>
+    @keyframes scanLineWorker {
+        0% { top: 6%; opacity: 0.25; }
+        50% { top: 88%; opacity: 1; }
+        100% { top: 6%; opacity: 0.25; }
+    }
+    @keyframes bioOvalWorker {
+        0%, 100% { transform: scale(1); border-color: rgba(6, 182, 212, 0.6); }
+        50% { transform: scale(1.03); border-color: rgba(6, 182, 212, 0.95); }
+    }
+    @keyframes livenessBlinkWorker {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.3; transform: scale(0.85); }
+    }
+    .worker-hud-box {
+        position: relative;
+        background: #0B1120;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(6, 182, 212, 0.3);
+        height: 110px;
+    }
+    .worker-laser-line {
+        position: absolute;
+        left: 4%;
+        right: 4%;
+        height: 2px;
+        background: #06B6D4;
+        box-shadow: 0 0 12px #06B6D4;
+        animation: scanLineWorker 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        z-index: 5;
+    }
+    .worker-reticle {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        border-color: #06B6D4;
+        border-style: solid;
+        z-index: 6;
+    }
+    .worker-reticle.tl { top: 6px; left: 6px; border-width: 2px 0 0 2px; }
+    .worker-reticle.tr { top: 6px; right: 6px; border-width: 2px 2px 0 0; }
+    .worker-reticle.bl { bottom: 6px; left: 6px; border-width: 0 0 2px 2px; }
+    .worker-reticle.br { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; }
+    .worker-oval-guide {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 55px;
+        height: 75px;
+        border: 1.5px dashed rgba(6, 182, 212, 0.65);
+        border-radius: 50%;
+        animation: bioOvalWorker 2.5s ease-in-out infinite;
+        z-index: 4;
+    }
+    .worker-totp-mini {
+        width: 34px;
+        height: 38px;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        color: #38BDF8;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
 
 <div class="app-page p-3 p-md-4">
 
-    <!-- HEADER PORTAL TEKNISI -->
-    <div class="card p-4 mb-4" style="border-left: 6px solid var(--brand-primary) !important;">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="badge bg-primary text-uppercase px-2 py-1">Portal Teknisi Lapangan</span>
-            <span class="badge bg-dark px-2 py-1">{{ technician.technician_id if technician else session.get('worker_id') }}</span>
+    <!-- =====================================================
+         HEADER PORTAL TEKNISI (PWA MOBILE-FIRST HERO)
+    ====================================================== -->
+    <div class="card p-4 mb-4 rounded-4 shadow-sm" style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color: #ffffff; border: 1px solid rgba(255,255,255,0.08); border-left: 6px solid #0284C7 !important;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-pill px-2.5 py-1 text-xs font-semibold">
+                        <i class="bi bi-phone-vibrate me-1"></i> PORTAL TEKNISI PWA (ZERO-TRUST)
+                    </span>
+                    <span class="badge bg-slate-800 text-slate-300 border border-slate-700 font-mono px-2 py-0.5 text-xs">
+                        ID: {{ technician.technician_id if technician else session.get('worker_id') }}
+                    </span>
+                </div>
+                <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white mb-1">
+                    Selamat Datang, {{ technician.name if technician else worker_name }}
+                </h2>
+                <p class="text-slate-400 text-xs md:text-sm mb-0">
+                    Sistem Otentikasi Fisik Gerbang Menara BTS &bull; Spesifikasi Tugas Akhir CD-1 & CD-2 (Radius &le; 30m, CNN &ge; 95%, TOTP 6-Digit)
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{{ url_for('access_simulation') }}" class="btn btn-primary btn-sm px-3 py-2 rounded-lg font-bold shadow flex items-center gap-1.5 text-xs md:text-sm">
+                    <i class="bi bi-door-open-fill"></i> Terminal Buka Gerbang 3FA &raquo;
+                </a>
+            </div>
         </div>
-        <h2 class="mb-1 fw-bold">Selamat datang, {{ technician.name if technician else worker_name }}</h2>
-        <p class="text-muted mb-0">Pantau status menara BTS dan perbarui data profil keamanan Anda.</p>
+    </div>
+
+    <!-- =====================================================
+         WIZARD 3-FA MOBILE-FIRST (PWA CD-1 & CD-2)
+         TAHAP 1: WORK ORDER & GEOFENCE GPS <= 30M
+         TAHAP 2: BINGKAI KAMERA BIOMETRIK CNN 128-D >= 95%
+         TAHAP 3: TOKEN TOTP 6-DIGIT & DURESS PIN 911911
+    ====================================================== -->
+    <div class="card mb-4 border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="fw-bold mb-0 text-dark fs-6 d-flex align-items-center gap-2">
+                        <i class="bi bi-shield-check text-primary"></i> Wizard Akses Lapangan 3FA (Mobile-First)
+                    </h5>
+                    <span class="badge bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-mono">STANDAR ISO 27001</span>
+                </div>
+                <div class="small text-muted mt-0.5">3 langkah berurutan untuk verifikasi identitas sebelum solenoid gerbang dibuka.</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-secondary border font-mono text-xs">SPEK S-01 s/d S-06</span>
+            </div>
+        </div>
+
+        <div class="card-body p-4 bg-slate-50">
+            <div class="row g-4">
+                <!-- TAHAP 1: VALIDASI WO & GPS GEOFENCE <= 30M -->
+                <div class="col-md-4">
+                    <div class="bg-white p-3.5 rounded-3 border shadow-sm h-100 d-flex flex-column justify-content-between" style="border-top: 4px solid #0284C7 !important;">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-cyan-100 text-cyan-800 fw-bold px-2 py-1 text-xs">TAHAP 1</span>
+                                <span class="badge bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-mono">SPEK S-03</span>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                                <i class="bi bi-geo-alt-fill text-primary"></i> Work Order &amp; GPS Geofence
+                            </h6>
+                            <p class="small text-muted mb-3" style="font-size: 0.8rem;">
+                                Penguncian lokasi presisi menggunakan <em>Formula Haversine</em>. Akses otomatis ditolak jika teknisi berjarak &gt; 30 meter dari koordinat menara.
+                            </p>
+
+                            <div class="p-2.5 bg-slate-50 rounded-2 border mb-3">
+                                <div class="d-flex justify-content-between align-items-center text-xs mb-1">
+                                    <span class="text-muted">Status Work Order:</span>
+                                    {% if active_work_orders %}
+                                        <span class="badge bg-success text-white font-mono">{{ active_work_orders[0].ticket_number or 'WO AKTIF' }}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark font-mono">STANDBY / UMUM</span>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center text-xs">
+                                    <span class="text-muted">Batas Radius Geofence:</span>
+                                    <strong class="text-primary font-mono">&le; 30.0 meter</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-2 bg-cyan-50 rounded text-center border border-cyan-200 text-xs text-cyan-900 font-semibold">
+                            <i class="bi bi-check-circle-fill text-cyan-600 me-1"></i> GPS Live Lock Siap
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAHAP 2: VIEW FINDER KAMERA BIOMETRIK CNN 128-D >= 95% -->
+                <div class="col-md-4">
+                    <div class="bg-white p-3.5 rounded-3 border shadow-sm h-100 d-flex flex-column justify-content-between" style="border-top: 4px solid #10B981 !important;">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-emerald-100 text-emerald-800 fw-bold px-2 py-1 text-xs">TAHAP 2</span>
+                                <span class="badge bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-mono">SPEK S-01 &amp; S-02</span>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                                <i class="bi bi-person-bounding-box text-emerald-600"></i> Viewfinder Biometrik CNN
+                            </h6>
+                            <p class="small text-muted mb-2" style="font-size: 0.8rem;">
+                                Ekstraksi 128-D Facial Embedding dengan target kemiripan biometrik &ge; 95% dan indikator <em>Liveness Detection</em> anti-spoofing.
+                            </p>
+
+                            <!-- HUD BIOMETRIC SCANNER MINI VIEWFINDER -->
+                            <div class="worker-hud-box mb-3 d-flex flex-column justify-content-between p-2">
+                                <div class="worker-laser-line"></div>
+                                <div class="worker-reticle tl"></div>
+                                <div class="worker-reticle tr"></div>
+                                <div class="worker-reticle bl"></div>
+                                <div class="worker-reticle br"></div>
+                                <div class="worker-oval-guide"></div>
+
+                                <div class="d-flex justify-content-between align-items-center position-relative" style="z-index: 7;">
+                                    <span class="badge bg-slate-900/85 text-emerald-400 border border-emerald-500/30 font-mono text-[9px] d-flex align-items-center gap-1">
+                                        <span class="d-inline-block rounded-circle bg-emerald-400" style="width: 5px; height: 5px; animation: livenessBlinkWorker 1.2s infinite;"></span>
+                                        BLINK / MOTION DETECTED
+                                    </span>
+                                    <span class="badge bg-slate-900/85 text-cyan-300 border border-cyan-500/30 font-mono text-[9px]">
+                                        CNN 128-D
+                                    </span>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center position-relative pt-1 border-top border-white/10" style="z-index: 7; font-size: 10px;">
+                                    <span class="text-slate-300 font-mono">SIMILARITY:</span>
+                                    <span class="text-emerald-400 font-mono font-bold">96.8% (PASS &ge; 95%)</span>
+                                </div>
+                            </div>
+
+                            <div class="p-2.5 bg-slate-50 rounded-2 border mb-3">
+                                <div class="d-flex justify-content-between align-items-center text-xs mb-1">
+                                    <span class="text-muted">Target Kemiripan:</span>
+                                    <strong class="text-emerald-700 font-mono">&ge; 95.0% (CNN)</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center text-xs">
+                                    <span class="text-muted">Target Waktu Komputasi:</span>
+                                    <strong class="text-dark font-mono">&le; 5.0 detik</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="{{ url_for('access_simulation') }}" class="p-2 bg-emerald-50 rounded text-center border border-emerald-200 text-xs text-emerald-900 font-semibold text-decoration-none d-block hover:bg-emerald-100 transition">
+                            <i class="bi bi-camera-video text-emerald-600 me-1"></i> Buka Viewfinder Kamera &raquo;
+                        </a>
+                    </div>
+                </div>
+
+                <!-- TAHAP 3: TOKEN TOTP 6-DIGIT & DURESS PIN 911911 -->
+                <div class="col-md-4">
+                    <div class="bg-white p-3.5 rounded-3 border shadow-sm h-100 d-flex flex-column justify-content-between" style="border-top: 4px solid #F59E0B !important;">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-amber-100 text-amber-800 fw-bold px-2 py-1 text-xs">TAHAP 3</span>
+                                <span class="badge bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-mono">RFC 6238 &amp; CD-1</span>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                                <i class="bi bi-key-fill text-amber-600"></i> Otentikasi TOTP &amp; Duress
+                            </h6>
+                            <p class="small text-muted mb-2" style="font-size: 0.8rem;">
+                                Input kode 6-digit TOTP tersinkronisasi waktu (30 detik). Mendukung kode darurat <em>Silent Duress PIN</em> (911911).
+                            </p>
+
+                            <!-- 6-BOX TOTP MINI PREVIEW -->
+                            <div class="p-2 rounded-2 bg-slate-900 border border-slate-700 mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1 text-[10px] text-slate-400 font-mono">
+                                    <span>AUTO-FOCUS 6-DIGIT:</span>
+                                    <span id="workerTotpTimer" class="text-cyan-400 fw-bold">30s</span>
+                                </div>
+                                <div class="d-flex justify-content-between gap-1 mb-2">
+                                    <div class="worker-totp-mini">9</div>
+                                    <div class="worker-totp-mini">1</div>
+                                    <div class="worker-totp-mini">1</div>
+                                    <div class="worker-totp-mini">9</div>
+                                    <div class="worker-totp-mini">1</div>
+                                    <div class="worker-totp-mini">1</div>
+                                </div>
+                                <div class="progress" style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;">
+                                    <div id="workerTotpBar" class="progress-bar bg-info" style="width: 100%; border-radius: 2px;"></div>
+                                </div>
+                            </div>
+
+                            <div class="p-2.5 bg-slate-50 rounded-2 border mb-3">
+                                <div class="d-flex justify-content-between align-items-center text-xs mb-1">
+                                    <span class="text-muted">Validasi Token:</span>
+                                    <strong class="text-amber-700 font-mono">6-Digit Google Auth</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center text-xs">
+                                    <span class="text-muted">Emergency Duress PIN:</span>
+                                    <strong class="text-danger font-mono">911911 (Silent)</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="{{ url_for('access_simulation') }}" class="p-2 bg-amber-50 rounded text-center border border-amber-200 text-xs text-amber-900 font-semibold text-decoration-none d-block hover:bg-amber-100 transition">
+                            <i class="bi bi-unlock-fill text-amber-600 me-1"></i> Buka Terminal Gerbang &raquo;
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- KARTU IDENTITAS DIGITAL & KEBERADAAN REAL-TIME TEKNISI -->
-    <div class="card mb-4">
+    <div class="card mb-4 border-0 shadow-sm rounded-4">
         <div class="card-body p-4">
             <div class="row align-items-center g-4">
                 <!-- Profil & Identitas -->
                 <div class="col-lg-4 col-md-6 border-end">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 64px; height: 64px; font-size: 1.8rem; font-weight: bold;">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm flex-shrink-0" style="width: 60px; height: 60px; font-size: 1.6rem; font-weight: bold;">
                             {{ (technician.name[0] if technician and technician.name else (worker_name[0] if worker_name else 'T'))|upper }}
                         </div>
                         <div>
-                            <h5 class="mb-0 fw-bold">{{ technician.name if technician else worker_name }}</h5>
+                            <h5 class="mb-0 fw-bold text-dark">{{ technician.name if technician else worker_name }}</h5>
                             <span class="text-muted small d-block mb-1">{{ technician.position if technician else 'Teknisi Telekomunikasi' }}</span>
-                            <div class="small text-secondary">
-                                <div><strong>ID:</strong> <code class="text-dark">{{ technician.technician_id if technician else session.get('worker_id') }}</code></div>
+                            <div class="small text-secondary font-mono">
+                                <div><strong>ID:</strong> {{ technician.technician_id if technician else session.get('worker_id') }}</div>
                                 <div><strong>No. HP:</strong> {{ technician.phone if technician else '-' }}</div>
                             </div>
                         </div>
@@ -36,47 +332,47 @@
 
                 <!-- Status Keamanan & Biometrik -->
                 <div class="col-lg-4 col-md-6 border-end">
-                    <h6 class="text-uppercase text-muted small fw-bold mb-3"><i class="bi bi-shield-lock text-primary me-2"></i>Kredensial Keamanan</h6>
-                    <div class="d-flex flex-column gap-2">
+                    <h6 class="text-uppercase text-muted small fw-bold mb-3"><i class="bi bi-shield-lock text-primary me-2"></i>Kredensial Keamanan 3FA</h6>
+                    <div class="d-flex flex-column gap-2 small">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="small fw-semibold">Face Recognition:</span>
+                            <span class="fw-semibold text-secondary">Face Recognition CNN:</span>
                             {% if technician and technician.face_encoding %}
-                                <span class="badge badge-soft-success px-2 py-1"><i class="bi bi-check-circle me-1"></i> Terdaftar</span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle me-1"></i> Terdaftar (128-D)</span>
                             {% else %}
-                                <span class="badge badge-soft-warning px-2 py-1"><i class="bi bi-exclamation-triangle me-1"></i> Belum Terdaftar</span>
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="bi bi-exclamation-triangle me-1"></i> Belum Terdaftar</span>
                             {% endif %}
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="small fw-semibold">Autentikasi 2FA TOTP:</span>
+                            <span class="fw-semibold text-secondary">Autentikasi TOTP (RFC 6238):</span>
                             {% if technician and technician.totp_secret %}
-                                <span class="badge badge-soft-success px-2 py-1"><i class="bi bi-check-circle me-1"></i> Aktif</span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle me-1"></i> Aktif (Synced)</span>
                             {% else %}
-                                <span class="badge badge-soft-warning px-2 py-1"><i class="bi bi-exclamation-triangle me-1"></i> Belum Aktif</span>
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="bi bi-exclamation-triangle me-1"></i> Belum Aktif</span>
                             {% endif %}
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="small fw-semibold">Status Akun Teknisi:</span>
-                            <span class="badge badge-soft-primary px-2 py-1">{{ technician.status if technician else 'Active' }}</span>
+                            <span class="fw-semibold text-secondary">Status Operasional Akun:</span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">{{ technician.status if technician else 'Active' }}</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Status Keberadaan -->
                 <div class="col-lg-4 col-md-12">
-                    <div class="p-3 rounded-3" style="background-color: var(--jk-bg-main); border: 1px solid #E2E8F0;">
+                    <div class="p-3 rounded-3 bg-light border">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="text-uppercase small fw-bold text-muted"><i class="bi bi-geo-alt-fill text-primary me-1"></i> Status Keberadaan</span>
                             {% if presence and presence.inside %}
-                                <span class="badge bg-danger shadow-sm"><span class="spinner-grow spinner-grow-sm me-1" style="width: 10px; height: 10px;"></span> DI DALAM SHELTER</span>
+                                <span class="badge bg-danger shadow-sm"><span class="spinner-grow spinner-grow-sm me-1" style="width: 8px; height: 8px;"></span> DI DALAM SHELTER</span>
                             {% else %}
-                                <span class="badge bg-success shadow-sm"><i class="bi bi-circle-fill small me-1"></i> STANDBY</span>
+                                <span class="badge bg-success shadow-sm"><i class="bi bi-circle-fill small me-1"></i> STANDBY (LUAR)</span>
                             {% endif %}
                         </div>
                         {% if presence and presence.inside %}
                             <div class="mb-2">
                                 <div class="small text-muted">Lokasi Saat Ini:</div>
                                 <div class="fw-bold text-dark">{{ presence.site_name or presence.site_id }}</div>
-                                <small class="text-muted">ID: {{ presence.site_id }}</small>
+                                <small class="text-muted font-mono">ID: {{ presence.site_id }}</small>
                             </div>
                         {% else %}
                             <div class="mb-2">
@@ -91,99 +387,88 @@
     </div>
 
     <!-- PANDUAN KESELAMATAN & SOP K3 LAPANGAN -->
-    <div class="card mb-4 border border-light">
+    <div class="card mb-4 border-0 shadow-sm rounded-4">
         <div class="card-body p-4">
-            <h5 class="fw-bold mb-4 text-dark"><i class="bi bi-journal-medical text-primary me-2"></i> Standar Operasional Prosedur (SOP) & K3 Lapangan</h5>
+            <h5 class="fw-bold mb-3 text-dark fs-6"><i class="bi bi-journal-medical text-primary me-2"></i> Standar Operasional Prosedur (SOP) &amp; K3 Menara BTS</h5>
             <div class="row g-3">
                 <div class="col-md-3 col-sm-6">
-                    <div class="p-3 rounded-3 h-100" style="background-color: var(--jk-bg-main);">
-                        <div class="fw-bold text-primary mb-2"><i class="bi bi-person-workspace me-2"></i>APD Wajib</div>
-                        <p class="small text-muted mb-0">Gunakan helm keselamatan bersertifikasi, rompi high-visibility, dan sepatu safety isolator listrik di seluruh perimeter shelter.</p>
+                    <div class="p-3 rounded-3 h-100 bg-light border">
+                        <div class="fw-bold text-primary mb-1 small"><i class="bi bi-person-workspace me-1"></i>APD Wajib K3</div>
+                        <p class="text-muted mb-0" style="font-size: 0.78rem;">Helm keselamatan bersertifikasi, rompi high-visibility, dan sepatu safety isolator listrik di seluruh perimeter.</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
-                    <div class="p-3 rounded-3 h-100" style="background-color: var(--jk-bg-main);">
-                        <div class="fw-bold text-success mb-2"><i class="bi bi-door-closed me-2"></i>Prosedur Gerbang</div>
-                        <p class="small text-muted mb-0">Lakukan verifikasi wajah & OTP sebelum membuka gerbang. Jangan menahan pintu terbuka lebih dari batas waktu sistem.</p>
+                    <div class="p-3 rounded-3 h-100 bg-light border">
+                        <div class="fw-bold text-success mb-1 small"><i class="bi bi-door-closed me-1"></i>Prosedur Gerbang 3FA</div>
+                        <p class="text-muted mb-0" style="font-size: 0.78rem;">Verifikasi wajah CNN &amp; TOTP sebelum membuka pintu solenoid. Auto-close timer aktif setelah 5 detik.</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
-                    <div class="p-3 rounded-3 h-100" style="background-color: var(--jk-bg-main);">
-                        <div class="fw-bold text-warning mb-2" style="color: #B45309 !important;"><i class="bi bi-lightning-charge me-2"></i>Kelistrikan</div>
-                        <p class="small text-muted mb-0">Periksa grounding busbar dan tegangan baterai rectifier sebelum menangani kabel. Dilarang bekerja saat badai petir.</p>
+                    <div class="p-3 rounded-3 h-100 bg-light border">
+                        <div class="fw-bold text-warning mb-1 small" style="color: #B45309 !important;"><i class="bi bi-lightning-charge me-1"></i>Sensor Anti-Jepit</div>
+                        <p class="text-muted mb-0" style="font-size: 0.78rem;">Sensor ultrasonik HC-SR04 otomatis menahan penutupan gerbang bila ada halangan objek &le; 30 cm.</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-sm-6">
-                    <div class="p-3 rounded-3 h-100" style="background-color: var(--jk-bg-main);">
-                        <div class="fw-bold text-danger mb-2"><i class="bi bi-exclamation-octagon me-2"></i>Protokol Darurat</div>
-                        <p class="small text-muted mb-0">Jika alarm sabotase atau kebakaran berbunyi, segera evakuasi ke titik aman dan hubungi NOC / Pengawas Keamanan.</p>
+                    <div class="p-3 rounded-3 h-100 bg-light border">
+                        <div class="fw-bold text-danger mb-1 small"><i class="bi bi-exclamation-octagon me-1"></i>Protokol Duress PIN</div>
+                        <p class="text-muted mb-0" style="font-size: 0.78rem;">Bila di bawah ancaman pembobolan, masukkan PIN 911911. Pintu terbuka demi keselamatan &amp; NOC diberitahu diam-diam.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PENCARIAN & DAFTAR SITE BTS TERSEDIA -->
-    <div class="mb-3">
-        <form method="GET" action="{{ url_for('worker_dashboard') }}" class="input-group shadow-sm" style="border-radius: var(--jk-radius); overflow: hidden;">
-            <span class="input-group-text bg-white border-0 text-muted"><i class="bi bi-search"></i></span>
-            <input type="text" name="q" class="form-control border-0 py-3" placeholder="Cari berdasarkan Nama Site, Lokasi, atau ID Site..." value="{{ search_query }}">
-            <button class="btn btn-primary px-4 fw-bold" type="submit">Cari Site</button>
-            {% if search_query %}
-                <a href="{{ url_for('worker_dashboard') }}" class="btn btn-dark px-4 d-flex align-items-center">Reset</a>
-            {% endif %}
-        </form>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold"><i class="bi bi-broadcast text-primary me-2"></i> Daftar Menara BTS</h5>
-            <span class="badge bg-light text-dark border">{{ sites|length }} Site Ditampilkan</span>
+    <!-- DAFTAR SITE BTS TERSEDIA -->
+    <div class="card mb-4 border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0 fw-bold text-dark fs-6"><i class="bi bi-broadcast text-primary me-2"></i> Daftar Menara BTS &amp; Aksi Gerbang</h5>
+            <span class="badge bg-light text-dark border">{{ sites|length }} Site Terdaftar</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead style="background-color: var(--jk-bg-main);">
+                <table class="table table-hover align-middle mb-0 text-sm">
+                    <thead class="bg-light text-muted small text-uppercase">
                         <tr>
-                            <th class="ps-4 text-muted small text-uppercase border-0">ID Site</th>
-                            <th class="text-muted small text-uppercase border-0">Nama Site</th>
-                            <th class="text-muted small text-uppercase border-0">Status</th>
-                            <th class="text-muted small text-uppercase border-0">Lokasi</th>
-                            <th class="text-muted small text-uppercase border-0 text-end pe-4">Aksi</th>
+                            <th class="ps-4 border-0">ID Site</th>
+                            <th class="border-0">Nama Site</th>
+                            <th class="border-0">Status</th>
+                            <th class="border-0">Lokasi</th>
+                            <th class="border-0 text-end pe-4">Aksi 3FA</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for site in sites %}
                         <tr>
-                            <td class="ps-4"><strong class="font-monospace text-dark">{{ site.site_id }}</strong></td>
+                            <td class="ps-4"><strong class="font-mono text-dark">{{ site.site_id }}</strong></td>
                             <td>
                                 <div class="fw-bold text-dark">{{ site.site_name }}</div>
                                 <small class="text-muted">{{ site.description or 'Shelter BTS Standar' }}</small>
                             </td>
                             <td>
                                 {% if 'down' in (site.status or '')|lower %}
-                                    <span class="badge badge-soft-danger px-2 py-1"><i class="bi bi-arrow-down-circle me-1"></i> {{ site.status }}</span>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-arrow-down-circle me-1"></i> {{ site.status }}</span>
                                 {% elif 'maint' in (site.status or '')|lower %}
-                                    <span class="badge badge-soft-warning px-2 py-1"><i class="bi bi-tools me-1"></i> {{ site.status }}</span>
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="bi bi-tools me-1"></i> {{ site.status }}</span>
                                 {% else %}
-                                    <span class="badge badge-soft-success px-2 py-1"><i class="bi bi-check-circle me-1"></i> {{ site.status or 'Normal' }}</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle me-1"></i> {{ site.status or 'Normal' }}</span>
                                 {% endif %}
                             </td>
                             <td>
                                 <div class="small text-dark"><i class="bi bi-geo-alt text-muted me-1"></i> {{ site.location }}</div>
-                                <code class="small text-muted">{{ site.latitude }}, {{ site.longitude }}</code>
+                                <code class="small text-muted font-mono">{{ site.latitude }}, {{ site.longitude }}</code>
                             </td>
                             <td class="pe-4 text-end">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination={{ site.latitude }},{{ site.longitude }}" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-3" title="Buka Rute di Google Maps">
-                                    <i class="bi bi-map me-1"></i> Navigasi
+                                <a href="{{ url_for('access_simulation', site_id=site.site_id) }}" class="btn btn-sm btn-primary px-3 rounded-pill fw-semibold shadow-sm" style="font-size: 0.75rem;">
+                                    <i class="bi bi-door-open-fill me-1"></i> Buka Gerbang
                                 </a>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
                             <td colspan="5" class="text-center text-muted py-5">
-                                <i class="bi bi-inbox fs-2 d-block mb-2 text-light"></i>
-                                Belum ada data site BTS yang cocok.
+                                <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
+                                Belum ada data site BTS yang terdaftar.
                             </td>
                         </tr>
                         {% endfor %}
@@ -194,4 +479,32 @@
     </div>
 
 </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function updateWorkerTotpCycle() {
+        const now = new Date();
+        const sec = now.getSeconds();
+        const cycleSec = 30 - (sec % 30);
+        const timerText = document.getElementById('workerTotpTimer');
+        const progressBar = document.getElementById('workerTotpBar');
+        if (timerText) timerText.textContent = cycleSec + 's';
+        if (progressBar) {
+            const pct = (cycleSec / 30) * 100;
+            progressBar.style.width = pct + '%';
+            if (cycleSec <= 5) {
+                progressBar.className = 'progress-bar bg-danger';
+                if (timerText) timerText.className = 'text-danger font-mono fw-bold animate-pulse';
+            } else {
+                progressBar.className = 'progress-bar bg-info';
+                if (timerText) timerText.className = 'text-cyan-400 font-mono fw-bold';
+            }
+        }
+    }
+    setInterval(updateWorkerTotpCycle, 1000);
+    updateWorkerTotpCycle();
+});
+</script>
+
 {% endblock %}

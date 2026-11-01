@@ -399,7 +399,7 @@ def get_bulk_technician_states(technician_ids):
         # Ambil semua AccessLog yang ID-nya ada di subquery
         latest_logs = (
             AccessLog.query
-            .filter(AccessLog.id.in_(subq))
+            .filter(AccessLog.id.in_(subq.select()))
             .all()
         )
 
@@ -496,7 +496,7 @@ def build_site_metrics(sites):
         )
         last_logs_list = (
             AccessLog.query
-            .filter(AccessLog.id.in_(subq_last))
+            .filter(AccessLog.id.in_(subq_last.select()))
             .all()
         )
         last_access_map = {
@@ -613,9 +613,9 @@ def build_site_metrics(sites):
 
 _login_fail_store = {}
 _login_fail_lock = __import__('threading').Lock()  # B11 FIX: Thread-safe access
-LOGIN_MAX_FAILURES = 5
-LOGIN_LOCKOUT_MINUTES = 5
-LOGIN_WINDOW_MINUTES = 5
+LOGIN_MAX_FAILURES = 3  # Spesifikasi S-04: Maksimal 3x percobaan login
+LOGIN_LOCKOUT_SECONDS = 60  # Spesifikasi S-04: Lockout 60 detik
+LOGIN_WINDOW_MINUTES = 3
 
 
 def _check_login_brute_force(ip):
@@ -645,8 +645,9 @@ def _check_login_brute_force(ip):
 
 
 def _record_login_failure(ip):
-    """Catat kegagalan login dari IP ini (thread-safe)."""
+    """Catat kegagalan login dari IP ini (thread-safe, S-04: 3x gagal = 60 dtk)."""
     now = datetime.utcnow()
+    just_locked = False
     with _login_fail_lock:  # B11 FIX: Thread-safe write
         record = _login_fail_store.get(ip, {
             'count': 0,
@@ -661,7 +662,9 @@ def _record_login_failure(ip):
         record['count'] += 1
 
         if record['count'] >= LOGIN_MAX_FAILURES:
-            record['locked_until'] = now + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+            if not record.get('locked_until') or now >= record['locked_until']:
+                just_locked = True
+            record['locked_until'] = now + timedelta(seconds=LOGIN_LOCKOUT_SECONDS)
 
         _login_fail_store[ip] = record
 
@@ -674,6 +677,17 @@ def _record_login_failure(ip):
             ]
             for k in stale[:500]:
                 _login_fail_store.pop(k, None)
+
+    if just_locked:
+        try:
+            from app.notifications import send_telegram_alert
+            send_telegram_alert(
+                title="[SECURITY ALERT] Login Brute Force Throttled (S-04)",
+                message=f"Terdeteksi 3x percobaan login gagal berturut-turut dari IP {ip}. Akses login diblokir selama 60 detik sesuai standar Zero Trust S-04.",
+                incident_level="WARNING"
+            )
+        except Exception:
+            pass
 
 
 def _reset_login_failures(ip):
@@ -759,13 +773,18 @@ def login():
         is_locked, seconds_left = _check_login_brute_force(client_ip)
 
         if is_locked:
-            minutes_left = max(1, seconds_left // 60)
             flash(
-                f'Terlalu banyak percobaan login gagal. '
-                f'Silakan coba lagi dalam {minutes_left} menit.',
+                f'Terlalu banyak percobaan login gagal (S-04). Akses terkunci selama {seconds_left} detik.',
                 'danger'
             )
-            return render_template('login.html')
+            return render_template(
+                'login.html',
+                is_locked=True,
+                seconds_left=seconds_left,
+                attempts_left=0,
+                max_failures=LOGIN_MAX_FAILURES,
+                lockout_seconds=LOGIN_LOCKOUT_SECONDS
+            )
 
         username = request.form.get(
             'username',
@@ -944,13 +963,32 @@ def login():
         except Exception:
             db.session.rollback()
 
-        flash(
-            'Username atau password salah.',
-            'danger'
-        )
+        is_locked, seconds_left = _check_login_brute_force(client_ip)
+        fail_count = _login_fail_store.get(client_ip, {}).get('count', 0) if not is_locked else LOGIN_MAX_FAILURES
+        attempts_left = max(0, LOGIN_MAX_FAILURES - fail_count) if not is_locked else 0
+        if is_locked:
+            flash(
+                f'Akses terkunci selama {seconds_left} detik (Spesifikasi S-04: Maksimal 3x percobaan gagal).',
+                'danger'
+            )
+        else:
+            flash(
+                f'Username atau password salah. Sisa kesempatan percobaan: {attempts_left}',
+                'danger'
+            )
+
+    client_ip = request.remote_addr or '127.0.0.1'
+    is_locked, seconds_left = _check_login_brute_force(client_ip)
+    fail_count = _login_fail_store.get(client_ip, {}).get('count', 0) if not is_locked else LOGIN_MAX_FAILURES
+    attempts_left = max(0, LOGIN_MAX_FAILURES - fail_count) if not is_locked else 0
 
     return render_template(
-        'login.html'
+        'login.html',
+        is_locked=is_locked,
+        seconds_left=seconds_left,
+        attempts_left=attempts_left,
+        max_failures=LOGIN_MAX_FAILURES,
+        lockout_seconds=LOGIN_LOCKOUT_SECONDS
     )
 
 
@@ -1276,6 +1314,8 @@ def dashboard():
         gate_last_error=get_gate_last_error(),
         gate_last_action=get_gate_last_action(),
         gate_device_id=get_gate_device_id(),
+        recent_access_logs=AccessLog.query.order_by(AccessLog.timestamp.desc()).limit(10).all(),
+        active_work_orders_count=WorkOrder.query.filter(WorkOrder.status.in_(['APPROVED', 'IN_PROGRESS', 'PENDING'])).count(),
         pending_work_order_verifications=WorkOrder.query.filter_by(
             status='COMPLETED'
         ).count()
@@ -5425,5 +5465,124 @@ def mobile_qr_image():
     return Response(buf.getvalue(), mimetype='image/png')
 
 
+# =========================================================
+# SIMULATION ENDPOINT: DOOR FORCED OPEN (CHAOS TESTING)
+# =========================================================
 
+@app.route('/api/simulate/door-forced', methods=['POST'])
+@login_required_any
+def simulate_door_forced():
+    data = request.get_json(silent=True) or {}
+    site_id = str(data.get('site_id') or 'BTS-BOJONG').strip()
+    site = BtsSite.query.filter_by(site_id=site_id).first()
+    site_name = site.site_name if site else site_id
+
+    log = AccessLog(
+        technician_id='ANONYMOUS_BREACH',
+        site_id=site_id,
+        access_type='MASUK',
+        access_result='DENIED',
+        reason_code='DOOR_FORCED_OPEN',
+        incident_level='CRITICAL',
+        device_id='MAGNETIC_REED_SENSOR_01',
+        description=f'PERINGATAN: Pintu shelter menara {site_name} dibuka paksa tanpa otentikasi (DOOR_FORCED_OPEN)!',
+        gate_status='OPEN'
+    )
+    db.session.add(log)
+    db.session.commit()
+
+    try:
+        from app.notifications import send_telegram_alert
+        send_telegram_alert(
+            f"🚨 <b>CRITICAL ALARM: DOOR FORCED OPEN!</b>\n\n"
+            f"<b>Site:</b> {site_name} ({site_id})\n"
+            f"<b>Status:</b> Pintu shelter dibobol paksa tanpa otentikasi!\n"
+            f"<b>Waktu:</b> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n"
+            f"<b>Sensor:</b> Magnetic Reed Sensor Solenoid\n"
+            f"<b>Tindakan:</b> Segera verifikasi via CCTV & kirim tim pengamanan!",
+            level="CRITICAL"
+        )
+    except Exception as e:
+        print("[TELEGRAM FORCED ALERT ERROR]", e)
+
+    try:
+        from app.sse_manager import broadcast
+        broadcast('incident', {
+            'level': 'CRITICAL',
+            'reason': 'DOOR_FORCED_OPEN',
+            'site_id': site_id,
+            'message': f'Pintu shelter {site_name} dibobol paksa!'
+        })
+    except Exception:
+        pass
+
+    return jsonify({
+        'status': 'success',
+        'message': f'Alarm pembobolan gerbang (DOOR_FORCED_OPEN) berhasil dipicu untuk site {site_name}. Notifikasi Telegram dan status CRITICAL telah dikirim ke NOC!',
+        'incident_level': 'CRITICAL',
+        'site_id': site_id
+    })
+
+@app.route('/api/simulate/duress', methods=['POST'])
+@login_required_any
+def simulate_duress():
+    data = request.get_json(silent=True) or {}
+    site_id = str(data.get('site_id') or 'BTS-BOJONG').strip()
+    tech_id = str(data.get('technician_id') or session.get('worker_id') or 'T001').strip()
+
+    site = BtsSite.query.filter_by(site_id=site_id).first()
+    site_name = site.site_name if site else site_id
+    tech = Technician.query.filter_by(technician_id=tech_id).first()
+    tech_name = tech.name if tech else tech_id
+
+    log = AccessLog(
+        technician_id=tech_id,
+        site_id=site_id,
+        access_type='MASUK',
+        access_result='GRANTED',
+        reason_code='SILENT_DURESS_ALARM',
+        incident_level='CRITICAL',
+        otp_result='DURESS_TRIGGERED',
+        device_id='KEYPAD_SOLENOID_01',
+        description=f'[SILENT DURESS ALARM] Teknisi {tech_name} memasukkan kode darurat 911911 pada site {site_name}! Gerbang dibuka normal untuk keselamatan sandera.',
+        gate_status='OPEN'
+    )
+    db.session.add(log)
+    db.session.commit()
+
+    try:
+        from app.notifications import send_telegram_alert
+        send_telegram_alert(
+            f"🚨 <b>CRITICAL ALARM: SILENT DURESS PIN (911911)!</b>\n\n"
+            f"<b>Site:</b> {site_name} ({site_id})\n"
+            f"<b>Teknisi:</b> {tech_name} ({tech_id})\n"
+            f"<b>Waktu:</b> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC\n"
+            f"<b>Status Gerbang:</b> SOLENOID DIBUKA (NORMAL DECEPTION)\n"
+            f"<b>Kondisi:</b> Teknisi di bawah ancaman/sandera! Segera kirim bantuan!",
+            level="CRITICAL"
+        )
+    except Exception as e:
+        print("[TELEGRAM DURESS ALERT ERROR]", e)
+
+    try:
+        from app.sse_manager import broadcast
+        broadcast('incident', {
+            'level': 'CRITICAL',
+            'reason': 'SILENT_DURESS_ALARM',
+            'site_id': site_id,
+            'message': f'EMERGENCY: Silent Duress PIN digunakan di {site_name} oleh {tech_name}!'
+        })
+    except Exception:
+        pass
+
+    return jsonify({
+        'status': 'success',
+        'access_result': 'GRANTED',
+        'reason': 'SILENT_DURESS_ALARM',
+        'gate_status': 'OPEN',
+        'gate_open_seconds': 5,
+        'message': f'Silent Duress PIN 911911 berhasil dipicu. Gerbang dibuka normal, sinyal darurat dikirim ke NOC & Telegram.',
+        'incident_level': 'CRITICAL',
+        'site_id': site_id
+    })
 

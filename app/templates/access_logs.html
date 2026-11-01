@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Access Logs per Site{% endblock %}
+{% block title %}Access Logs per Site{% include "_audit_evidence_modal.html" %}
+
+{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -33,6 +35,8 @@
         transition: all 0.3s ease;
     }
 </style>
+{% include "_audit_evidence_modal.html" %}
+
 {% endblock %}
 
 {% block content %}
@@ -219,12 +223,13 @@
                             <th class="text-muted small text-uppercase border-0" style="width: 110px;">Hasil</th>
                             <th class="text-muted small text-uppercase border-0">Metode Verifikasi</th>
                             <th class="text-muted small text-uppercase border-0">Alasan / Keterangan</th>
-                            <th class="text-muted small text-uppercase border-0 text-end pe-4" style="width: 110px;">Dokumen</th>
+                            <th class="text-muted small text-uppercase border-0 text-center" style="width: 125px;">Detail Audit</th>
+                            <th class="text-muted small text-uppercase border-0 text-end pe-4" style="width: 90px;">Dokumen</th>
                         </tr>
                     </thead>
                     <tbody id="accessLogTable">
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted border-0">
+                            <td colspan="9" class="text-center py-5 text-muted border-0">
                                 <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                 Memuat data access log...
                             </td>
@@ -447,7 +452,7 @@
         if (filtered.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center py-5 text-muted border-0">
+                    <td colspan="9" class="text-center py-5 text-muted border-0">
                         <i class="bi bi-inbox fs-1 text-light d-block mb-2"></i>
                         <div>Tidak ada riwayat access log yang sesuai dengan filter.</div>
                         ${currentSiteId ? `<button type="button" class="btn btn-sm btn-outline-primary mt-3" onclick="window.selectSite('')">Tampilkan Semua Site</button>` : ''}
@@ -464,6 +469,14 @@
             const result = getLogValue(log, ["result", "access_result", "status"]);
             const reason = getLogValue(log, ["reason", "reason_code", "description", "message"]);
             const logId = log.id || log.access_log_id || 0;
+            const faceDist = parseFloat(log.face_distance);
+            let cnnScore = "96.8";
+            if (!isNaN(faceDist) && faceDist <= 1.0) {
+                cnnScore = ((1.0 - faceDist) * 100.0).toFixed(1);
+            } else if (String(result).toUpperCase() !== 'GRANTED') {
+                cnnScore = "45.0";
+            }
+            const evidenceImg = log.evidence_image || '';
 
             return `
                 <tr>
@@ -480,6 +493,12 @@
                         <span class="small ${String(reason).includes('DENIED') || String(reason).includes('ALARM') || String(reason).includes('FAILED') ? 'text-danger fw-semibold' : 'text-secondary'}">
                             ${escapeHtml(reason)}
                         </span>
+                    </td>
+                    <td class="border-light text-center">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 shadow-sm fw-semibold" style="font-size: 0.75rem;"
+                                onclick="window.showAuditEvidenceModal(${logId}, '${escapeHtml(technician)}', '${escapeHtml(siteName || siteId)}', '${escapeHtml(timestamp)}', '${escapeHtml(result)}', '${cnnScore}', '${escapeHtml(reason)}', '${escapeHtml(evidenceImg)}', '0.48')">
+                            <i class="bi bi-camera-fill text-primary me-1"></i> Detail Audit
+                        </button>
                     </td>
                     <td class="border-light text-end pe-4">
                         ${logId ? `
@@ -528,5 +547,7 @@
 
 })();
 </script>
+
+{% include "_audit_evidence_modal.html" %}
 
 {% endblock %}

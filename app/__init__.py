@@ -76,7 +76,25 @@ from app import routes  # noqa: F401, E402
 
 @app.context_processor
 def inject_csrf_token():
-    return {"csrf_token": api.get_csrf_token()}
+    active_critical = None
+    try:
+        from app.models import AccessLog
+        from datetime import datetime, timedelta
+        active_critical = (
+            AccessLog.query
+            .filter(
+                AccessLog.incident_level == 'CRITICAL',
+                AccessLog.timestamp >= datetime.utcnow() - timedelta(hours=24)
+            )
+            .order_by(AccessLog.timestamp.desc())
+            .first()
+        )
+    except Exception:
+        pass
+    return {
+        "csrf_token": api.get_csrf_token(),
+        "active_critical_alert": active_critical
+    }
 
 
 @app.before_request

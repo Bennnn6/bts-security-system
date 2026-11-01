@@ -1088,7 +1088,7 @@ html:has(body.login-layout) {
 }
 
 body.login-layout {
-    background-image: url("/static/IMG/tower%20bts.jpeg");
+    background-image: url("/static/img/tower_bts.jpeg");
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;

@@ -9,6 +9,25 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#0C2B4E">
     <meta name="csrf-token" content="{{ csrf_token }}">
+        <!-- Tailwind CSS (Preflight false to preserve Bootstrap) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            corePlugins: { preflight: false },
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            950: '#070d18'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -69,6 +88,83 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="app-body {% block page_class %}{% endblock %}">
+    {% if active_critical_alert %}
+    <!-- Floating Critical Alert Banner (Spesifikasi NOC Emergency) -->
+    <div id="criticalIncidentBanner" class="w-full bg-red-600 text-white px-4 py-2.5 shadow-2xl flex flex-wrap items-center justify-between animate-pulse z-[9999] relative border-b-2 border-red-700">
+        <div class="flex items-center gap-3">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/20 text-white font-bold text-lg animate-bounce flex-shrink-0">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </span>
+            <div>
+                <div class="font-bold uppercase tracking-wider text-xs md:text-sm flex items-center gap-2">
+                    <span>ALARM KRITIS AKTIF: {{ active_critical_alert.reason_code or 'DURESS / ANOMALI DETEKSI' }}</span>
+                    <span class="bg-black/40 px-2 py-0.5 rounded text-[10px] font-mono tracking-normal text-red-200 border border-red-400/30">CRITICAL</span>
+                </div>
+                <div class="text-xs text-red-100 hidden sm:block">
+                    Site: <strong>{{ active_critical_alert.site.name if active_critical_alert.site else 'Site #' ~ active_critical_alert.site_id }}</strong> &bull;
+                    {{ active_critical_alert.description or 'Akses paksaan (Duress) atau pembobolan shelter terdeteksi!' }}
+                    {% if active_critical_alert.timestamp %} &bull; {{ active_critical_alert.timestamp.strftime('%H:%M:%S') }} WIB{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 mt-1 sm:mt-0">
+            <button id="silenceAudioBtn" type="button" onclick="toggleAlertAudio()" class="px-2.5 py-1 text-xs bg-red-800/90 hover:bg-red-900 text-white rounded font-medium transition flex items-center gap-1 border border-red-400/40">
+                <i class="bi bi-volume-up-fill" id="audioIcon"></i> <span class="hidden md:inline">Mute Alarm</span>
+            </button>
+            <a href="{{ url_for('security_alerts') }}" class="px-3 py-1 text-xs md:text-sm bg-white text-red-700 hover:bg-red-50 font-bold rounded shadow transition flex items-center gap-1 no-underline">
+                <span>Tangani Insiden</span> <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+    <script>
+        (function() {
+            var audioCtx = null;
+            var isMuted = false;
+            var beepInterval = null;
+            function playCriticalBeep() {
+                if (isMuted) return;
+                try {
+                    if (!audioCtx) {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+                    var osc = audioCtx.createOscillator();
+                    var gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                } catch(e) {}
+            }
+            window.addEventListener('click', function initAudio() {
+                if (!audioCtx) {
+                    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+                }
+            }, { once: true });
+            beepInterval = setInterval(playCriticalBeep, 4000);
+            setTimeout(playCriticalBeep, 1200);
+
+            window.toggleAlertAudio = function() {
+                isMuted = !isMuted;
+                var icon = document.getElementById('audioIcon');
+                if (icon) {
+                    icon.className = isMuted ? 'bi bi-volume-mute-fill' : 'bi bi-volume-up-fill';
+                }
+                if (isMuted && beepInterval) {
+                    clearInterval(beepInterval);
+                }
+            };
+        })();
+    </script>
+    {% endif %}
+
 
     <div class="app-shell">
         {% include '_app_nav.html' %}
@@ -93,6 +189,9 @@
 
         <!-- Reusable Berita Acara Modal -->
         {% include '_berita_acara_modal.html' %}
+
+        <!-- Reusable Audit Evidence Modal (Spesifikasi TA CD-1 & CD-2) -->
+        {% include '_audit_evidence_modal.html' %}
 
         <main class="app-main">{% block content %}{% endblock %}</main>
 

@@ -1,86 +1,435 @@
-{% extends "base.html" %}
-{% block title %}Login Portal | BTS Security System{% endblock %}
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart BTS Access Gateway | Login Portal 3FA Zero Trust</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icons/bacs_app.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/bacs_app.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#0B1120">
+    <meta name="csrf-token" content="{{ csrf_token }}">
 
-{% block page_class %}login-layout{% endblock %}
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-{% block content %}
-<div class="glass-login-wrapper">
-    <div class="glass-login-container">
-        
-        <!-- Left Banner: Telecom & Cyber Security Brand -->
-        <div class="glass-login-left">
-            <div class="login-brand">
-                <i class="bi bi-shield-lock-fill text-info me-1"></i> BACS • ENTERPRISE SECURITY
+    <!-- Bootstrap Icons CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            950: '#070d18'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+
+    <style>
+        /* Anti-White Margin & Full Viewport Enforcement */
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            min-height: 100vh !important;
+            background-color: #0B1120 !important;
+            overflow-x: hidden !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #f1f5f9;
+        }
+
+        /* Pulse dot indicator */
+        .pulse-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #10B981;
+            box-shadow: 0 0 10px #10B981;
+            animation: pulseGlow 1.8s infinite;
+        }
+
+        @keyframes pulseGlow {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body class="bg-[#0B1120] text-slate-100 min-h-screen w-full m-0 p-0 overflow-x-hidden select-none">
+
+    <!-- Flask Flashed Messages Toast Stack (Floating Top-Right) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-md w-full px-4 pointer-events-none">
+                {% for category, message in messages %}
+                    {% set is_err = category in ['error', 'danger'] %}
+                    {% set is_warn = category in ['warning', 'warn'] %}
+                    <div class="pointer-events-auto flex items-center gap-3 p-3.5 rounded-xl border shadow-2xl backdrop-blur-xl text-xs font-medium {{ 'bg-red-950/85 text-red-200 border-red-500/30' if is_err else ('bg-amber-950/85 text-amber-200 border-amber-500/30' if is_warn else 'bg-emerald-950/85 text-emerald-200 border-emerald-500/30') }}">
+                        <i class="bi {{ 'bi-exclamation-octagon-fill text-red-400' if is_err else ('bi-exclamation-triangle-fill text-amber-400' if is_warn else 'bi-check-circle-fill text-emerald-400') }} text-base flex-shrink-0"></i>
+                        <span class="flex-grow">{{ message }}</span>
+                    </div>
+                {% endfor %}
             </div>
-            <h2>SMART BTS<br><span style="color: #38BDF8;">ACCESS GATEWAY</span></h2>
-            <p>Sistem Manajemen & Kontrol Akses Fisik Terpadu Shelter Menara Telekomunikasi. Otentikasi ganda biometrik Face Recognition, TOTP RFC 6238, pemantauan K3 lapangan, dan kontrol gerbang solenoid 24/7.</p>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Asymmetric Split Screen 2-Column Full Viewport Wrapper -->
+    <div class="w-screen min-h-screen flex flex-col lg:flex-row bg-[#0B1120] text-slate-100 relative overflow-hidden">
+
+        <!-- Ambient Cyan & Blue Radial Glow Background -->
+        <div class="absolute -top-40 -left-40 w-[30rem] h-[30rem] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-40 -right-40 w-[30rem] h-[30rem] bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- =========================================================
+             PANEL KIRI: TOWER HERO & SPESIFIKASI 3FA (DESKTOP)
+             Hidden on Mobile (hidden lg:flex)
+        ========================================================= -->
+        <div class="hidden lg:flex lg:w-7/12 relative flex-col justify-between p-12 xl:p-14 overflow-hidden border-r border-white/5 z-10">
             
-            <div class="login-security-pills">
-                <div class="login-pill"><i class="bi bi-person-bounding-box text-info"></i> Face ID 128-D CNN</div>
-                <div class="login-pill"><i class="bi bi-shield-check text-success"></i> TOTP 2-Factor Auth</div>
-                <div class="login-pill"><i class="bi bi-broadcast text-warning"></i> NOC Live Telemetry</div>
-                <div class="login-pill"><i class="bi bi-shield-shaded text-primary"></i> ISO/IEC 27001 Compliant</div>
+            <!-- Background Tower Image with Layered Dark Gradient Overlay -->
+            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-1000 scale-105"
+                 style="background-image: url('{{ url_for('static', filename='img/tower_bts.jpeg') }}'); filter: brightness(0.55);">
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-[#0B1120] via-[#0B1120]/80 to-[#0B1120]/75 backdrop-blur-[1px]"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-cyan-500/15 via-transparent to-transparent"></div>
+
+            <!-- Top Brand Header -->
+            <div class="relative z-10">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/70 border border-white/10 backdrop-blur-xl mb-4 shadow-lg shadow-black/30">
+                    <i class="bi bi-shield-check text-cyan-400 text-sm"></i>
+                    <span class="text-xs font-mono font-semibold tracking-wider text-cyan-300 uppercase">BACS ENTERPRISE &bull; ZERO TRUST 3FA</span>
+                </div>
+                <h1 class="text-4xl xl:text-5xl font-extrabold tracking-tight text-white leading-tight">
+                    Smart BTS <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400">
+                        Access Gateway
+                    </span>
+                </h1>
+                <p class="mt-3 text-slate-300 text-sm max-w-xl leading-relaxed">
+                    Sistem kontrol &amp; pemantauan akses fisik shelter menara BTS berbasis <strong>3-Factor Authentication (3FA)</strong>: Biometrik CNN 128-D, OTP RFC 6238 tersinkronisasi Work Order, dan penguncian spasial Geofencing Haversine &le; 30m.
+                </p>
             </div>
 
-            <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 text-white-50 small">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-mortarboard-fill text-info"></i>
-                    <span>Tugas Akhir: Sistem Keamanan Akses Fisik Shelter BTS</span>
+            <!-- 4 Bento Specification Cards (Smooth Border & Backdrop Blur) -->
+            <div class="relative z-10 grid grid-cols-2 gap-3.5 my-6 max-w-xl">
+                <!-- Card 1: Biometrik CNN -->
+                <div class="p-3.5 rounded-xl bg-slate-900/50 border border-white/10 backdrop-blur-xl hover:border-cyan-500/40 transition-all duration-300 shadow-lg shadow-black/20">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <span class="p-1.5 rounded-lg bg-cyan-950/60 border border-cyan-500/20 text-cyan-400 text-sm">
+                            <i class="bi bi-person-bounding-box"></i>
+                        </span>
+                        <span class="text-xs font-bold text-slate-200">Biometrik CNN 128-D</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-normal">
+                        Target akurasi &ge; 95% &amp; waktu respon &le; 5 dtk dengan <em>anti-spoofing liveness detection</em>.
+                    </p>
+                </div>
+
+                <!-- Card 2: TOTP + WO -->
+                <div class="p-3.5 rounded-xl bg-slate-900/50 border border-white/10 backdrop-blur-xl hover:border-blue-500/40 transition-all duration-300 shadow-lg shadow-black/20">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <span class="p-1.5 rounded-lg bg-blue-950/60 border border-blue-500/20 text-blue-400 text-sm">
+                            <i class="bi bi-key-fill"></i>
+                        </span>
+                        <span class="text-xs font-bold text-slate-200">Otentikasi TOTP + WO</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-normal">
+                        Token 6-digit RFC 6238 dinamis &amp; validasi tiket Work Order operasional aktif.
+                    </p>
+                </div>
+
+                <!-- Card 3: Geofencing Radius -->
+                <div class="p-3.5 rounded-xl bg-slate-900/50 border border-white/10 backdrop-blur-xl hover:border-emerald-500/40 transition-all duration-300 shadow-lg shadow-black/20">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <span class="p-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/20 text-emerald-400 text-sm">
+                            <i class="bi bi-geo-alt-fill"></i>
+                        </span>
+                        <span class="text-xs font-bold text-slate-200">Spasial Radius &le; 30m</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-normal">
+                        Validasi perimeter GPS rumus Haversine (S-03). Akses ditolak jika jarak &gt; 30m.
+                    </p>
+                </div>
+
+                <!-- Card 4: ISO 27001 Standard -->
+                <div class="p-3.5 rounded-xl bg-slate-900/50 border border-white/10 backdrop-blur-xl hover:border-indigo-500/40 transition-all duration-300 shadow-lg shadow-black/20">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <span class="p-1.5 rounded-lg bg-indigo-950/60 border border-indigo-500/20 text-indigo-400 text-sm">
+                            <i class="bi bi-shield-shaded"></i>
+                        </span>
+                        <span class="text-xs font-bold text-slate-200">Standar ISO 27001</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-normal">
+                        Audit trail kriptografis anti-tamper, deteksi anomali F1-Score &ge; 90%, dan isolasi duress.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Live Status Footer (NOC / IoT Hardware) -->
+            <div class="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="pulse-dot"></span>
+                        <span class="text-emerald-300 font-medium">Flask Server: ONLINE</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                        <span class="text-cyan-300 font-medium">MQTT Relay: READY</span>
+                    </div>
+                </div>
+                <div class="font-mono text-[11px] text-slate-400">
+                    CAPSTONE DESIGN CD-1 &bull; CD-2
                 </div>
             </div>
         </div>
 
-        <!-- Right: Login Form -->
-        <div class="glass-login-right">
-            <div class="mb-3">
-                <div class="d-flex align-items-center justify-content-between mb-1">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="pulse-dot"></span>
-                        <span class="text-uppercase small fw-bold" style="color: #38BDF8; letter-spacing: 1px;">Portal Autentikasi</span>
+        <!-- =========================================================
+             PANEL KANAN: FORMULIR AUTENTIKASI (ROLE SWITCHER & S-04)
+        ========================================================= -->
+        <div class="w-full lg:w-5/12 flex flex-col justify-center items-center p-6 sm:p-10 md:p-12 relative z-20">
+            
+            <!-- Login Card (Smooth Thin Border & Backdrop Blur) -->
+            <div class="w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-7 md:p-8 relative">
+                
+                <!-- SSL 256-BIT Dark Emerald Badge -->
+                <div class="flex items-center justify-between mb-5">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Pusat Autentikasi</span>
                     </div>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" style="font-size: 0.7rem;">
-                        <i class="bi bi-lock-fill me-1"></i> SSL 256-BIT
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/20 text-emerald-400 text-[11px] font-mono font-semibold">
+                        <i class="bi bi-lock-fill"></i> SSL 256-BIT
                     </span>
                 </div>
-                <h3 class="fw-bold text-white mb-1">Masuk ke Sistem</h3>
-                <p class="small text-muted mb-0">Silakan masukkan kredensial Administrator NOC atau Teknisi.</p>
-            </div>
-            
-            <form method="POST">
-                <div class="mb-3">
-                    <label for="username" class="form-label glass-label">
-                        <i class="bi bi-person-badge me-1"></i> Username / ID Akun
-                    </label>
-                    <input id="username" type="text" name="username" class="form-control glass-input" placeholder="Contoh: admin atau TECH-001" required autofocus autocomplete="username">
-                </div>
-                
-                <div class="mb-3">
-                    <label for="password" class="form-label glass-label">
-                        <i class="bi bi-key-fill me-1"></i> Password
-                    </label>
-                    <div class="position-relative">
-                        <input id="password" type="password" name="password" class="form-control glass-input" placeholder="••••••••" required autocomplete="current-password">
-                        <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-white-50 text-decoration-none pe-3 border-0 bg-transparent" onclick="var p = document.getElementById('password'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('bi-eye'); this.querySelector('i').classList.toggle('bi-eye-slash');" aria-label="Lihat Password">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="d-grid gap-2 mt-4">
-                    <button type="submit" id="loginSubmitBtn" class="btn btn-primary glass-btn">
-                        <span>MASUK KE SISTEM</span>
-                        <i class="bi bi-arrow-right ms-1"></i>
+
+                <!-- Title & Description -->
+                <h2 class="text-2xl font-bold text-white tracking-tight mb-1">
+                    Masuk ke Gerbang
+                </h2>
+                <p class="text-xs text-slate-400 mb-5">
+                    Akses terbatas sesuai Hak Istimewa Berbasis Peran (RBAC).
+                </p>
+
+                <!-- Role Switcher Tabs (Admin NOC vs Teknisi Lapangan) -->
+                <div class="grid grid-cols-2 gap-1 p-1 bg-slate-950/70 border border-white/10 rounded-xl mb-5">
+                    <button type="button" id="tabAdmin" onclick="selectRole('ADMIN')"
+                            class="py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md border-0">
+                        <i class="bi bi-person-fill-gear"></i> Administrator NOC
+                    </button>
+                    <button type="button" id="tabWorker" onclick="selectRole('WORKER')"
+                            class="py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-slate-400 hover:text-white border-0 bg-transparent">
+                        <i class="bi bi-person-badge"></i> Teknisi Lapangan
                     </button>
                 </div>
 
-                <div class="text-center mt-3 pt-2">
-                    <span class="text-muted small" style="font-size: 0.75rem;">
-                        <i class="bi bi-shield-check me-1 text-success"></i> Sesi terenkripsi & tercatat dalam Audit Trail NOC
+                <!-- Login Throttling Alert Banner (Spesifikasi S-04) -->
+                {% if is_locked %}
+                <div id="throttlingBanner" class="mb-5 p-3.5 rounded-xl bg-red-950/70 border border-red-500/40 text-red-200 text-xs shadow-lg animate-pulse">
+                    <div class="flex items-center gap-2 font-bold text-red-400 mb-1">
+                        <i class="bi bi-shield-x text-sm"></i>
+                        <span>AKSES DIBLOKIR SEMENTARA (SPESIFIKASI S-04)</span>
+                    </div>
+                    <div>Terdeteksi 3x percobaan login gagal. Demi keamanan Zero Trust, silakan tunggu:</div>
+                    <div class="mt-2 text-center text-lg font-mono font-extrabold text-red-300">
+                        <span id="countdownTimer">{{ seconds_left|default(60) }}</span> detik
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Login Form -->
+                <form method="POST" action="{{ url_for('login') }}" id="loginForm" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                    <!-- Username Input -->
+                    <div>
+                        <label for="usernameInput" class="block text-xs font-semibold text-slate-300 mb-1.5">
+                            <span id="usernameLabelText">Username Admin NOC</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 text-sm">
+                                <i class="bi bi-person"></i>
+                            </span>
+                            <input type="text" name="username" id="usernameInput" required autofocus
+                                   class="w-full pl-10 pr-3 py-2.5 bg-slate-950/80 border border-slate-700/70 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 outline-none rounded-xl text-sm text-white placeholder-slate-500 transition-all font-mono"
+                                   placeholder="Contoh: admin">
+                        </div>
+                    </div>
+
+                    <!-- Password Input with Toggle -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="passwordInput" class="block text-xs font-semibold text-slate-300">
+                                Kata Sandi (Password)
+                            </label>
+                            <a href="javascript:void(0)" onclick="openCredentialModal()" class="text-[11px] text-cyan-400 hover:text-cyan-300 transition-colors">
+                                Lupa Kredensial?
+                            </a>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 text-sm">
+                                <i class="bi bi-key"></i>
+                            </span>
+                            <input type="password" name="password" id="passwordInput" required
+                                   class="w-full pl-10 pr-10 py-2.5 bg-slate-950/80 border border-slate-700/70 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 outline-none rounded-xl text-sm text-white placeholder-slate-500 transition-all font-mono"
+                                   placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;">
+                            <button type="button" onclick="togglePasswordVisibility()" aria-label="Lihat Password"
+                                    class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-200 transition-colors">
+                                <i class="bi bi-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Remember Device & Security Indicator -->
+                    <div class="flex items-center justify-between pt-1">
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                            <input type="checkbox" name="remember" class="w-3.5 h-3.5 rounded bg-slate-950 border-slate-700 text-cyan-500 focus:ring-0 focus:ring-offset-0">
+                            <span>Ingat perangkat ini</span>
+                        </label>
+                        <span class="text-[11px] text-slate-400 font-mono">
+                            {% if attempts_left is defined and attempts_left < 3 %}
+                                <span class="text-amber-400 font-bold">Sisa: {{ attempts_left }}x coba</span>
+                            {% else %}
+                                <span>Maks 3x Gagal (S-04)</span>
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="btnSubmitLogin"
+                            {% if is_locked %}disabled{% endif %}
+                            class="w-full py-3 px-4 mt-2 rounded-xl bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-sm font-bold tracking-wide shadow-lg shadow-cyan-950/40 transition-all duration-200 flex items-center justify-center gap-2 border-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                        <span>MASUK KE SISTEM</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </form>
+
+                <!-- Bottom Disclaimer -->
+                <div class="mt-6 pt-4 border-t border-white/10 text-center">
+                    <span class="text-[11px] text-slate-400 inline-flex items-center gap-1.5">
+                        <i class="bi bi-shield-check text-emerald-400"></i>
+                        Audit trail aktif &bull; Seluruh aktivitas dicatat sesuai ISO 27001
                     </span>
                 </div>
-            </form>
+            </div>
+
         </div>
-        
+
     </div>
-</div>
-{% endblock %}
+
+    <!-- MODAL LUPA KREDENSIAL (SOP RESMI) -->
+    <div id="credentialHelpModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-white/10 rounded-2xl max-w-md w-full p-6 text-slate-200 shadow-2xl relative">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                <h5 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="bi bi-info-circle text-cyan-400"></i> Prosedur Pemulihan Kredensial
+                </h5>
+                <button type="button" onclick="closeCredentialModal()" class="text-slate-400 hover:text-white text-lg">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
+                <p>Sesuai standar operasional <strong>Zero Trust &amp; ISO 27001</strong> pada BTS Access Control:</p>
+                <div class="p-3 bg-slate-950/60 rounded-xl border border-white/10">
+                    <div class="font-bold text-cyan-300 mb-1">Untuk Teknisi Lapangan:</div>
+                    <div>Harap hubungi <strong>Supervisor Operasi</strong> atau Administrator NOC untuk reset kata sandi dan registrasi ulang token 2FA TOTP.</div>
+                </div>
+                <div class="p-3 bg-slate-950/60 rounded-xl border border-white/10">
+                    <div class="font-bold text-blue-300 mb-1">Untuk Administrator NOC:</div>
+                    <div>Jalankan script bootstrap lokal mesin: <code>python create_admin.py</code> melalui konsol server fisik BTS.</div>
+                </div>
+            </div>
+            <div class="mt-5 text-right">
+                <button type="button" onclick="closeCredentialModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors border-0">
+                    Tutup Panduan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Role Switcher Interaction
+    function selectRole(role) {
+        const tabAdmin = document.getElementById('tabAdmin');
+        const tabWorker = document.getElementById('tabWorker');
+        const labelText = document.getElementById('usernameLabelText');
+        const inputField = document.getElementById('usernameInput');
+
+        if (role === 'ADMIN') {
+            tabAdmin.className = "py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md border-0";
+            tabWorker.className = "py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-slate-400 hover:text-white border-0 bg-transparent";
+            labelText.textContent = "Username Administrator NOC";
+            inputField.placeholder = "Contoh: admin";
+        } else {
+            tabWorker.className = "py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md border-0";
+            tabAdmin.className = "py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 text-slate-400 hover:text-white border-0 bg-transparent";
+            labelText.textContent = "ID Teknisi Lapangan / NIK";
+            inputField.placeholder = "Contoh: TECH-001";
+        }
+    }
+
+    // Show/Hide Password
+    function togglePasswordVisibility() {
+        const pwdInput = document.getElementById('passwordInput');
+        const eyeIcon = document.getElementById('eyeIcon');
+        if (pwdInput.type === 'password') {
+            pwdInput.type = 'text';
+            eyeIcon.className = 'bi bi-eye-slash';
+        } else {
+            pwdInput.type = 'password';
+            eyeIcon.className = 'bi bi-eye';
+        }
+    }
+
+    // Credential Help Modal
+    function openCredentialModal() {
+        document.getElementById('credentialHelpModal').classList.remove('hidden');
+    }
+    function closeCredentialModal() {
+        document.getElementById('credentialHelpModal').classList.add('hidden');
+    }
+
+    // Live Countdown Timer for Lockout (S-04)
+    (function() {
+        const countdownEl = document.getElementById('countdownTimer');
+        const submitBtn = document.getElementById('btnSubmitLogin');
+        if (!countdownEl) return;
+
+        let seconds = parseInt(countdownEl.textContent.trim(), 10) || 60;
+        const interval = setInterval(function() {
+            seconds--;
+            if (seconds <= 0) {
+                clearInterval(interval);
+                countdownEl.textContent = '0';
+                const banner = document.getElementById('throttlingBanner');
+                if (banner) {
+                    banner.classList.remove('bg-red-950/70', 'border-red-500/40');
+                    banner.classList.add('bg-emerald-950/70', 'border-emerald-500/30');
+                    banner.innerHTML = '<div class="text-emerald-300 font-bold text-center py-1">Kunci dibuka kembali. Anda dapat mencoba login sekarang.</div>';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                }
+            } else {
+                countdownEl.textContent = seconds;
+            }
+        }, 1000);
+    })();
+    </script>
+</body>
+</html>

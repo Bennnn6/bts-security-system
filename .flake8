@@ -7,4 +7,5 @@ exclude =
     .venv,
     venv,
     migrations,
+    scratch,
     instance

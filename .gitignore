@@ -67,3 +67,9 @@ app/static/uploads/*
 # Dumps & Backup Venvs
 semua_kode.txt
 .venv_backup*
+
+# Added for CD-1 & CD-2 CI/CD and Temporary Artifacts
+*.sqlite*
+buat_word.py
+flowchart*.txt
+*.docx

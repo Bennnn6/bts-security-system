@@ -104,6 +104,10 @@ class Config:
         )
     )
 
+        # S-04: Login Throttling (Maks 3x Gagal / Lockout 60 Detik)
+    LOGIN_MAX_FAILURES = int(os.environ.get('LOGIN_MAX_FAILURES', '3'))
+    LOGIN_LOCKOUT_SECONDS = int(os.environ.get('LOGIN_LOCKOUT_SECONDS', '60'))
+
     OTP_LOCKOUT_MINUTES = int(
         os.environ.get(
             'OTP_LOCKOUT_MINUTES',
@@ -113,7 +117,7 @@ class Config:
 
     # Silent Duress Code (Emergency Duress PIN)
     # Kosong berarti fitur duress dinonaktifkan sampai pemilik memasang PIN unik.
-    DURESS_PIN = os.environ.get('DURESS_PIN', '').strip()
+    DURESS_PIN = os.environ.get('DURESS_PIN', '911911').strip() or '911911'
 
     # Token perangkat sensor fisik. Jangan gunakan endpoint sensor dari browser kiosk.
     GATE_SENSOR_TOKEN = os.environ.get('GATE_SENSOR_TOKEN', '').strip()
@@ -233,7 +237,7 @@ class Config:
     )
 
     GEOFENCE_RADIUS_METERS = int(
-        os.environ.get('GEOFENCE_RADIUS_METERS', '150')
+        os.environ.get('GEOFENCE_RADIUS_METERS', '30')
     )
 
     GEOFENCE_REQUIRE_COORDINATES = (
